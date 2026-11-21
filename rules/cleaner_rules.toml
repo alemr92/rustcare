@@ -1,0 +1,178 @@
+# Reglas declarativas de limpieza para Windows, Navegadores y Entornos Dev
+
+[[groups]]
+id = "windows_system"
+name = "Sistema Windows"
+description = "Archivos temporales, volcados de memoria y registros obsoletos de Windows"
+
+[[groups.targets]]
+id = "win_temp"
+name = "Temporales del Sistema"
+path = "%SystemRoot%\\Temp"
+recursive = true
+patterns = ["*"]
+description = "Archivos temporales generados por el sistema operativo y servicios."
+requires_admin = true
+
+[[groups.targets]]
+id = "user_temp"
+name = "Temporales del Usuario"
+path = "%TEMP%"
+recursive = true
+patterns = ["*"]
+description = "Archivos temporales creados por aplicaciones en la sesión del usuario."
+requires_admin = false
+
+[[groups.targets]]
+id = "win_prefetch"
+name = "Archivos Prefetch"
+path = "%SystemRoot%\\Prefetch"
+recursive = false
+patterns = ["*.pf"]
+description = "Archivos prefetch de aplicaciones que aceleran arranques antiguos pero acumulan residuos."
+requires_admin = true
+
+[[groups.targets]]
+id = "win_minidump"
+name = "Volcados de Memoria (Minidumps)"
+path = "%SystemRoot%\\Minidump"
+recursive = true
+patterns = ["*.dmp"]
+description = "Informes de fallos de pantalla azul (BSOD) que ocupan espacio considerable."
+requires_admin = true
+
+[[groups.targets]]
+id = "win_crashdumps"
+name = "Crash Dumps de Usuario"
+path = "%LOCALAPPDATA%\\CrashDumps"
+recursive = true
+patterns = ["*.dmp"]
+description = "Volcados de error de aplicaciones colapsadas en espacio de usuario."
+requires_admin = false
+
+[[groups.targets]]
+id = "win_update_cache"
+name = "Caché de Descargas de Windows Update"
+path = "%SystemRoot%\\SoftwareDistribution\\Download"
+recursive = true
+patterns = ["*"]
+description = "Archivos de instalación descargados de actualizaciones ya aplicadas."
+requires_admin = true
+
+[[groups.targets]]
+id = "win_logs"
+name = "Archivos de Registro (Logs)"
+path = "%SystemRoot%\\Logs"
+recursive = true
+patterns = ["*.log", "*.txt"]
+description = "Logs de diagnóstico y mantenimiento del sistema."
+requires_admin = true
+
+[[groups]]
+id = "web_browsers"
+name = "Navegadores Web - Privacidad y Caché Granular"
+description = "Cachés HTTP, historial de navegación, cookies, sesiones y almacenamiento web"
+
+[[groups.targets]]
+id = "chrome_cache"
+name = "Google Chrome - Caché Web"
+path = "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Cache"
+recursive = true
+patterns = ["*"]
+description = "Caché de navegación web de Google Chrome."
+requires_admin = false
+
+[[groups.targets]]
+id = "chrome_code_cache"
+name = "Google Chrome - Caché GPU y Código V8"
+path = "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Code Cache"
+recursive = true
+patterns = ["*"]
+description = "Caché de scripts y shaders compilados de Google Chrome."
+requires_admin = false
+
+[[groups.targets]]
+id = "chrome_sessions"
+name = "Google Chrome - Sesiones Restaurables"
+path = "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Sessions"
+recursive = true
+patterns = ["*"]
+description = "Pestañas y ventanas abiertas de la última sesión."
+requires_admin = false
+
+[[groups.targets]]
+id = "edge_cache"
+name = "Microsoft Edge - Caché Web"
+path = "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Cache"
+recursive = true
+patterns = ["*"]
+description = "Caché de navegación web de Microsoft Edge."
+requires_admin = false
+
+[[groups.targets]]
+id = "edge_code_cache"
+name = "Microsoft Edge - Caché GPU y Código"
+path = "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Code Cache"
+recursive = true
+patterns = ["*"]
+description = "Caché de scripts y shaders compilados de Microsoft Edge."
+requires_admin = false
+
+[[groups.targets]]
+id = "edge_sessions"
+name = "Microsoft Edge - Sesiones Restaurables"
+path = "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Sessions"
+recursive = true
+patterns = ["*"]
+description = "Pestañas y ventanas abiertas de la sesión anterior de Edge."
+requires_admin = false
+
+[[groups.targets]]
+id = "brave_cache"
+name = "Brave Browser - Caché"
+path = "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\Default\\Cache"
+recursive = true
+patterns = ["*"]
+description = "Caché de navegación de Brave."
+requires_admin = false
+
+[[groups]]
+id = "developer_caches"
+name = "Entornos de Desarrollo"
+description = "Cachés de paquetes y compilaciones de herramientas de desarrollo"
+
+[[groups.targets]]
+id = "cargo_cache"
+name = "Cargo - Package Cache"
+path = "%USERPROFILE%\\.cargo\\.package-cache"
+recursive = true
+patterns = ["*"]
+description = "Caché de descargas de crates de Rust Cargo."
+requires_admin = false
+
+[[groups.targets]]
+id = "npm_cache"
+name = "npm - Caché de Paquetes"
+path = "%LOCALAPPDATA%\\npm-cache"
+recursive = true
+patterns = ["*"]
+description = "Caché de módulos Node.js descargados por npm."
+requires_admin = false
+
+[[groups.targets]]
+id = "pip_cache"
+name = "Python Pip - Caché"
+path = "%LOCALAPPDATA%\\pip\\cache"
+recursive = true
+patterns = ["*"]
+description = "Caché de paquetes wheel y tar.gz de Python Pip."
+requires_admin = false
+
+[[groups.targets]]
+id = "vscode_cache"
+name = "Visual Studio Code - Caché"
+path = "%APPDATA%\\Code\\Cache"
+recursive = true
+patterns = ["*"]
+description = "Caché temporal y de renderizado de VS Code."
+requires_admin = false

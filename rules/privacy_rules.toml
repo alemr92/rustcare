@@ -1,0 +1,73 @@
+# Reglas declarativas de Privacidad y Telemetría de Windows 10/11
+
+[[settings]]
+id = "disable_advertising_id"
+category = "Publicidad"
+name = "Deshabilitar ID de Publicidad"
+description = "Impide que las aplicaciones usen el ID publicitario para mostrar anuncios personalizados basados en su uso."
+hive = "HKCU"
+path = "Software\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo"
+key = "Enabled"
+value_type = "DWORD"
+recommended_value = 0
+default_windows_value = 1
+
+[[settings]]
+id = "disable_activity_feed"
+category = "Historial"
+name = "Deshabilitar Historial de Actividades (Timeline)"
+description = "Evita la recolección continuada de las aplicaciones y documentos abiertos para la línea de tiempo."
+hive = "HKLM"
+path = "SOFTWARE\\Policies\\Microsoft\\Windows\\System"
+key = "EnableActivityFeed"
+value_type = "DWORD"
+recommended_value = 0
+default_windows_value = 1
+
+[[settings]]
+id = "disable_activity_publish"
+category = "Historial"
+name = "Evitar Envío del Historial a la Nube"
+description = "Bloquea la sincronización del historial de actividades con la cuenta Microsoft en la nube."
+hive = "HKLM"
+path = "SOFTWARE\\Policies\\Microsoft\\Windows\\System"
+key = "PublishUserActivities"
+value_type = "DWORD"
+recommended_value = 0
+default_windows_value = 1
+
+[[settings]]
+id = "minimize_telemetry"
+category = "Telemetría"
+name = "Minimizar Nivel de Telemetría"
+description = "Establece el nivel de diagnóstico y telemetría de Windows al nivel mínimo de seguridad / datos requeridos."
+hive = "HKLM"
+path = "SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection"
+key = "AllowTelemetry"
+value_type = "DWORD"
+recommended_value = 0
+default_windows_value = 3
+
+[[settings]]
+id = "disable_bing_start_search"
+category = "Búsqueda"
+name = "Deshabilitar Búsquedas Bing en Menú Inicio"
+description = "Evita que las búsquedas locales en el menú inicio transmitan consultas a los servidores web de Bing."
+hive = "HKCU"
+path = "Software\\Microsoft\\Windows\\CurrentVersion\\Search"
+key = "BingSearchEnabled"
+value_type = "DWORD"
+recommended_value = 0
+default_windows_value = 1
+
+[[settings]]
+id = "disable_cortana_consent"
+category = "Búsqueda"
+name = "Deshabilitar Consentimiento de Cortana"
+description = "Desactiva la integración y recopilación de búsquedas por parte del asistente Cortana."
+hive = "HKCU"
+path = "Software\\Microsoft\\Windows\\CurrentVersion\\Search"
+key = "CortanaConsent"
+value_type = "DWORD"
+recommended_value = 0
+default_windows_value = 1

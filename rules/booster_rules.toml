@@ -1,0 +1,54 @@
+# Reglas declarativas de Aceleración y Modo Turbo (Servicios y Memoria)
+
+[booster]
+enable_ram_clean = true
+enable_service_optimization = true
+
+[[services]]
+name = "DiagTrack"
+display_name = "Connected User Experiences and Telemetry"
+description = "Servicio de telemetría y diagnósticos en segundo plano de Microsoft."
+safe_to_stop = true
+recommended_action = "Stop"
+
+[[services]]
+name = "dmwappushservice"
+display_name = "Device Management Wireless Application Protocol (WAP) Push"
+description = "Enrutamiento de mensajes push para diagnósticos y gestión de dispositivos."
+safe_to_stop = true
+recommended_action = "Stop"
+
+[[services]]
+name = "MapsBroker"
+display_name = "Downloaded Maps Manager"
+description = "Servicio para gestionar descargas y actualizaciones de mapas sin conexión."
+safe_to_stop = true
+recommended_action = "Stop"
+
+[[services]]
+name = "RetailDemo"
+display_name = "Retail Demo Service"
+description = "Controla la actividad del dispositivo en modo demostración comercial de tienda."
+safe_to_stop = true
+recommended_action = "Stop"
+
+[[services]]
+name = "XblAuthManager"
+display_name = "Xbox Live Auth Manager"
+description = "Autenticación para aplicaciones de Xbox Live (innecesario para uso productivo o fuera de juegos Xbox)."
+safe_to_stop = true
+recommended_action = "Stop"
+
+[[services]]
+name = "XblGameSave"
+display_name = "Xbox Live Game Save Service"
+description = "Sincronización de datos de guardado en la nube de Xbox Live."
+safe_to_stop = true
+recommended_action = "Stop"
+
+[[services]]
+name = "XboxNetApiSvc"
+display_name = "Xbox Live Networking Service"
+description = "Soporte de red para la plataforma de juegos Xbox Live."
+safe_to_stop = true
+recommended_action = "Stop"
