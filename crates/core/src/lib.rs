@@ -26,7 +26,7 @@ pub use booster::{BoosterEngine, BoosterStatus, RamCleanResult};
 pub use cleaner::{CleanerEngine, FullCleanResult, FullScanResult, ScannedFile, TargetCleanResult, TargetScanResult};
 pub use config::{ConfigManager, UserPreferences};
 pub use context_menu::{ContextMenuItem, ContextMenuManager};
-pub use disk_analyzer::{DiskAnalysisResult, DiskAnalyzer, DiskEntryInfo};
+pub use disk_analyzer::{DiskAnalysisResult, DiskAnalyzer, DiskEntryInfo, TreemapItem};
 pub use drivers::{DeviceDriverInfo, DriverManager};
 pub use duplicates::{DuplicateFinder, DuplicateGroup, DuplicateScanResult};
 pub use empty_folders::{EmptyFolderItem, EmptyFoldersFinder};

@@ -1,9 +1,9 @@
-//! Vista de Herramientas Completas (Toolbox PRO)
+//! Vista de Herramientas Completas (Toolbox PRO) con Diagrama WizTree
 use crate::theme::RustCareTheme;
-use eframe::egui::{self, ProgressBar, RichText, ScrollArea, Ui};
+use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Pos2, ProgressBar, Rect, RichText, ScrollArea, Sense, Stroke, StrokeKind, Ui, Vec2};
 use rustcare_core::cleaner::CleanerEngine;
 use rustcare_core::context_menu::{ContextMenuItem, ContextMenuManager};
-use rustcare_core::disk_analyzer::{DiskAnalysisResult, DiskAnalyzer};
+use rustcare_core::disk_analyzer::{DiskAnalysisResult, DiskAnalyzer, TreemapItem};
 use rustcare_core::drivers::{DeviceDriverInfo, DriverManager};
 use rustcare_core::duplicates::{DuplicateFinder, DuplicateScanResult};
 use rustcare_core::empty_folders::{EmptyFolderItem, EmptyFoldersFinder};
@@ -128,7 +128,7 @@ impl ToolboxView {
                     (ToolboxTab::Uninstaller, "📦 Desinstalador"),
                     (ToolboxTab::DriverBooster, "🚗 Driver Booster"),
                     (ToolboxTab::Duplicates, "👥 Duplicados"),
-                    (ToolboxTab::DiskAnalyzer, "📊 Analizador Disco"),
+                    (ToolboxTab::DiskAnalyzer, "📊 Analizador WizTree"),
                     (ToolboxTab::LargeFiles, "🐘 Archivos Gigantes"),
                     (ToolboxTab::EmptyFolders, "📂 Carpetas Vacías"),
                     (ToolboxTab::Shortcuts, "🔗 Accesos Directos"),
@@ -302,20 +302,186 @@ impl ToolboxView {
         }
     }
 
+    /// Color característico según el tipo de archivo (Estilo WizTree / WinDirStat)
+    fn get_file_color(ext: &str) -> Color32 {
+        match ext {
+            "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "m4v" => Color32::from_rgb(168, 85, 247), // Púrpura (Videos)
+            "zip" | "rar" | "7z" | "tar" | "gz" | "iso" | "vhd" | "img" => Color32::from_rgb(239, 68, 68), // Rojo (Comprimidos/ISOs)
+            "exe" | "msi" | "dll" | "sys" => Color32::from_rgb(34, 197, 94), // Verde (Ejecutables/Sistema)
+            "pdf" | "docx" | "xlsx" | "pptx" | "txt" | "db" | "sqlite" => Color32::from_rgb(59, 130, 246), // Azul (Documentos/DB)
+            "png" | "jpg" | "jpeg" | "webp" | "gif" | "psd" => Color32::from_rgb(245, 158, 11), // Ámbar (Imágenes)
+            "rs" | "cpp" | "c" | "js" | "ts" | "py" | "json" | "toml" => Color32::from_rgb(6, 182, 212), // Cian (Código)
+            _ => Color32::from_rgb(100, 116, 139), // Gris pizarra (Otros)
+        }
+    }
+
+    /// Renderiza recursivamente el Treemap proporcional de bloques estilo WizTree
+    fn render_treemap_recursive(
+        painter: &egui::Painter,
+        rect: Rect,
+        items: &[TreemapItem],
+        total_size: u64,
+        depth: usize,
+        hover_pos: Option<Pos2>,
+        hovered_item: &mut Option<TreemapItem>,
+    ) {
+        if items.is_empty() || total_size == 0 || rect.width() < 2.0 || rect.height() < 2.0 {
+            return;
+        }
+
+        if items.len() == 1 {
+            let item = &items[0];
+            let color = Self::get_file_color(&item.extension);
+            let is_hovered = hover_pos.map(|p| rect.contains(p)).unwrap_or(false);
+
+            if is_hovered {
+                *hovered_item = Some(item.clone());
+            }
+
+            let stroke = if is_hovered {
+                Stroke::new(2.0_f32, Color32::WHITE)
+            } else {
+                Stroke::new(1.0_f32, Color32::from_black_alpha(150))
+            };
+
+            painter.rect_filled(rect, CornerRadius::same(2), color);
+            painter.rect_stroke(rect, CornerRadius::same(2), stroke, StrokeKind::Inside);
+
+            if rect.width() > 65.0 && rect.height() > 22.0 {
+                let name_preview = if item.name.len() > 16 {
+                    format!("{}...", &item.name[..13])
+                } else {
+                    item.name.clone()
+                };
+                painter.text(
+                    rect.min + Vec2::new(4.0, 3.0),
+                    Align2::LEFT_TOP,
+                    name_preview,
+                    FontId::proportional(11.0),
+                    Color32::WHITE,
+                );
+            }
+            return;
+        }
+
+        // Bipartición proporcional
+        let half = items.len() / 2;
+        let left_items = &items[..half];
+        let right_items = &items[half..];
+
+        let left_size: u64 = left_items.iter().map(|i| i.size_bytes).sum();
+        let right_size: u64 = right_items.iter().map(|i| i.size_bytes).sum();
+        let total = left_size + right_size;
+
+        if total == 0 {
+            return;
+        }
+
+        let ratio = left_size as f32 / total as f32;
+
+        let (left_rect, right_rect) = if depth % 2 == 0 {
+            // División vertical
+            let split_x = rect.min.x + rect.width() * ratio;
+            (
+                Rect::from_min_max(rect.min, Pos2::new(split_x, rect.max.y)),
+                Rect::from_min_max(Pos2::new(split_x, rect.min.y), rect.max),
+            )
+        } else {
+            // División horizontal
+            let split_y = rect.min.y + rect.height() * ratio;
+            (
+                Rect::from_min_max(rect.min, Pos2::new(rect.max.x, split_y)),
+                Rect::from_min_max(Pos2::new(rect.min.x, split_y), rect.max),
+            )
+        };
+
+        Self::render_treemap_recursive(painter, left_rect, left_items, left_size, depth + 1, hover_pos, hovered_item);
+        Self::render_treemap_recursive(painter, right_rect, right_items, right_size, depth + 1, hover_pos, hovered_item);
+    }
+
     fn render_disk_analyzer(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.label("Directorio raíz:");
             ui.text_edit_singleline(&mut self.disk_path);
-            if ui.button("📊 Analizar Estilo WizTree").clicked() {
+            if ui.button("📊 Analizar y Generar Treemap (WizTree)").clicked() {
                 self.disk_result = Some(DiskAnalyzer::analyze_directory(&self.disk_path));
             }
         });
-        ui.add_space(10.0);
+        ui.add_space(8.0);
 
         if let Some(res) = &self.disk_result {
-            ui.label(RichText::new(format!("Tamaño total en '{}': {}", res.root_path.display(), CleanerEngine::format_bytes(res.total_size_bytes))).strong().color(RustCareTheme::ACCENT_CYAN));
-            ui.add_space(8.0);
+            ui.label(
+                RichText::new(format!(
+                    "Tamaño total en '{}': {}",
+                    res.root_path.display(),
+                    CleanerEngine::format_bytes(res.total_size_bytes)
+                ))
+                .strong()
+                .color(RustCareTheme::ACCENT_CYAN),
+            );
+            ui.add_space(6.0);
 
+            // DIAGRAMA TREEMAP VISUAL ESTILO WIZTREE
+            ui.label(RichText::new("🗺️ Mapa Visual de Distribución de Disco (WizTree Treemap):").strong());
+            ui.add_space(4.0);
+
+            let canvas_width = ui.available_width().max(400.0);
+            let canvas_height = 260.0;
+            let (response, painter) = ui.allocate_painter(Vec2::new(canvas_width, canvas_height), Sense::hover());
+            let bounding_rect = response.rect;
+
+            let mut hovered_item: Option<TreemapItem> = None;
+            let treemap_total: u64 = res.treemap_items.iter().map(|i| i.size_bytes).sum();
+
+            if !res.treemap_items.is_empty() && treemap_total > 0 {
+                Self::render_treemap_recursive(
+                    &painter,
+                    bounding_rect,
+                    &res.treemap_items,
+                    treemap_total,
+                    0,
+                    response.hover_pos(),
+                    &mut hovered_item,
+                );
+            } else {
+                painter.rect_filled(bounding_rect, CornerRadius::same(6), RustCareTheme::CARD_BG);
+                painter.text(
+                    bounding_rect.center(),
+                    Align2::CENTER_CENTER,
+                    "No hay archivos grandes suficientes para diagramar el treemap",
+                    FontId::proportional(14.0),
+                    RustCareTheme::TEXT_MUTED,
+                );
+            }
+
+            // Tooltip flotante interactivo al pasar el cursor sobre un bloque
+            if let Some(item) = hovered_item {
+                response.show_tooltip_text(format!(
+                    "📄 {}\nTamaño: {}\nRuta: {}",
+                    item.name,
+                    CleanerEngine::format_bytes(item.size_bytes),
+                    item.path.display()
+                ));
+            }
+
+            // Leyenda de colores estilo WizTree
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("🟣 Vídeos").color(Color32::from_rgb(168, 85, 247)).small());
+                ui.label(RichText::new("🔴 Comprimidos/ISO").color(Color32::from_rgb(239, 68, 68)).small());
+                ui.label(RichText::new("🟢 Ejecutables/DLL").color(Color32::from_rgb(34, 197, 94)).small());
+                ui.label(RichText::new("🔵 Documentos/DB").color(Color32::from_rgb(59, 130, 246)).small());
+                ui.label(RichText::new("🟡 Imágenes").color(Color32::from_rgb(245, 158, 11)).small());
+                ui.label(RichText::new("🌐 Código Dev").color(Color32::from_rgb(6, 182, 212)).small());
+                ui.label(RichText::new("⚪ Otros").color(Color32::from_rgb(100, 116, 139)).small());
+            });
+
+            ui.add_space(10.0);
+            ui.separator();
+            ui.add_space(6.0);
+
+            // Tabla jerárquica con porcentajes
+            ui.label(RichText::new("Explorador de Carpetas Más Pesadas:").strong());
             ScrollArea::vertical().show(ui, |ui| {
                 egui::Frame::NONE
                     .fill(RustCareTheme::CARD_BG)
