@@ -150,7 +150,7 @@ impl eframe::App for RustCareApp {
                             .color(RustCareTheme::ACCENT_PURPLE),
                     );
                     ui.label(
-                        RichText::new("• Windows Suite")
+                        RichText::new("• Cross-Platform Suite")
                             .small()
                             .color(RustCareTheme::TEXT_DIM),
                     );

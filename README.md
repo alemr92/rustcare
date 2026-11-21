@@ -1,16 +1,17 @@
 # RustCare
 
-A lightweight, zero-telemetry, zero-admin Windows maintenance and optimization suite built in Rust.
+A high-performance, zero-telemetry, zero-admin system maintenance and optimization suite built in Rust. Multiplatform support for Windows, Linux, and macOS.
 
 ## Highlights
 
-- **Zero Mandatory Elevation**: Operates fully within standard user integrity without intrusive UAC prompts.
+- **Multiplatform Architecture**: Runs natively on Windows 10/11, Linux (systemd/XDG), and macOS (Apple Silicon & Intel).
+- **Zero Mandatory Elevation**: Operates fully within standard user integrity without intrusive UAC, sudo, or privilege elevation requirements.
 - **1-Click Care**: Comprehensive scan and repair covering temporary junk, browser privacy, working sets, and security persistence checks.
-- **Clean Engine**: Fast parallel cleaning of system cache, crash dumps, developer caches (Cargo, npm, pip), and browser data.
-- **Turbo Boost & Working Set Optimizer**: Safe Win32 `K32EmptyWorkingSet` memory compaction and DNS cache flushing.
+- **Clean Engine**: Fast parallel cleaning of system cache, crash dumps, developer caches (Cargo, npm, pip, Gradle, NuGet), and browser data.
+- **Turbo Boost & Working Set Optimizer**: Safe Win32 `K32EmptyWorkingSet` memory compaction on Windows, kernel cache management on Linux, and native `purge` on macOS, alongside automated DNS cache flushing.
 - **WizTree-Style Treemap**: Interactive, responsive disk space visualizer with extension color mapping.
 - **Security Shield**: Heuristic scanner checking for processes running from temporary paths, IFEO debugger hijacks, and registry autostarts.
-- **Toolbox PRO**: Includes driver hardware auditor, duplicate finder (BLAKE3), large files filter, empty folders cleaner, broken `.lnk` shortcut fixer, secure shredder, context menu manager, and WinGet updater.
+- **Toolbox PRO**: Includes driver hardware auditor, duplicate finder (BLAKE3), large files filter, empty folders cleaner, broken shortcut fixer, secure shredder, context menu manager, and package updater (WinGet / Flatpak / Homebrew).
 
 ## Architecture
 
@@ -22,14 +23,13 @@ The project is structured as a Cargo workspace:
 ## Building from Source
 
 Prerequisites:
-- Windows 10 or 11
-- Rust toolchain (`stable-x86_64-pc-windows-msvc`)
+- Rust toolchain (`stable` channel)
 
-```powershell
+```bash
 # Build the release binary
 cargo build --release -p rustcare-gui
 
-# Run unit tests
+# Run unit tests across the workspace
 cargo test --workspace
 ```
 

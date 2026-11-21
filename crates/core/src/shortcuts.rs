@@ -88,14 +88,25 @@ impl ShortcutCleaner {
     pub fn default_shortcut_directories() -> Vec<PathBuf> {
         let mut dirs = Vec::new();
 
-        if let Ok(userprofile) = env::var("USERPROFILE") {
-            dirs.push(PathBuf::from(&userprofile).join("Desktop"));
+        #[cfg(windows)]
+        {
+            if let Ok(userprofile) = env::var("USERPROFILE") {
+                dirs.push(PathBuf::from(&userprofile).join("Desktop"));
+            }
+            if let Ok(public) = env::var("PUBLIC") {
+                dirs.push(PathBuf::from(&public).join("Desktop"));
+            }
+            if let Ok(appdata) = env::var("APPDATA") {
+                dirs.push(PathBuf::from(&appdata).join("Microsoft").join("Windows").join("Start Menu").join("Programs"));
+            }
         }
-        if let Ok(public) = env::var("PUBLIC") {
-            dirs.push(PathBuf::from(&public).join("Desktop"));
-        }
-        if let Ok(appdata) = env::var("APPDATA") {
-            dirs.push(PathBuf::from(&appdata).join("Microsoft").join("Windows").join("Start Menu").join("Programs"));
+
+        #[cfg(not(windows))]
+        {
+            if let Ok(home) = env::var("HOME") {
+                dirs.push(PathBuf::from(&home).join("Desktop"));
+                dirs.push(PathBuf::from(&home).join(".local/share/applications"));
+            }
         }
 
         dirs.into_iter().filter(|d| d.exists()).collect()

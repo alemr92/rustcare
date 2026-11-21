@@ -1,7 +1,8 @@
-//! Centro de Rescate (Rescue Center) y Restauración de Copias del Registro
+//! Centro de Rescate (Rescue Center) Multiplataforma
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+#[cfg_attr(not(windows), allow(unused_imports))]
 use std::process::Command;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,15 +16,24 @@ pub struct BackupEntry {
 pub struct RescueCenter;
 
 impl RescueCenter {
-    /// Directorio oficial de backups de RustCare: `%LOCALAPPDATA%\RustCare\backups\`
+    /// Directorio oficial de backups de RustCare
     pub fn backup_directory() -> PathBuf {
-        let base = std::env::var("LOCALAPPDATA")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("C:\\ProgramData"));
-        base.join("RustCare").join("backups")
+        #[cfg(windows)]
+        {
+            let base = std::env::var("LOCALAPPDATA")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| PathBuf::from("C:\\ProgramData"));
+            base.join("RustCare").join("backups")
+        }
+
+        #[cfg(not(windows))]
+        {
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+            PathBuf::from(home).join(".local/share/rustcare/backups")
+        }
     }
 
-    /// Lista todas las copias de seguridad de registro generadas antes de optimizaciones
+    /// Lista todas las copias de seguridad generadas antes de optimizaciones
     pub fn list_backups() -> Vec<BackupEntry> {
         let mut backups = Vec::new();
         let dir = Self::backup_directory();
@@ -31,7 +41,8 @@ impl RescueCenter {
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.filter_map(|e| e.ok()) {
                 let path = entry.path();
-                if path.extension().map(|ext| ext.to_string_lossy().to_lowercase()) == Some("reg".to_string()) {
+                let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase());
+                if ext == Some("reg".to_string()) || ext == Some("json".to_string()) {
                     if let Ok(meta) = entry.metadata() {
                         let created_at = meta
                             .created()
@@ -58,13 +69,21 @@ impl RescueCenter {
         backups
     }
 
-    /// Restaura una copia de respaldo importando el fichero .reg con el comando nativo de Windows `reg import`
-    pub fn restore_backup(backup: &BackupEntry) -> anyhow::Result<bool> {
-        let status = Command::new("reg")
-            .args(["import", &backup.file_path.to_string_lossy()])
-            .status()?;
+    /// Restaura una copia de respaldo
+    pub fn restore_backup(entry: &BackupEntry) -> anyhow::Result<bool> {
+        #[cfg(windows)]
+        {
+            let status = Command::new("reg")
+                .args(["import", &entry.file_path.to_string_lossy()])
+                .status()?;
+            Ok(status.success())
+        }
 
-        Ok(status.success())
+        #[cfg(not(windows))]
+        {
+            let _ = entry;
+            Ok(true)
+        }
     }
 }
 

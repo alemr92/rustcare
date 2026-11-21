@@ -53,9 +53,16 @@ pub struct FullCleanResult {
 pub struct CleanerEngine;
 
 impl CleanerEngine {
-    /// Expande variables de entorno de Windows en una ruta dada (ej: `%TEMP%\foo` -> `C:\Users\...\AppData\Local\Temp\foo`)
+    /// Expande variables de entorno multiplataforma (Windows %VAR%, Unix $VAR y tilde ~)
     pub fn expand_env_path(path_str: &str) -> Option<PathBuf> {
         let mut result = path_str.to_string();
+
+        // Expansión de tilde ~
+        if result == "~" || result.starts_with("~/") || result.starts_with("~\\") {
+            let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_default();
+            result = result.replacen('~', &home, 1);
+        }
+
         let env_vars = [
             "TEMP",
             "TMP",
@@ -67,13 +74,19 @@ impl CleanerEngine {
             "ProgramData",
             "ProgramFiles",
             "ProgramFiles(x86)",
+            "HOME",
+            "XDG_CACHE_HOME",
+            "XDG_CONFIG_HOME",
+            "TMPDIR",
         ];
 
         for var in &env_vars {
-            let token = format!("%{}%", var);
-            if result.contains(&token) {
+            let win_token = format!("%{}%", var);
+            let unix_token = format!("${}", var);
+            if result.contains(&win_token) || result.contains(&unix_token) {
                 if let Ok(val) = env::var(var) {
-                    result = result.replace(&token, &val);
+                    result = result.replace(&win_token, &val);
+                    result = result.replace(&unix_token, &val);
                 }
             }
         }

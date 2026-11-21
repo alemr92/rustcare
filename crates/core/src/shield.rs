@@ -1,9 +1,13 @@
-//! Escáner de Seguridad, Malware y Persistencias ("RustCare Shield")
+//! Escáner de Seguridad, Malware y Persistencias Multiplataforma ("RustCare Shield")
 use serde::{Deserialize, Serialize};
 use std::env;
+#[allow(unused_imports)]
 use std::path::{Path, PathBuf};
 use sysinfo::{ProcessesToUpdate, System};
+
+#[cfg(windows)]
 use winreg::enums::HKEY_LOCAL_MACHINE;
+#[cfg(windows)]
 use winreg::RegKey;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,12 +42,11 @@ impl ShieldEngine {
         let mut sys = System::new();
         sys.refresh_processes(ProcessesToUpdate::All, true);
 
-        let temp_dir = env::var("TEMP").map(PathBuf::from).ok();
+        let temp_dir = env::var("TEMP").or_else(|_| env::var("TMPDIR")).map(PathBuf::from).ok();
         let local_temp = env::var("LOCALAPPDATA")
             .map(|l| PathBuf::from(l).join("Temp"))
             .ok();
 
-        // Nombres reservados de procesos esenciales de Windows
         let reserved_system_names = [
             "svchost.exe",
             "csrss.exe",
@@ -58,41 +61,43 @@ impl ShieldEngine {
             count += 1;
             let name = proc.name().to_string_lossy().to_lowercase();
             let exe_path = match proc.exe() {
-                Some(p) => p.to_path_buf(),
+                Some(p) => p,
                 None => continue,
             };
 
-            // 1. Proceso ejecutándose desde directorio temporal
-            let is_in_temp = (temp_dir.as_ref().map(|t| exe_path.starts_with(t)).unwrap_or(false))
-                || (local_temp.as_ref().map(|t| exe_path.starts_with(t)).unwrap_or(false));
+            // 1. Detección de binarios ejecutándose desde carpetas temporales
+            let in_temp = temp_dir.as_ref().map(|t| exe_path.starts_with(t)).unwrap_or(false)
+                || local_temp.as_ref().map(|t| exe_path.starts_with(t)).unwrap_or(false)
+                || exe_path.starts_with("/tmp")
+                || exe_path.starts_with("/dev/shm");
 
-            if is_in_temp {
+            if in_temp {
                 threats.push(ThreatItem {
                     id: format!("proc_temp_{}", pid),
-                    title: format!("Proceso ejecutándose desde carpeta temporal: {}", name),
+                    title: format!("Proceso sospechoso en carpeta temporal: {}", name),
                     description: format!(
-                        "El proceso (PID {}) se está ejecutando en una carpeta temporal: {}",
-                        pid,
-                        exe_path.display()
+                        "El binario (PID {}) se está ejecutando desde un directorio temporal.",
+                        pid
                     ),
-                    path: exe_path.clone(),
-                    level: ThreatLevel::Warning,
+                    path: exe_path.to_path_buf(),
+                    level: ThreatLevel::High,
                 });
             }
 
-            // 2. Proceso impostor (suplantación de binario crítico de Windows fuera de System32)
+            // 2. Detección de binarios impostores de sistema
             if reserved_system_names.contains(&name.as_str()) {
-                let path_str = exe_path.to_string_lossy().to_lowercase();
-                if !path_str.contains("system32") && !path_str.contains("syswow64") {
+                let is_genuine = exe_path.starts_with("C:\\Windows\\System32")
+                    || exe_path.starts_with("C:\\Windows\\SysWOW64");
+
+                if !is_genuine {
                     threats.push(ThreatItem {
                         id: format!("proc_impostor_{}", pid),
-                        title: format!("Proceso impostor del sistema detectado: {}", name),
+                        title: format!("Impostor de binario del sistema detectado: {}", name),
                         description: format!(
-                            "Un binario con nombre '{}' se está ejecutando fuera de System32: {}",
-                            name,
-                            exe_path.display()
+                            "Un ejecutable fuera de System32 está utilizando el nombre '{}' (PID {}).",
+                            name, pid
                         ),
-                        path: exe_path,
+                        path: exe_path.to_path_buf(),
                         level: ThreatLevel::Critical,
                     });
                 }
@@ -102,76 +107,92 @@ impl ShieldEngine {
         (threats, count)
     }
 
-    /// Escanea persistencias anómalas en el Registro (Image File Execution Options, AppInit_DLLs)
+    /// Audita claves de persistencia y secuestro
     pub fn scan_registry_persistences() -> (Vec<ThreatItem>, usize) {
+        #[allow(unused_mut)]
         let mut threats = Vec::new();
-        let mut count = 0;
-        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+        #[allow(unused_mut)]
+        let mut keys_scanned = 0;
 
-        // 1. IFEO (Image File Execution Options / Debugger Hijacks)
-        const IFEO_KEY: &str = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options";
-        if let Ok(key) = hklm.open_subkey(IFEO_KEY) {
-            for subkey_name in key.enum_keys().filter_map(|k| k.ok()) {
-                count += 1;
-                if let Ok(sub) = key.open_subkey(&subkey_name) {
-                    if let Ok(debugger) = sub.get_value::<String, _>("Debugger") {
-                        if !debugger.trim().is_empty() {
-                            threats.push(ThreatItem {
-                                id: format!("ifeo_{}", subkey_name),
-                                title: format!("Secuestro IFEO (Debugger) detectado en {}", subkey_name),
-                                description: format!(
-                                    "La aplicación {} tiene asignado el depurador/interceptador: {}",
-                                    subkey_name, debugger
-                                ),
-                                path: PathBuf::from(&debugger),
-                                level: ThreatLevel::High,
-                            });
+        #[cfg(windows)]
+        {
+            let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+
+            // 1. Image File Execution Options (IFEO) - Debugger Hijack
+            let ifeo_path = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options";
+            if let Ok(ifeo_key) = hklm.open_subkey(ifeo_path) {
+                keys_scanned += 1;
+                for subkey_name in ifeo_key.enum_keys().filter_map(|k| k.ok()) {
+                    keys_scanned += 1;
+                    if let Ok(app_key) = ifeo_key.open_subkey(&subkey_name) {
+                        if let Ok(debugger) = app_key.get_value::<String, _>("Debugger") {
+                            if !debugger.trim().is_empty() {
+                                threats.push(ThreatItem {
+                                    id: format!("ifeo_{}", subkey_name),
+                                    title: format!("Secuestro IFEO (Debugger) detectado en {}", subkey_name),
+                                    description: format!(
+                                        "El binario {} redirige su ejecución hacia '{}' mediante IFEO.",
+                                        subkey_name, debugger
+                                    ),
+                                    path: PathBuf::from(format!("{}\\{}", ifeo_path, subkey_name)),
+                                    level: ThreatLevel::Critical,
+                                });
+                            }
                         }
+                    }
+                }
+            }
+
+            // 2. AppInit_DLLs
+            let winlogon_path = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Windows";
+            if let Ok(win_key) = hklm.open_subkey(winlogon_path) {
+                keys_scanned += 1;
+                if let Ok(appinit) = win_key.get_value::<String, _>("AppInit_DLLs") {
+                    if !appinit.trim().is_empty() {
+                        threats.push(ThreatItem {
+                            id: "appinit_dlls".to_string(),
+                            title: "Inyección de AppInit_DLLs activa".to_string(),
+                            description: format!(
+                                "Librerías registradas para inyección global en todos los procesos: '{}'.",
+                                appinit
+                            ),
+                            path: PathBuf::from(winlogon_path),
+                            level: ThreatLevel::High,
+                        });
                     }
                 }
             }
         }
 
-        // 2. AppInit_DLLs
-        const WINDOWS_KEY: &str = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Windows";
-        if let Ok(key) = hklm.open_subkey(WINDOWS_KEY) {
-            count += 1;
-            if let Ok(appinit) = key.get_value::<String, _>("AppInit_DLLs") {
-                if !appinit.trim().is_empty() {
-                    threats.push(ThreatItem {
-                        id: "appinit_dlls".to_string(),
-                        title: "Inyección global AppInit_DLLs activa".to_string(),
-                        description: format!("Se detectaron DLLs de inyección en todos los procesos: {}", appinit),
-                        path: PathBuf::from(&appinit),
-                        level: ThreatLevel::Critical,
-                    });
-                }
+        #[cfg(target_os = "linux")]
+        {
+            keys_scanned += 1;
+            if Path::new("/etc/ld.so.preload").exists() {
+                threats.push(ThreatItem {
+                    id: "ld_so_preload".to_string(),
+                    title: "Archivo /etc/ld.so.preload presente".to_string(),
+                    description: "Se detectó pre-carga de librerías globales dinámica en el sistema.".to_string(),
+                    path: PathBuf::from("/etc/ld.so.preload"),
+                    level: ThreatLevel::High,
+                });
             }
         }
 
-        (threats, count)
+        (threats, keys_scanned)
     }
 
-    /// Ejecuta el escaneo de seguridad completo de RustCare Shield
+    /// Realiza un análisis integral de seguridad
     pub fn scan_all() -> ShieldScanResult {
-        let (proc_threats, processes_scanned) = Self::scan_processes();
-        let (reg_threats, registry_keys_scanned) = Self::scan_registry_persistences();
+        let (mut proc_threats, proc_count) = Self::scan_processes();
+        let (reg_threats, reg_count) = Self::scan_registry_persistences();
 
-        let mut all_threats = proc_threats;
-        all_threats.extend(reg_threats);
+        proc_threats.extend(reg_threats);
 
         ShieldScanResult {
-            threats: all_threats,
-            processes_scanned,
-            registry_keys_scanned,
+            threats: proc_threats,
+            processes_scanned: proc_count,
+            registry_keys_scanned: reg_count,
         }
-    }
-
-    /// Calcula la firma BLAKE3 de un archivo para comprobación de integridad
-    pub fn calculate_hash<P: AsRef<Path>>(path: P) -> Option<String> {
-        let bytes = std::fs::read(path).ok()?;
-        let hash = blake3::hash(&bytes);
-        Some(hash.to_hex().to_string())
     }
 }
 
@@ -182,7 +203,6 @@ mod tests {
     #[test]
     fn test_shield_scan() {
         let result = ShieldEngine::scan_all();
-        println!("Procesos analizados por Shield: {}", result.processes_scanned);
         assert!(result.processes_scanned > 0);
     }
 }

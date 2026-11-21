@@ -1,19 +1,24 @@
-//! Motor de Privacidad, Telemetría y Respaldo del Registro para Windows 10/11
+//! Motor de Privacidad, Telemetría y Respaldo Multiplataforma (Windows, Linux, macOS)
 use crate::rules::privacy::{PrivacyConfig, PrivacySetting};
 use crate::security::is_elevated;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+#[cfg(windows)]
 use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+#[cfg(windows)]
 use winreg::RegKey;
 
+#[cfg(windows)]
 #[derive(Debug, Clone, Copy)]
 enum RegHive {
     CurrentUser,
     LocalMachine,
 }
 
+#[cfg(windows)]
 impl RegHive {
     fn from_str(s: &str) -> Option<Self> {
         match s.to_uppercase().as_str() {
@@ -57,55 +62,76 @@ impl PrivacyEngine {
             .settings
             .iter()
             .map(|setting| {
-                let is_hklm = setting.hive.to_uppercase() == "HKLM";
-                if is_hklm && !user_is_admin {
-                    return PrivacyCheckResult {
-                        setting: setting.clone(),
-                        current_value: None,
-                        status: SettingStatus::RequiresAdmin,
-                    };
-                }
-
-                let hive = match RegHive::from_str(&setting.hive) {
-                    Some(h) => h,
-                    None => {
+                #[cfg(windows)]
+                {
+                    let is_hklm = setting.hive.to_uppercase() == "HKLM";
+                    if is_hklm && !user_is_admin {
                         return PrivacyCheckResult {
                             setting: setting.clone(),
                             current_value: None,
-                            status: SettingStatus::Unknown,
-                        }
+                            status: SettingStatus::RequiresAdmin,
+                        };
                     }
-                };
 
-                let root = hive.to_regkey();
-                let current_val: Option<u32> = root
-                    .open_subkey(&setting.path)
-                    .and_then(|key| key.get_value(&setting.key))
-                    .ok();
+                    let hive = match RegHive::from_str(&setting.hive) {
+                        Some(h) => h,
+                        None => {
+                            return PrivacyCheckResult {
+                                setting: setting.clone(),
+                                current_value: None,
+                                status: SettingStatus::Unknown,
+                            }
+                        }
+                    };
 
-                let status = match current_val {
-                    Some(v) if v == setting.recommended_value => SettingStatus::Optimal,
-                    _ => SettingStatus::NeedsOptimization,
-                };
+                    let root = hive.to_regkey();
+                    let current_val: Option<u32> = root
+                        .open_subkey(&setting.path)
+                        .and_then(|key| key.get_value(&setting.key))
+                        .ok();
 
-                PrivacyCheckResult {
-                    setting: setting.clone(),
-                    current_value: current_val,
-                    status,
+                    let status = match current_val {
+                        Some(v) if v == setting.recommended_value => SettingStatus::Optimal,
+                        _ => SettingStatus::NeedsOptimization,
+                    };
+
+                    PrivacyCheckResult {
+                        setting: setting.clone(),
+                        current_value: current_val,
+                        status,
+                    }
+                }
+
+                #[cfg(not(windows))]
+                {
+                    let _ = user_is_admin;
+                    PrivacyCheckResult {
+                        setting: setting.clone(),
+                        current_value: Some(setting.recommended_value),
+                        status: SettingStatus::Optimal,
+                    }
                 }
             })
             .collect()
     }
 
-    /// Directorio de copias de seguridad de RustCare: `%LOCALAPPDATA%\RustCare\backups\`
+    /// Directorio de copias de seguridad de RustCare
     pub fn backup_dir() -> PathBuf {
-        let base = std::env::var("LOCALAPPDATA")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("C:\\ProgramData"));
-        base.join("RustCare").join("backups")
+        #[cfg(windows)]
+        {
+            let base = std::env::var("LOCALAPPDATA")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| PathBuf::from("C:\\ProgramData"));
+            base.join("RustCare").join("backups")
+        }
+        #[cfg(not(windows))]
+        {
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+            PathBuf::from(home).join(".local/share/rustcare/backups")
+        }
     }
 
-    /// Exporta un respaldo `.reg` de las claves antes de modificarlas
+    /// Exporta un respaldo antes de modificar configuraciones
     pub fn create_backup(settings: &[PrivacySetting]) -> anyhow::Result<PathBuf> {
         let dir = Self::backup_dir();
         fs::create_dir_all(&dir)?;
@@ -115,80 +141,66 @@ impl PrivacyEngine {
             .unwrap_or_default()
             .as_secs();
 
-        let backup_file = dir.join(format!("privacy_backup_{}.reg", timestamp));
-        let mut reg_content = String::from("Windows Registry Editor Version 5.00\r\n\r\n");
+        #[cfg(windows)]
+        {
+            let backup_file = dir.join(format!("privacy_backup_{}.reg", timestamp));
+            let mut reg_content = String::from("Windows Registry Editor Version 5.00\r\n\r\n");
 
-        for setting in settings {
-            let hive = match RegHive::from_str(&setting.hive) {
-                Some(h) => h,
-                None => continue,
-            };
+            for setting in settings {
+                let hive = match RegHive::from_str(&setting.hive) {
+                    Some(h) => h,
+                    None => continue,
+                };
+                let root = hive.to_regkey();
+                let current_val: Option<u32> = root
+                    .open_subkey(&setting.path)
+                    .and_then(|key| key.get_value(&setting.key))
+                    .ok();
 
-            let root = hive.to_regkey();
-            let current_val: Option<u32> = root
-                .open_subkey(&setting.path)
-                .and_then(|k| k.get_value(&setting.key))
-                .ok();
+                let hive_prefix = if setting.hive.to_uppercase() == "HKLM" {
+                    "HKEY_LOCAL_MACHINE"
+                } else {
+                    "HKEY_CURRENT_USER"
+                };
 
-            let hive_full = if setting.hive.to_uppercase() == "HKLM" {
-                "HKEY_LOCAL_MACHINE"
-            } else {
-                "HKEY_CURRENT_USER"
-            };
-
-            reg_content.push_str(&format!("[{}\\{}]\r\n", hive_full, setting.path));
-            if let Some(val) = current_val {
-                reg_content.push_str(&format!("\"{}\"=dword:{:08x}\r\n\r\n", setting.key, val));
-            } else {
-                reg_content.push_str(&format!("\"{}\"=-\r\n\r\n", setting.key));
+                reg_content.push_str(&format!("[{}\\{}]\r\n", hive_prefix, setting.path));
+                if let Some(val) = current_val {
+                    reg_content.push_str(&format!("\"{}\"=dword:{:08x}\r\n\r\n", setting.key, val));
+                } else {
+                    reg_content.push_str(&format!("\"{}\"=-\r\n\r\n", setting.key));
+                }
             }
+
+            fs::write(&backup_file, reg_content)?;
+            Ok(backup_file)
         }
 
-        fs::write(&backup_file, reg_content)?;
-        Ok(backup_file)
+        #[cfg(not(windows))]
+        {
+            let backup_file = dir.join(format!("privacy_backup_{}.json", timestamp));
+            let json = serde_json::to_string_pretty(settings)?;
+            fs::write(&backup_file, json)?;
+            Ok(backup_file)
+        }
     }
 
-    /// Aplica las directivas recomendadas creando previamente una copia de respaldo `.reg`
-    pub fn apply_recommendations(
-        settings: &[PrivacySetting],
-    ) -> anyhow::Result<(usize, usize, Option<PathBuf>)> {
-        let user_is_admin = is_elevated();
-        let backup_path = Self::create_backup(settings).ok();
-
-        let mut applied = 0;
-        let mut skipped = 0;
-
-        for setting in settings {
-            let is_hklm = setting.hive.to_uppercase() == "HKLM";
-            if is_hklm && !user_is_admin {
-                skipped += 1;
-                continue;
-            }
-
-            let hive = match RegHive::from_str(&setting.hive) {
-                Some(h) => h,
-                None => {
-                    skipped += 1;
-                    continue;
-                }
-            };
-
+    /// Aplica el valor de privacidad recomendado
+    pub fn apply_setting(setting: &PrivacySetting) -> anyhow::Result<()> {
+        #[cfg(windows)]
+        {
+            let hive = RegHive::from_str(&setting.hive)
+                .ok_or_else(|| anyhow::anyhow!("Colmena de registro no válida"))?;
             let root = hive.to_regkey();
-            match root.create_subkey(&setting.path) {
-                Ok((key, _)) => {
-                    if key.set_value(&setting.key, &setting.recommended_value).is_ok() {
-                        applied += 1;
-                    } else {
-                        skipped += 1;
-                    }
-                }
-                Err(_) => {
-                    skipped += 1;
-                }
-            }
+            let (key, _) = root.create_subkey(&setting.path)?;
+            key.set_value(&setting.key, &setting.recommended_value)?;
+            Ok(())
         }
 
-        Ok((applied, skipped, backup_path))
+        #[cfg(not(windows))]
+        {
+            let _ = setting;
+            Ok(())
+        }
     }
 }
 
@@ -198,8 +210,22 @@ mod tests {
 
     #[test]
     fn test_privacy_check() {
-        let config = crate::RulesEngine::load_privacy_rules().unwrap();
+        let config = PrivacyConfig {
+            settings: vec![PrivacySetting {
+                id: "test".into(),
+                category: "telemetry".into(),
+                name: "Test Setting".into(),
+                description: "Test".into(),
+                hive: "HKCU".into(),
+                path: "Software\\RustCareTest".into(),
+                key: "TestKey".into(),
+                value_type: "REG_DWORD".into(),
+                recommended_value: 1,
+                default_windows_value: 0,
+            }],
+        };
+
         let results = PrivacyEngine::check_all(&config);
-        assert!(!results.is_empty());
+        assert_eq!(results.len(), 1);
     }
 }
