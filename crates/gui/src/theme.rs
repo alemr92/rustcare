@@ -1,21 +1,29 @@
-//! Tema visual moderno oscuro para RustCare
-use eframe::egui::{self, Color32, CornerRadius, Stroke, Visuals};
+//! Tema visual moderno 2026 oscuro para RustCare
+use eframe::egui::{self, Color32, CornerRadius, FontId, Margin, Rect, Stroke, StrokeKind, Ui, Vec2, Visuals};
 
 pub struct RustCareTheme;
 
 impl RustCareTheme {
-    // Paleta de colores moderna
-    pub const BG_DARK: Color32 = Color32::from_rgb(18, 20, 26);
-    pub const SIDEBAR_BG: Color32 = Color32::from_rgb(24, 27, 36);
-    pub const CARD_BG: Color32 = Color32::from_rgb(30, 34, 46);
-    pub const CARD_HOVER_BG: Color32 = Color32::from_rgb(38, 44, 58);
+    // Paleta 2026 Cosmic Obsidian & Neon Accents
+    pub const BG_DARK: Color32 = Color32::from_rgb(10, 12, 18);
+    pub const SIDEBAR_BG: Color32 = Color32::from_rgb(14, 17, 24);
+    pub const TOPBAR_BG: Color32 = Color32::from_rgb(13, 16, 23);
+    pub const CARD_BG: Color32 = Color32::from_rgb(19, 23, 34);
+    pub const CARD_HOVER_BG: Color32 = Color32::from_rgb(26, 32, 48);
+    pub const CARD_BORDER: Color32 = Color32::from_rgb(33, 40, 60);
+
+    // Acentos Neón / Cyber
+    pub const ACCENT_CYAN: Color32 = Color32::from_rgb(0, 229, 255);
     pub const ACCENT_BLUE: Color32 = Color32::from_rgb(59, 130, 246);
-    pub const ACCENT_CYAN: Color32 = Color32::from_rgb(6, 182, 212);
+    pub const ACCENT_PURPLE: Color32 = Color32::from_rgb(168, 85, 247);
     pub const SUCCESS_GREEN: Color32 = Color32::from_rgb(16, 185, 129);
     pub const WARNING_AMBER: Color32 = Color32::from_rgb(245, 158, 11);
-    pub const DANGER_RED: Color32 = Color32::from_rgb(239, 68, 68);
-    pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(241, 245, 249);
+    pub const DANGER_RED: Color32 = Color32::from_rgb(244, 63, 94);
+
+    // Tipografía
+    pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(248, 250, 252);
     pub const TEXT_MUTED: Color32 = Color32::from_rgb(148, 163, 184);
+    pub const TEXT_DIM: Color32 = Color32::from_rgb(100, 116, 139);
 
     /// Configura el tema oscuro y estilo refinado de widgets
     pub fn apply(ctx: &egui::Context) {
@@ -26,24 +34,67 @@ impl RustCareTheme {
         visuals.extreme_bg_color = Self::SIDEBAR_BG;
 
         visuals.widgets.noninteractive.bg_fill = Self::CARD_BG;
-        visuals.widgets.noninteractive.corner_radius = CornerRadius::same(8);
+        visuals.widgets.noninteractive.corner_radius = CornerRadius::same(10);
         visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0_f32, Self::TEXT_PRIMARY);
 
         visuals.widgets.inactive.bg_fill = Self::CARD_BG;
-        visuals.widgets.inactive.corner_radius = CornerRadius::same(6);
+        visuals.widgets.inactive.corner_radius = CornerRadius::same(8);
         visuals.widgets.inactive.fg_stroke = Stroke::new(1.0_f32, Self::TEXT_PRIMARY);
 
         visuals.widgets.hovered.bg_fill = Self::CARD_HOVER_BG;
-        visuals.widgets.hovered.corner_radius = CornerRadius::same(6);
+        visuals.widgets.hovered.corner_radius = CornerRadius::same(8);
         visuals.widgets.hovered.fg_stroke = Stroke::new(1.0_f32, Color32::WHITE);
 
         visuals.widgets.active.bg_fill = Self::ACCENT_BLUE;
-        visuals.widgets.active.corner_radius = CornerRadius::same(6);
+        visuals.widgets.active.corner_radius = CornerRadius::same(8);
         visuals.widgets.active.fg_stroke = Stroke::new(1.0_f32, Color32::WHITE);
 
         visuals.selection.bg_fill = Self::ACCENT_BLUE;
         visuals.selection.stroke = Stroke::new(1.0_f32, Color32::WHITE);
 
         ctx.set_visuals(visuals);
+    }
+
+    /// Marco estándar de tarjeta de cristal con borde sutil
+    pub fn card_frame() -> egui::Frame {
+        egui::Frame::NONE
+            .fill(Self::CARD_BG)
+            .corner_radius(CornerRadius::same(10))
+            .stroke(Stroke::new(1.0_f32, Self::CARD_BORDER))
+            .inner_margin(Margin::same(14))
+    }
+
+    /// Marco destacado con acento
+    pub fn hero_frame(accent_border: bool) -> egui::Frame {
+        let border_color = if accent_border {
+            Self::ACCENT_CYAN
+        } else {
+            Self::CARD_BORDER
+        };
+        egui::Frame::NONE
+            .fill(Self::CARD_BG)
+            .corner_radius(CornerRadius::same(12))
+            .stroke(Stroke::new(1.5_f32, border_color))
+            .inner_margin(Margin::same(16))
+    }
+
+    /// Dibuja una píldora / etiqueta de estado compacta
+    pub fn draw_badge(ui: &mut Ui, text: &str, fg: Color32, bg: Color32) {
+        let (rect, _) = ui.allocate_exact_size(Vec2::new(0.0, 20.0), egui::Sense::hover());
+        let font_id = FontId::proportional(11.0);
+        let galley = ui.painter().layout_no_wrap(text.to_string(), font_id, fg);
+        let badge_width = galley.size().x + 16.0;
+        let badge_rect = Rect::from_min_size(rect.min, Vec2::new(badge_width, 20.0));
+
+        ui.painter().rect_filled(badge_rect, CornerRadius::same(10), bg);
+        ui.painter().rect_stroke(
+            badge_rect,
+            CornerRadius::same(10),
+            Stroke::new(1.0_f32, fg),
+            StrokeKind::Inside,
+        );
+        let text_pos = egui::pos2(badge_rect.min.x + 8.0, badge_rect.min.y + 2.5);
+        ui.painter().galley(text_pos, galley, fg);
+        ui.allocate_rect(badge_rect, egui::Sense::hover());
     }
 }
