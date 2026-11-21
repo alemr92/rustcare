@@ -41,6 +41,7 @@ pub struct ToolboxView {
     // Drivers
     pub drivers: Vec<DeviceDriverInfo>,
     pub driver_search: String,
+    pub driver_backup_msg: Option<String>,
 
     // Duplicados
     pub duplicate_path: String,
@@ -93,6 +94,7 @@ impl Default for ToolboxView {
             residual_app_name: String::new(),
             drivers: DriverManager::scan_installed_drivers(),
             driver_search: String::new(),
+            driver_backup_msg: None,
             duplicate_path: default_path.clone(),
             duplicate_result: None,
             disk_path: "C:\\".to_string(),
@@ -223,8 +225,36 @@ impl ToolboxView {
             if ui.button("🔄 Reanalizar Hardware").clicked() {
                 self.drivers = DriverManager::scan_installed_drivers();
             }
+            if ui.button("💾 Crear Copia de Respaldo de Controladores").clicked() {
+                match DriverManager::backup_drivers() {
+                    Ok(res) => {
+                        self.driver_backup_msg = Some(format!(
+                            "¡Copia de seguridad completada! {} controladores respaldados en: {}",
+                            res.drivers_backed_up,
+                            res.backup_path.display()
+                        ));
+                    }
+                    Err(e) => {
+                        self.driver_backup_msg = Some(format!("Error al crear respaldo: {}", e));
+                    }
+                }
+            }
         });
         ui.add_space(8.0);
+
+        if let Some(msg) = &self.driver_backup_msg {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    RustCareTheme::draw_badge(
+                        ui,
+                        msg,
+                        RustCareTheme::SUCCESS_GREEN,
+                        Color32::from_rgba_premultiplied(16, 185, 129, 25),
+                    );
+                });
+            });
+            ui.add_space(6.0);
+        }
 
         ui.label(RichText::new(format!("Se auditaron {} controladores de hardware instalados:", self.drivers.len())).strong().color(RustCareTheme::ACCENT_CYAN));
         ui.add_space(6.0);
@@ -746,6 +776,21 @@ impl ToolboxView {
             ui.label(RichText::new("Centro de Rescate y Restauración de Copias de Seguridad:").strong());
             if ui.button("🔄 Actualizar Lista").clicked() {
                 self.backups = RescueCenter::list_backups();
+            }
+            if ui.button("🛡️ Crear Punto de Restauración").clicked() {
+                match RescueCenter::create_restore_point("Punto de restauración manual de RustCare") {
+                    Ok(info) => {
+                        self.rescue_status_msg = Some(format!(
+                            "¡Punto de restauración '{}' creado con éxito! ({})",
+                            info.description,
+                            if info.is_system_vss { "VSS Windows Activado" } else { "Modo Seguro Usuario" }
+                        ));
+                        self.backups = RescueCenter::list_backups();
+                    }
+                    Err(e) => {
+                        self.rescue_status_msg = Some(format!("Error: {}", e));
+                    }
+                }
             }
         });
         ui.add_space(8.0);

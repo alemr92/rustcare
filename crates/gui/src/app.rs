@@ -1,6 +1,6 @@
 //! Orquestador de Interfaz Gráfica de RustCare 2026
 use crate::theme::RustCareTheme;
-use crate::views::{BoosterView, CareView, CleanerView, MonitorView, ShieldView, ToolboxView};
+use crate::views::{BoosterView, CareView, CleanerView, MonitorView, SettingsView, ShieldView, ToolboxView};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Rect, RichText, Stroke, StrokeKind, Ui, Vec2};
 use rustcare_core::cleaner::{CleanerEngine, FullCleanResult, FullScanResult};
@@ -18,6 +18,7 @@ pub enum NavSection {
     Shield,
     Toolbox,
     Monitor,
+    Settings,
 }
 
 pub enum AppEvent {
@@ -47,6 +48,7 @@ pub struct RustCareApp {
     shield_view: ShieldView,
     toolbox_view: ToolboxView,
     monitor_view: MonitorView,
+    settings_view: SettingsView,
 
     // Canales asíncronos para evitar congelamientos de UI
     sender: Sender<AppEvent>,
@@ -68,6 +70,7 @@ impl RustCareApp {
             shield_view: ShieldView::default(),
             toolbox_view: ToolboxView::default(),
             monitor_view: MonitorView::default(),
+            settings_view: SettingsView::default(),
             sender,
             receiver,
         }
@@ -264,6 +267,11 @@ impl eframe::App for RustCareApp {
                 if nav_item(ui, "📊  Monitor de Sistema", self.current_section == NavSection::Monitor) {
                     self.current_section = NavSection::Monitor;
                 }
+                ui.add_space(4.0);
+
+                if nav_item(ui, "⚙️  Ajustes & AutoCare", self.current_section == NavSection::Settings) {
+                    self.current_section = NavSection::Settings;
+                }
 
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
                     ui.add_space(14.0);
@@ -362,6 +370,9 @@ impl eframe::App for RustCareApp {
                 NavSection::Monitor => {
                     self.monitor_view.render(ui);
                     ctx.request_repaint_after(Duration::from_millis(1500));
+                }
+                NavSection::Settings => {
+                    self.settings_view.render(ui);
                 }
             }
         });

@@ -15,6 +15,7 @@ use rustcare_core::privacy::PrivacyEngine;
 use rustcare_core::rescue::RescueCenter;
 use rustcare_core::rules::cleaner::CleanerTarget;
 use rustcare_core::rules::privacy::{PrivacyConfig, PrivacySetting};
+use rustcare_core::security::is_elevated;
 use rustcare_core::shield::ShieldEngine;
 use rustcare_core::shredder::FileShredder;
 use rustcare_core::startup::StartupEngine;
@@ -251,4 +252,47 @@ fn test_safe_rescue_center_backup_listing() {
 fn test_safe_startup_listing_read_only() {
     let entries = StartupEngine::list_entries();
     let _ = entries.len();
+}
+
+#[test]
+fn test_admin_token_detection_behavior() {
+    // Comprueba que la detección de elevación nunca lanza diálogos y devuelve bool
+    let elevated = is_elevated();
+    println!("Proceso en ejecución con privilegios de administrador: {}", elevated);
+}
+
+#[test]
+fn test_unprivileged_target_skip_without_crash() {
+    let user_is_admin = is_elevated();
+
+    let admin_target = CleanerTarget {
+        id: "system_protected_dir".into(),
+        name: "Windows System Directory".into(),
+        description: "Objetivo protegido que requiere privilegios elevados".into(),
+        path: "C:\\Windows\\System32\\LogFiles".into(),
+        patterns: vec!["*.log".into()],
+        recursive: false,
+        requires_admin: true,
+    };
+
+    let result = CleanerEngine::scan_target(&admin_target, "system_group");
+
+    if !user_is_admin {
+        // En modo usuario estándar: debe omitirse silenciosamente
+        assert!(result.skipped_unprivileged, "Debe omitir el objetivo protegido si no es admin");
+        assert_eq!(result.file_count, 0, "No debe escanear archivos del sistema sin elevación");
+        assert!(result.requires_admin);
+    } else {
+        // En modo admin: puede procesarlo
+        assert!(!result.skipped_unprivileged);
+    }
+}
+
+#[test]
+fn test_automation_autostart_and_smart_ram() {
+    // Verifica que el motor de automatización pueda consultar el inicio sin errores
+    let _ = rustcare_core::automation::AutomationEngine::is_autostart_enabled();
+
+    // Comprueba el chequeo de RAM inteligente con umbral del 100% (seguro, no destructivo)
+    let _ = rustcare_core::automation::AutomationEngine::check_smart_ram(100.0);
 }

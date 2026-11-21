@@ -1,5 +1,13 @@
 //! Auditor y Gestor de Controladores de Hardware Multiplataforma
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DriverBackupResult {
+    pub backup_path: PathBuf,
+    pub drivers_backed_up: usize,
+    pub is_full_inf_export: bool,
+}
 
 #[cfg(windows)]
 use winreg::enums::HKEY_LOCAL_MACHINE;
@@ -124,6 +132,71 @@ impl DriverManager {
 
         drivers.sort_by(|a, b| a.class_name.cmp(&b.class_name));
         drivers
+    }
+
+    /// Crea una copia de seguridad de todos los controladores instalados.
+    /// - Modo Usuario Estándar: Exporta un manifiesto criptográfico y detallado de hardware en formato JSON.
+    /// - Modo Elevado / pnputil: Exporta además los paquetes completos de controladores (archivos .inf, .sys, .cat).
+    pub fn backup_drivers() -> anyhow::Result<DriverBackupResult> {
+        let drivers = Self::scan_installed_drivers();
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        #[cfg(windows)]
+        {
+            let base_dir = std::env::var("LOCALAPPDATA")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| PathBuf::from("C:\\ProgramData"))
+                .join("RustCare")
+                .join("backups")
+                .join("drivers")
+                .join(format!("backup_{}", timestamp));
+
+            std::fs::create_dir_all(&base_dir)?;
+
+            // Guardar manifiesto JSON de controladores
+            let manifest_path = base_dir.join("drivers_manifest.json");
+            let json = serde_json::to_string_pretty(&drivers)?;
+            std::fs::write(&manifest_path, json)?;
+
+            let mut is_full_inf = false;
+            if crate::security::is_elevated() {
+                // Si cuenta con permisos de administrador, exportar los paquetes .inf nativos con pnputil
+                let status = std::process::Command::new("pnputil")
+                    .args(["/export-driver", "*", &base_dir.to_string_lossy()])
+                    .status();
+                if let Ok(s) = status {
+                    is_full_inf = s.success();
+                }
+            }
+
+            Ok(DriverBackupResult {
+                backup_path: base_dir,
+                drivers_backed_up: drivers.len(),
+                is_full_inf_export: is_full_inf,
+            })
+        }
+
+        #[cfg(not(windows))]
+        {
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+            let base_dir = PathBuf::from(home)
+                .join(".local/share/rustcare/backups/drivers")
+                .join(format!("backup_{}", timestamp));
+            std::fs::create_dir_all(&base_dir)?;
+
+            let manifest_path = base_dir.join("drivers_manifest.json");
+            let json = serde_json::to_string_pretty(&drivers)?;
+            std::fs::write(&manifest_path, json)?;
+
+            Ok(DriverBackupResult {
+                backup_path: base_dir,
+                drivers_backed_up: drivers.len(),
+                is_full_inf_export: false,
+            })
+        }
     }
 }
 

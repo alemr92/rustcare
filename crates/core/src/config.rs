@@ -11,6 +11,17 @@ pub struct UserPreferences {
     pub care_ram_boost: bool,
     pub care_malware_shield: bool,
     pub auto_refresh_monitor_seconds: u64,
+
+    // Opciones de Automatización y Notificaciones
+    pub auto_start_with_system: bool,
+    pub auto_ram_boost_enabled: bool,
+    pub auto_ram_threshold_percent: f32,
+    pub auto_clean_enabled: bool,
+    pub auto_clean_threshold_mb: u64,
+    pub notifications_enabled: bool,
+    pub notify_on_updates: bool,
+    pub notify_on_drivers: bool,
+    pub notify_on_high_junk: bool,
 }
 
 impl Default for UserPreferences {
@@ -22,6 +33,16 @@ impl Default for UserPreferences {
             care_ram_boost: true,
             care_malware_shield: true,
             auto_refresh_monitor_seconds: 2,
+
+            auto_start_with_system: false,
+            auto_ram_boost_enabled: true,
+            auto_ram_threshold_percent: 80.0,
+            auto_clean_enabled: false,
+            auto_clean_threshold_mb: 1024,
+            notifications_enabled: true,
+            notify_on_updates: true,
+            notify_on_drivers: true,
+            notify_on_high_junk: true,
         }
     }
 }
@@ -29,12 +50,21 @@ impl Default for UserPreferences {
 pub struct ConfigManager;
 
 impl ConfigManager {
-    /// Ruta del fichero de configuración: `%LOCALAPPDATA%\RustCare\settings.json`
+    /// Ruta del fichero de configuración: `%LOCALAPPDATA%\RustCare\settings.json` o `$HOME/.config/rustcare/settings.json`
     pub fn config_path() -> PathBuf {
-        let base = std::env::var("LOCALAPPDATA")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("C:\\ProgramData"));
-        base.join("RustCare").join("settings.json")
+        #[cfg(windows)]
+        {
+            let base = std::env::var("LOCALAPPDATA")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| PathBuf::from("C:\\ProgramData"));
+            base.join("RustCare").join("settings.json")
+        }
+
+        #[cfg(not(windows))]
+        {
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+            PathBuf::from(home).join(".config/rustcare/settings.json")
+        }
     }
 
     /// Carga las preferencias guardadas o devuelve las predeterminadas si no existe
@@ -70,5 +100,7 @@ mod tests {
     fn test_preferences_defaults() {
         let prefs = UserPreferences::default();
         assert!(prefs.care_clean_junk);
+        assert!(prefs.auto_ram_boost_enabled);
+        assert_eq!(prefs.auto_ram_threshold_percent, 80.0);
     }
 }

@@ -1,6 +1,7 @@
 //! RustCare Core Library
 //! Arquitectura central de optimización, limpieza, monitorización y seguridad para Windows 10/11.
 
+pub mod automation;
 pub mod booster;
 pub mod cleaner;
 pub mod config;
@@ -22,18 +23,19 @@ pub mod startup;
 pub mod uninstaller;
 pub mod updater;
 
+pub use automation::AutomationEngine;
 pub use booster::{BoosterEngine, BoosterStatus, RamCleanResult};
 pub use cleaner::{CleanerEngine, FullCleanResult, FullScanResult, ScannedFile, TargetCleanResult, TargetScanResult};
 pub use config::{ConfigManager, UserPreferences};
 pub use context_menu::{ContextMenuItem, ContextMenuManager};
 pub use disk_analyzer::{DiskAnalysisResult, DiskAnalyzer, DiskEntryInfo, TreemapItem};
-pub use drivers::{DeviceDriverInfo, DriverManager};
+pub use drivers::{DeviceDriverInfo, DriverBackupResult, DriverManager};
 pub use duplicates::{DuplicateFinder, DuplicateGroup, DuplicateScanResult};
 pub use empty_folders::{EmptyFolderItem, EmptyFoldersFinder};
 pub use large_files::{FileCategory, LargeFileItem, LargeFilesFinder};
 pub use monitor::{DiskSnapshot, ProcessSnapshot, SystemMetricsSnapshot, SystemMonitor};
 pub use privacy::{PrivacyCheckResult, PrivacyEngine, SettingStatus};
-pub use rescue::{BackupEntry, RescueCenter};
+pub use rescue::{BackupEntry, RescueCenter, RestorePointInfo};
 pub use rules::RulesEngine;
 pub use security::is_elevated;
 pub use shield::{ShieldEngine, ShieldScanResult, ThreatItem, ThreatLevel};
