@@ -99,7 +99,7 @@ impl DiskAnalyzer {
             if entry.file_type().is_file() {
                 if let Ok(meta) = entry.metadata() {
                     let len = meta.len();
-                    if len > 1024 * 1024 { // Mayor a 1 MB
+                    if len > 0 {
                         let p = entry.path().to_path_buf();
                         let ext = p.extension().unwrap_or_default().to_string_lossy().to_lowercase();
                         let name = entry.file_name().to_string_lossy().to_string();
