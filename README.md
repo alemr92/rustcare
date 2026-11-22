@@ -11,7 +11,9 @@ A high-performance, zero-telemetry, zero-admin system maintenance and optimizati
 - **Turbo Boost & Working Set Optimizer**: Safe Win32 `K32EmptyWorkingSet` memory compaction on Windows, kernel cache management on Linux, and native `purge` on macOS, alongside automated DNS cache flushing.
 - **WizTree-Style Treemap**: Interactive, responsive disk space visualizer with extension color mapping.
 - **Security Shield**: Heuristic scanner checking for processes running from temporary paths, IFEO debugger hijacks, and registry autostarts.
-- **Toolbox PRO**: Includes driver hardware auditor, duplicate finder (BLAKE3), large files filter, empty folders cleaner, broken shortcut fixer, secure shredder, context menu manager, and package updater (WinGet / Flatpak / Homebrew).
+- **Toolbox PRO**: Includes driver hardware auditor with automated backup, duplicate finder (BLAKE3), large files filter, empty folders cleaner, broken shortcut fixer, secure shredder, context menu manager, package updater (WinGet / Flatpak / Homebrew), TCP/IP internet booster, SSD TRIM optimizer, browser SQLite VACUUM compactor, icon cache rebuilder, hardware information hub, and power plan optimizer.
+- **Rescue Center & Non-Destructive Rollback**: Automated registry snapshots, system restore points, TCP/IP state backups, and browser SQLite `.bak` preservation before any write action.
+- **AutoCare & Smart Automation**: Background daemon for memory thresholds, automated junk detection, and desktop toast notifications.
 
 ## Architecture
 

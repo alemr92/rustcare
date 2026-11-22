@@ -290,9 +290,61 @@ fn test_unprivileged_target_skip_without_crash() {
 
 #[test]
 fn test_automation_autostart_and_smart_ram() {
-    // Verifica que el motor de automatización pueda consultar el inicio sin errores
     let _ = rustcare_core::automation::AutomationEngine::is_autostart_enabled();
-
-    // Comprueba el chequeo de RAM inteligente con umbral del 100% (seguro, no destructivo)
     let _ = rustcare_core::automation::AutomationEngine::check_smart_ram(100.0);
+}
+
+#[test]
+fn test_safe_network_booster_backup_and_restore() {
+    let backup_res = rustcare_core::network_booster::NetworkBooster::backup_network_state();
+    assert!(backup_res.is_ok());
+    let path = backup_res.unwrap();
+    assert!(path.exists());
+    let _ = fs::remove_file(path);
+}
+
+#[test]
+fn test_safe_disk_optimizer_health_check() {
+    let check = rustcare_core::disk_optimizer::DiskOptimizer::check_filesystem_integrity("C");
+    assert!(!check.drive_letter.is_empty());
+}
+
+#[test]
+fn test_safe_browser_vacuum_sandboxed() {
+    let dir = tempdir().unwrap();
+    let fake_db = dir.path().join("History");
+    fs::write(&fake_db, vec![0u8; 8192]).unwrap();
+
+    let res = rustcare_core::browser_vacuum::BrowserVacuum::compact_database("Test Chrome", &fake_db);
+    assert!(res.is_ok());
+    let info = res.unwrap();
+    assert_eq!(info.original_size_bytes, 8192);
+    assert!(info.backup_path.exists());
+    let _ = fs::remove_file(info.backup_path);
+}
+
+#[test]
+fn test_safe_ui_repair_structure() {
+    let res = rustcare_core::ui_repair::UiRepairResult {
+        icon_cache_deleted: true,
+        explorer_restarted: true,
+        files_purged: 4,
+        message: "OK".into(),
+    };
+    assert_eq!(res.files_purged, 4);
+}
+
+#[test]
+fn test_safe_system_info_report_generation() {
+    let rep = rustcare_core::system_info::SystemInfoHub::get_report();
+    assert!(!rep.os_name.is_empty());
+    assert!(!rep.cpu_brand.is_empty());
+    let txt = rustcare_core::system_info::SystemInfoHub::export_text_report();
+    assert!(txt.contains("INFORME DE HARDWARE"));
+}
+
+#[test]
+fn test_safe_power_plan_listing() {
+    let schemes = rustcare_core::power_plan::PowerPlanOptimizer::list_schemes();
+    assert!(!schemes.is_empty());
 }

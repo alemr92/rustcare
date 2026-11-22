@@ -1,16 +1,22 @@
 //! Vista de Herramientas Completas (Toolbox PRO) con Diagrama WizTree
 use crate::theme::RustCareTheme;
 use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Pos2, ProgressBar, Rect, RichText, ScrollArea, Sense, Stroke, StrokeKind, Ui, Vec2};
+use rustcare_core::browser_vacuum::{BrowserVacuum, DatabaseCompactResult};
 use rustcare_core::cleaner::CleanerEngine;
 use rustcare_core::context_menu::{ContextMenuItem, ContextMenuManager};
 use rustcare_core::disk_analyzer::{DiskAnalysisResult, DiskAnalyzer, TreemapItem};
+use rustcare_core::disk_optimizer::DiskOptimizer;
 use rustcare_core::drivers::{DeviceDriverInfo, DriverManager};
 use rustcare_core::duplicates::{DuplicateFinder, DuplicateScanResult};
 use rustcare_core::empty_folders::{EmptyFolderItem, EmptyFoldersFinder};
 use rustcare_core::large_files::{LargeFileItem, LargeFilesFinder};
+use rustcare_core::network_booster::NetworkBooster;
+use rustcare_core::power_plan::{PowerPlanOptimizer, PowerSchemeInfo};
 use rustcare_core::rescue::{BackupEntry, RescueCenter};
 use rustcare_core::shortcuts::{BrokenShortcut, ShortcutCleaner};
 use rustcare_core::shredder::FileShredder;
+use rustcare_core::system_info::{SystemHardwareReport, SystemInfoHub};
+use rustcare_core::ui_repair::UiRepair;
 use rustcare_core::uninstaller::{InstalledApp, ResidualFolder, UninstallerEngine};
 use rustcare_core::updater::{UpdaterEngine, WingetPackageUpdate};
 
@@ -27,6 +33,12 @@ pub enum ToolboxTab {
     ContextMenu,
     Updater,
     RescueCenter,
+    InternetBooster,
+    DiskOptimizer,
+    BrowserVacuum,
+    UiRepair,
+    SystemInfo,
+    PowerPlan,
 }
 
 pub struct ToolboxView {
@@ -78,6 +90,16 @@ pub struct ToolboxView {
     // Centro de Rescate
     pub backups: Vec<BackupEntry>,
     pub rescue_status_msg: Option<String>,
+
+    // Nuevas Herramientas Fase 6
+    pub network_msg: Option<String>,
+    pub disk_trim_msg: Option<String>,
+    pub vacuum_results: Vec<DatabaseCompactResult>,
+    pub vacuum_msg: Option<String>,
+    pub ui_repair_msg: Option<String>,
+    pub system_report: Option<SystemHardwareReport>,
+    pub power_schemes: Vec<PowerSchemeInfo>,
+    pub power_msg: Option<String>,
 }
 
 impl Default for ToolboxView {
@@ -113,6 +135,14 @@ impl Default for ToolboxView {
             winget_status_msg: None,
             backups: RescueCenter::list_backups(),
             rescue_status_msg: None,
+            network_msg: None,
+            disk_trim_msg: None,
+            vacuum_results: Vec::new(),
+            vacuum_msg: None,
+            ui_repair_msg: None,
+            system_report: None,
+            power_schemes: PowerPlanOptimizer::list_schemes(),
+            power_msg: None,
         }
     }
 }
@@ -138,6 +168,12 @@ impl ToolboxView {
                     (ToolboxTab::ContextMenu, "🖱️ Menú Contextual"),
                     (ToolboxTab::Updater, "🔄 WinGet Updater"),
                     (ToolboxTab::RescueCenter, "🛟 Centro de Rescate"),
+                    (ToolboxTab::InternetBooster, "🌐 Acelerador TCP/IP"),
+                    (ToolboxTab::DiskOptimizer, "⚡ SSD TRIM & Salud"),
+                    (ToolboxTab::BrowserVacuum, "🧭 Desfragmentar SQLite"),
+                    (ToolboxTab::UiRepair, "🎨 Reparar Iconos/Fuentes"),
+                    (ToolboxTab::SystemInfo, "💻 Ficha de Hardware"),
+                    (ToolboxTab::PowerPlan, "🔋 Planes de Energía"),
                 ];
 
                 for (tab, label) in tabs {
@@ -162,6 +198,12 @@ impl ToolboxView {
             ToolboxTab::ContextMenu => self.render_context_menu(ui),
             ToolboxTab::Updater => self.render_updater(ui),
             ToolboxTab::RescueCenter => self.render_rescue(ui),
+            ToolboxTab::InternetBooster => self.render_network_booster(ui),
+            ToolboxTab::DiskOptimizer => self.render_disk_optimizer(ui),
+            ToolboxTab::BrowserVacuum => self.render_browser_vacuum(ui),
+            ToolboxTab::UiRepair => self.render_ui_repair(ui),
+            ToolboxTab::SystemInfo => self.render_system_info(ui),
+            ToolboxTab::PowerPlan => self.render_power_plan(ui),
         }
     }
 
@@ -831,5 +873,252 @@ impl ToolboxView {
                     }
                 });
         });
+    }
+
+    fn render_network_booster(&mut self, ui: &mut Ui) {
+        ui.heading(RichText::new("🌐 Acelerador de Red e Internet TCP/IP").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.label("Optimiza la latencia de ping, throughput de descarga y parámetros del kernel de red (Window Auto-Tuning, ECN, RSS).");
+        ui.add_space(8.0);
+
+        ui.horizontal(|ui| {
+            if ui.button("⚡ Aplicar Optimización de Red").clicked() {
+                match NetworkBooster::apply_optimizations() {
+                    Ok(res) => {
+                        self.network_msg = Some(format!(
+                            "¡Red optimizada con éxito! Respaldo guardado en: {}",
+                            res.backup_file.display()
+                        ));
+                    }
+                    Err(e) => {
+                        self.network_msg = Some(format!("Resultado: {}", e));
+                    }
+                }
+            }
+
+            if ui.button("🔄 Restaurar Valores Predeterminados de Red").clicked() {
+                match NetworkBooster::restore_defaults() {
+                    Ok(_) => self.network_msg = Some("Se restauraron los valores estándar del kernel TCP/IP de Windows.".to_string()),
+                    Err(e) => self.network_msg = Some(format!("Error: {}", e)),
+                }
+            }
+        });
+        ui.add_space(8.0);
+
+        if let Some(msg) = &self.network_msg {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                ui.label(RichText::new(msg).color(RustCareTheme::SUCCESS_GREEN));
+            });
+        }
+    }
+
+    fn render_disk_optimizer(&mut self, ui: &mut Ui) {
+        ui.heading(RichText::new("⚡ Desfragmentador y TRIM de Discos SSD/NVMe").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.label("Optimiza celdas flash enviando comandos TRIM periódicos y audita el estado del sistema de archivos.");
+        ui.add_space(8.0);
+
+        ui.horizontal(|ui| {
+            if ui.button("🚀 Ejecutar TRIM en Unidad C:").clicked() {
+                let res = DiskOptimizer::trim_drive("C");
+                self.disk_trim_msg = Some(format!(
+                    "TRIM ejecutado en {}: {}",
+                    res.drive_letter,
+                    res.output_message
+                ));
+            }
+
+            if ui.button("🩺 Chequeo de Integridad del Disco C:").clicked() {
+                let res = DiskOptimizer::check_filesystem_integrity("C");
+                self.disk_trim_msg = Some(format!(
+                    "Estado del Sistema de Archivos {}: {}",
+                    res.drive_letter,
+                    if !res.is_dirty { "Limpio, sin sectores marcados como corruptos." } else { "Marcado con anomalías (se sugiere chkdsk)." }
+                ));
+            }
+        });
+        ui.add_space(8.0);
+
+        if let Some(msg) = &self.disk_trim_msg {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                ui.label(RichText::new(msg).color(RustCareTheme::SUCCESS_GREEN));
+            });
+        }
+    }
+
+    fn render_browser_vacuum(&mut self, ui: &mut Ui) {
+        ui.heading(RichText::new("🧭 Compactador SQLite de Navegadores (Browser VACUUM)").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.label("Elimina fragmentación en bases de datos de Chrome, Edge, Brave y Firefox sin borrar historial ni contraseñas.");
+        ui.add_space(8.0);
+
+        if ui.button("🧹 Compactar y Desfragmentar Todas las Bases de Datos").clicked() {
+            self.vacuum_results = BrowserVacuum::compact_all_browsers();
+            let total_freed: u64 = self.vacuum_results.iter().map(|r| r.bytes_freed).sum();
+            self.vacuum_msg = Some(format!(
+                "¡Compactadas {} bases de datos! Espacio recuperado: {}",
+                self.vacuum_results.len(),
+                CleanerEngine::format_bytes(total_freed)
+            ));
+        }
+        ui.add_space(8.0);
+
+        if let Some(msg) = &self.vacuum_msg {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                ui.label(RichText::new(msg).color(RustCareTheme::SUCCESS_GREEN));
+            });
+            ui.add_space(6.0);
+        }
+
+        if !self.vacuum_results.is_empty() {
+            ScrollArea::vertical().show(ui, |ui| {
+                RustCareTheme::card_frame().show(ui, |ui| {
+                    for res in &self.vacuum_results {
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new(&res.browser_name).strong());
+                            ui.label(format!("(Reducido de {} a {})", CleanerEngine::format_bytes(res.original_size_bytes), CleanerEngine::format_bytes(res.compacted_size_bytes)));
+                        });
+                        ui.separator();
+                    }
+                });
+            });
+        }
+    }
+
+    fn render_ui_repair(&mut self, ui: &mut Ui) {
+        ui.heading(RichText::new("🎨 Reparador de Caché de Iconos de Windows").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.label("Repara iconos en blanco, corrupciones visuales en el escritorio y miniaturas reiniciando el explorador de forma limpia.");
+        ui.add_space(8.0);
+
+        if ui.button("🖼️ Reconstruir Caché de Iconos y Miniaturas").clicked() {
+            match UiRepair::rebuild_icon_cache() {
+                Ok(res) => {
+                    self.ui_repair_msg = Some(format!(
+                        "Caché de iconos reconstruido con éxito ({} archivos recreados). {}",
+                        res.files_purged, res.message
+                    ));
+                }
+                Err(e) => self.ui_repair_msg = Some(format!("Error: {}", e)),
+            }
+        }
+        ui.add_space(8.0);
+
+        if let Some(msg) = &self.ui_repair_msg {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                ui.label(RichText::new(msg).color(RustCareTheme::SUCCESS_GREEN));
+            });
+        }
+    }
+
+    fn render_system_info(&mut self, ui: &mut Ui) {
+        ui.heading(RichText::new("💻 Ficha de Especificaciones de Hardware y SO").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.label("Resumen completo de CPU, Memoria RAM, Placas Gráficas, Discos y versión de Windows.");
+        ui.add_space(8.0);
+
+        if self.system_report.is_none() {
+            self.system_report = Some(SystemInfoHub::get_report());
+        }
+
+        ui.horizontal(|ui| {
+            if ui.button("🔄 Actualizar Datos").clicked() {
+                self.system_report = Some(SystemInfoHub::get_report());
+            }
+
+            if ui.button("📋 Copiar Reporte Completo").clicked() {
+                let txt = SystemInfoHub::export_text_report();
+                ui.ctx().copy_text(txt);
+            }
+        });
+        ui.add_space(8.0);
+
+        if let Some(rep) = &self.system_report {
+            ScrollArea::vertical().show(ui, |ui| {
+                RustCareTheme::card_frame().show(ui, |ui| {
+                    ui.label(RichText::new(format!("Sistema Operativo: {} ({})", rep.os_name, rep.os_version)).strong());
+                    ui.label(RichText::new(format!("Equipo / Host: {}", rep.host_name)).color(RustCareTheme::TEXT_MUTED));
+                    ui.separator();
+                    ui.label(RichText::new(format!("Procesador (CPU): {}", rep.cpu_brand)).strong());
+                    ui.label(format!("Núcleos lógicos: {}", rep.cpu_cores));
+                    ui.separator();
+                    ui.label(RichText::new(format!("Memoria RAM Total: {} (Disponible: {})", rep.memory_total, rep.memory_free)).strong());
+                    ui.separator();
+                    ui.label(RichText::new("Unidades de Almacenamiento:").strong());
+                    for d in &rep.storage_units {
+                        ui.label(format!("• {}", d));
+                    }
+                    if !rep.gpus.is_empty() {
+                        ui.separator();
+                        ui.label(RichText::new("Controladores Gráficos (GPU):").strong());
+                        for g in &rep.gpus {
+                            ui.label(format!("• {}", g));
+                        }
+                    }
+                });
+            });
+        }
+    }
+
+    fn render_power_plan(&mut self, ui: &mut Ui) {
+        ui.heading(RichText::new("🔋 Selector de Planes de Energía").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.label("Cambia el esquema de energía de Windows para ahorro de batería o máxima velocidad sin limitaciones.");
+        ui.add_space(8.0);
+
+        ui.horizontal(|ui| {
+            if ui.button("🔄 Refrescar Planes").clicked() {
+                self.power_schemes = PowerPlanOptimizer::list_schemes();
+            }
+
+            if ui.button("🚀 Desbloquear 'Máximo Rendimiento' (Ultimate Performance)").clicked() {
+                match PowerPlanOptimizer::unlock_ultimate_performance() {
+                    Ok(guid) => {
+                        self.power_msg = Some(format!("¡Plan Máximo Rendimiento habilitado! (GUID: {})", guid));
+                        self.power_schemes = PowerPlanOptimizer::list_schemes();
+                    }
+                    Err(e) => self.power_msg = Some(format!("Resultado: {}", e)),
+                }
+            }
+        });
+        ui.add_space(8.0);
+
+        if let Some(msg) = &self.power_msg {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                ui.label(RichText::new(msg).color(RustCareTheme::SUCCESS_GREEN));
+            });
+            ui.add_space(6.0);
+        }
+
+        let mut activate_guid_and_name = None;
+
+        ScrollArea::vertical().show(ui, |ui| {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                for scheme in &self.power_schemes {
+                    ui.horizontal(|ui| {
+                        ui.vertical(|ui| {
+                            let label = if scheme.is_active {
+                                RichText::new(format!("⭐ {} (Activo)", scheme.name)).strong().color(RustCareTheme::ACCENT_CYAN)
+                            } else {
+                                RichText::new(&scheme.name).strong()
+                            };
+                            ui.label(label);
+                            ui.label(RichText::new(&scheme.guid).small().color(RustCareTheme::TEXT_MUTED));
+                        });
+
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if !scheme.is_active && ui.button("Activar").clicked() {
+                                activate_guid_and_name = Some((scheme.guid.clone(), scheme.name.clone()));
+                            }
+                        });
+                    });
+                    ui.separator();
+                }
+            });
+        });
+
+        if let Some((guid, name)) = activate_guid_and_name {
+            match PowerPlanOptimizer::set_active_scheme(&guid) {
+                Ok(_) => {
+                    self.power_msg = Some(format!("Plan '{}' activado con éxito.", name));
+                    self.power_schemes = PowerPlanOptimizer::list_schemes();
+                }
+                Err(e) => self.power_msg = Some(format!("Error: {}", e)),
+            }
+        }
     }
 }

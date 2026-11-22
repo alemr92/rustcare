@@ -51,6 +51,14 @@ RustCare es una suite de optimización, limpieza, mantenimiento, privacidad y se
 | **Buscador de Duplicados** | Cloned Files Finder. | Algoritmo en 3 fases: tamaño -> hash rápido 4KB -> hash `blake3`. | ✅ **100% Implementado** |
 | **Monitor en Tiempo Real** | Performance Monitor (Desktop widget con CPU/RAM). | Monitor en vivo con gráficos de CPU, RAM, Discos y Top procesos. | ✅ **100% Implementado** |
 | **Persistencia de Ajustes** | Guardado de preferencias de usuario. | Almacenamiento en `%LOCALAPPDATA%\RustCare\settings.json`. | ✅ **100% Implementado** |
+| **Internet & TCP/IP Booster** | Internet Booster (Optimización TCP/IP). | Auto-tuning, ECN, RSS con copia de seguridad JSON y reversión 1-clic. | ✅ **100% Implementado** |
+| **SSD TRIM & Health** | SSD Trim / Disk Health. | TRIM nativo (`defrag /O /L`) y comprobación de integridad de volumen. | ✅ **100% Implementado** |
+| **Compactador SQLite** | Browser Database Optimizer (VACUUM). | Desfragmentación de SQLite en Chrome/Edge/Firefox con backup `.bak`. | ✅ **100% Implementado** |
+| **Reparador de Iconos** | Windows Fix / Icon Cache Rebuilder. | Reconstrucción de `IconCache.db` y reinicio fluido de `explorer.exe`. | ✅ **100% Implementado** |
+| **Ficha Técnica Hardware** | System Information Hub (Speccy clone). | Reporte detallado de CPU, GPU, RAM física, BIOS y exportación TXT. | ✅ **100% Implementado** |
+| **Planes de Energía** | Power Plan Optimizer / Ultimate Perf. | Gestión reversible de planes y desbloqueo de Máximo Rendimiento. | ✅ **100% Implementado** |
+| **AutoCare & Alertas** | AutoCare & Notifications Daemon. | Tareas automáticas en segundo plano y notificaciones nativas de escritorio. | ✅ **100% Implementado** |
+| **Multiplataforma** | Portabilidad a otros sistemas operativos. | Soporte cruzado para Windows, Linux (systemd/XDG) y macOS (Apple/Intel). | ✅ **100% Implementado** |
 
 ---
 
@@ -60,4 +68,12 @@ RustCare es una suite de optimización, limpieza, mantenimiento, privacidad y se
 - [x] **Fase 2: Motor de Limpieza, Privacidad y Monitor:** WalkDir sin reparse points, Dry-Run, backup .reg automático, SysInfo en vivo.
 - [x] **Fase 3: Aceleración, Arranque, Duplicados, WinGet y Shield:** K32EmptyWorkingSet, persistencias reversibles, blake3 multihilo, auditoría de malware y procesos en temp.
 - [x] **Fase 4: Herramientas Pro y Toolbox:** Driver Booster, Large Files, Empty Folders, File Shredder, WizTree analyzer, Context Menu, Rescue Center, Shortcuts fixer.
-- [x] **Fase 5: Interfaz Gráfica Moderna y Fluida en egui:** 6 secciones, modo oscuro refinado, comunicación asíncrona multihilo, 23 tests unitarios pasando.
+- [x] **Fase 5: Interfaz Gráfica Moderna y Fluida en egui:** 7 secciones, modo oscuro 2026, HUD circular, comunicación asíncrona multihilo.
+- [x] **Fase 6: Expansión Crítica y Estabilidad Reversible:**
+  - Internet & TCP/IP Booster con rollback a defaults.
+  - SSD TRIM nativo seguro e inspección de disco.
+  - Compactación SQLite de navegadores con copia preventiva `.bak`.
+  - Reparador de caché de iconos y fuentes de Windows.
+  - Generador de informe y ficha técnica de hardware.
+  - Optimizador de planes de energía con desbloqueo de Máximo Rendimiento.
+  - Batería exhaustiva de 54 pruebas automatizadas superadas (31 pruebas unitarias + 23 pruebas de validación aislada sin riesgo).
