@@ -72,7 +72,7 @@ impl SettingsView {
         // Encabezado superior de la ventana de opciones
         ui.horizontal(|ui| {
             ui.heading(
-                RichText::new("⚙ RustCare - Opciones")
+                RichText::new("RustCare - Opciones")
                     .size(20.0)
                     .strong()
                     .color(RustCareTheme::TEXT_PRIMARY),
@@ -82,8 +82,8 @@ impl SettingsView {
                     RustCareTheme::draw_badge(
                         ui,
                         msg,
-                        RustCareTheme::SUCCESS_GREEN,
-                        Color32::from_rgba_premultiplied(16, 185, 129, 25),
+                        RustCareTheme::ACCENT_TEAL,
+                        Color32::from_rgba_premultiplied(0, 229, 168, 25),
                     );
                 }
             });
@@ -150,7 +150,7 @@ impl SettingsView {
                         // 1. Ajustes generales
                         self.render_tree_item(
                             ui,
-                            "⚙  Ajustes generales",
+                            "Ajustes generales",
                             SettingsSection::General,
                             0,
                         );
@@ -158,42 +158,42 @@ impl SettingsView {
                         // 2. Anti-Spyware
                         self.render_tree_item(
                             ui,
-                            "🛡  Anti-Spyware",
+                            "Anti-Spyware",
                             SettingsSection::AntiSpyware,
                             0,
                         );
 
                         // 3. Limpiar y optimizar (Desplegable con flecha)
                         let mut expand_clean = self.expand_clean_optimize;
-                        self.render_category_header(ui, "🧹 Limpiar y optimizar", &mut expand_clean);
+                        self.render_category_header(ui, "Limpiar y optimizar", &mut expand_clean);
                         self.expand_clean_optimize = expand_clean;
 
                         if self.expand_clean_optimize {
-                            self.render_tree_item(ui, "🛡  Eliminador de Spyware", SettingsSection::SpywareRemover, 16);
-                            self.render_tree_item(ui, "🗂  Limpiador de registro", SettingsSection::RegistryCleaner, 16);
-                            self.render_tree_item(ui, "🔒  Limpieza de privacidad", SettingsSection::PrivacyCleaner, 16);
-                            self.render_tree_item(ui, "🗑  Limpiador de archivos basura", SettingsSection::JunkFilesCleaner, 16);
-                            self.render_tree_item(ui, "⚡  Optimización del Sistema", SettingsSection::SystemOptimization, 16);
-                            self.render_tree_item(ui, "🌐  Acelerador de Internet", SettingsSection::InternetBooster, 16);
-                            self.render_tree_item(ui, "🛡  Refuerzo de seguridad", SettingsSection::SecurityReinforce, 16);
-                            self.render_tree_item(ui, "🩹  Soluciones de vulnerabilidades", SettingsSection::VulnerabilityFixes, 16);
-                            self.render_tree_item(ui, "💾  Optimización de disco", SettingsSection::DiskOptimization, 16);
+                            self.render_tree_item(ui, "Eliminador de Spyware", SettingsSection::SpywareRemover, 16);
+                            self.render_tree_item(ui, "Limpiador de registro", SettingsSection::RegistryCleaner, 16);
+                            self.render_tree_item(ui, "Limpieza de privacidad", SettingsSection::PrivacyCleaner, 16);
+                            self.render_tree_item(ui, "Limpiador de archivos basura", SettingsSection::JunkFilesCleaner, 16);
+                            self.render_tree_item(ui, "Optimización del Sistema", SettingsSection::SystemOptimization, 16);
+                            self.render_tree_item(ui, "Acelerador de Internet", SettingsSection::InternetBooster, 16);
+                            self.render_tree_item(ui, "Refuerzo de seguridad", SettingsSection::SecurityReinforce, 16);
+                            self.render_tree_item(ui, "Soluciones de vulnerabilidades", SettingsSection::VulnerabilityFixes, 16);
+                            self.render_tree_item(ui, "Optimización de disco", SettingsSection::DiskOptimization, 16);
                         }
 
                         // 4. Servicio automático (Desplegable con flecha)
                         let mut expand_auto = self.expand_auto_service;
-                        self.render_category_header(ui, "🤖 Servicio automático", &mut expand_auto);
+                        self.render_category_header(ui, "Servicio automático", &mut expand_auto);
                         self.expand_auto_service = expand_auto;
 
                         if self.expand_auto_service {
-                            self.render_tree_item(ui, "🕒  Auto Cuidador", SettingsSection::AutoCare, 16);
-                            self.render_tree_item(ui, "🧹  Auto Limpiador", SettingsSection::AutoCleaner, 16);
-                            self.render_tree_item(ui, "🔄  Auto Actualizador", SettingsSection::AutoUpdater, 16);
-                            self.render_tree_item(ui, "🧠  Auto Limpiador de RAM", SettingsSection::AutoRamCleaner, 16);
-                            self.render_tree_item(ui, "🎛  Limpieza personalizada", SettingsSection::CustomCleaning, 16);
-                            self.render_tree_item(ui, "⛔  Lista de ignorados", SettingsSection::IgnoreList, 16);
-                            self.render_tree_item(ui, "🛟  Registros y copias de seguridad", SettingsSection::LogsAndBackups, 16);
-                            self.render_tree_item(ui, "🔔  Notificaciones", SettingsSection::Notifications, 16);
+                            self.render_tree_item(ui, "Auto Cuidador", SettingsSection::AutoCare, 16);
+                            self.render_tree_item(ui, "Auto Limpiador", SettingsSection::AutoCleaner, 16);
+                            self.render_tree_item(ui, "Auto Actualizador", SettingsSection::AutoUpdater, 16);
+                            self.render_tree_item(ui, "Auto Limpiador de RAM", SettingsSection::AutoRamCleaner, 16);
+                            self.render_tree_item(ui, "Limpieza personalizada", SettingsSection::CustomCleaning, 16);
+                            self.render_tree_item(ui, "Lista de ignorados", SettingsSection::IgnoreList, 16);
+                            self.render_tree_item(ui, "Registros y copias de seguridad", SettingsSection::LogsAndBackups, 16);
+                            self.render_tree_item(ui, "Notificaciones", SettingsSection::Notifications, 16);
                         }
                     });
             });

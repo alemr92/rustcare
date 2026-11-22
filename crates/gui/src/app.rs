@@ -1,10 +1,11 @@
-//! Orquestador de Interfaz Gráfica de RustCare 2026
+//! Orquestador de Interfaz Gráfica de RustCare 2026 - Determinista Pixel-Perfect
+use crate::icons::VectorIcons;
 use crate::theme::RustCareTheme;
 use crate::views::{BoosterView, CareView, CleanerView, MonitorView, SettingsView, ShieldView, ToolboxView};
 use crossbeam_channel::{Receiver, Sender};
-use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Rect, RichText, Stroke, StrokeKind, Ui, Vec2};
+use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Pos2, Rect, RichText, Stroke, StrokeKind, Ui, Vec2};
 use rustcare_core::backend::{LiveWindowsBackend, SandboxBackend, SystemBackend};
-use rustcare_core::cleaner::{CleanerEngine, FullCleanResult, FullScanResult};
+use rustcare_core::cleaner::{FullCleanResult, FullScanResult};
 use rustcare_core::config::ConfigManager;
 use rustcare_core::rules::RulesEngine;
 use rustcare_core::security::is_elevated;
@@ -16,8 +17,8 @@ use std::time::Duration;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NavSection {
     Care,
-    Cleaner,
     Booster,
+    Cleaner,
     Shield,
     Toolbox,
     Monitor,
@@ -42,6 +43,7 @@ pub enum AppEvent {
 
 pub struct RustCareApp {
     pub current_section: NavSection,
+    #[allow(dead_code)]
     pub is_admin: bool,
     pub backend: Arc<dyn SystemBackend>,
 
@@ -104,7 +106,7 @@ impl RustCareApp {
                     self.care_view.total_bytes_found = bytes_found;
                     self.care_view.total_items_found = files_found;
                     self.care_view.threats_found = threats_found;
-                    self.care_view.health_score = 42; // Estado crítico inicial tras escaneo
+                    self.care_view.health_score = 42; // Crítica
                     self.care_view.progress = 1.0;
                 }
                 AppEvent::CareCleanFinished {
@@ -115,7 +117,7 @@ impl RustCareApp {
                     self.care_view.clean_completed = true;
                     self.care_view.total_bytes_found = bytes_freed;
                     self.care_view.total_items_found = files_deleted;
-                    self.care_view.health_score = 98; // Óptimo
+                    self.care_view.health_score = 98; // Óptima
                     self.care_view.progress = 1.0;
                 }
                 AppEvent::CleanerScanFinished(res) => {
@@ -143,97 +145,85 @@ impl eframe::App for RustCareApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.handle_events();
 
-        // Barra Superior de Estado, Privilegios y Selector de Sandbox 2026
+        // =====================================================================
+        // 1. TOPBAR EXACTA (height: 48.0px, fondo #090C10, borde 1.0px #232D3F)
+        // =====================================================================
         egui::TopBottomPanel::top("top_bar")
-            .exact_height(54.0)
-            .show_separator_line(true)
-            .frame(egui::Frame::NONE.fill(RustCareTheme::TOPBAR_BG).inner_margin(egui::Margin::symmetric(14, 8)))
+            .exact_height(48.0)
+            .show_separator_line(false)
+            .frame(
+                egui::Frame::NONE
+                    .fill(RustCareTheme::BG_VOID)
+                    .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
+                    .inner_margin(egui::Margin::symmetric(16, 8)),
+            )
             .show(ctx, |ui| {
-                ui.add_space(6.0);
-                ui.horizontal(|ui| {
-                    ui.add_space(4.0);
-                    // Logotipo Cyber-Dark
+                ui.horizontal_centered(|ui| {
+                    // Logo vectorial R + RUSTCARE PRO
+                    let (logo_rect, _) = ui.allocate_exact_size(Vec2::new(22.0, 22.0), egui::Sense::hover());
+                    let p = ui.painter();
+                    // Dibuja icono estilizado 'R'
+                    let stroke_teal = Stroke::new(2.0_f32, RustCareTheme::ACCENT_TEAL);
+                    p.line_segment([Pos2::new(logo_rect.min.x + 3.0, logo_rect.max.y - 2.0), Pos2::new(logo_rect.min.x + 3.0, logo_rect.min.y + 2.0)], stroke_teal);
+                    p.line_segment([Pos2::new(logo_rect.min.x + 3.0, logo_rect.min.y + 2.0), Pos2::new(logo_rect.min.x + 13.0, logo_rect.min.y + 2.0)], stroke_teal);
+                    p.line_segment([Pos2::new(logo_rect.min.x + 13.0, logo_rect.min.y + 2.0), Pos2::new(logo_rect.min.x + 13.0, logo_rect.center().y)], stroke_teal);
+                    p.line_segment([Pos2::new(logo_rect.min.x + 13.0, logo_rect.center().y), Pos2::new(logo_rect.min.x + 3.0, logo_rect.center().y)], stroke_teal);
+                    p.line_segment([Pos2::new(logo_rect.min.x + 7.0, logo_rect.center().y), Pos2::new(logo_rect.max.x - 3.0, logo_rect.max.y - 2.0)], stroke_teal);
+
+                    ui.add_space(6.0);
                     ui.label(
-                        RichText::new("⚡ RUSTCARE")
-                            .size(20.0)
+                        RichText::new("RUSTCARE PRO")
+                            .size(18.0)
                             .strong()
-                            .color(RustCareTheme::ACCENT_CYAN),
-                    );
-                    ui.label(
-                        RichText::new("ASC PRO 2026")
-                            .size(11.0)
-                            .strong()
-                            .color(RustCareTheme::ACCENT_PURPLE),
+                            .color(RustCareTheme::ACCENT_TEAL),
                     );
 
-                    ui.add_space(20.0);
-
-                    // ==========================================
-                    // Quick Performance Mini-Monitor en TopBar
-                    // ==========================================
-                    let metrics = self.backend.get_metrics();
-                    let cpu_pct = metrics.cpu_global_percent;
-                    let ram_pct = metrics.memory_usage_percent;
-
-                    ui.horizontal(|ui| {
-                        ui.label(RichText::new("CPU:").small().color(RustCareTheme::TEXT_MUTED));
-                        let cpu_col = if cpu_pct > 80.0 { RustCareTheme::DANGER_RED } else if cpu_pct > 50.0 { RustCareTheme::WARNING_AMBER } else { RustCareTheme::NEON_TEAL };
-                        ui.label(RichText::new(format!("{:.0}%", cpu_pct)).small().strong().color(cpu_col));
+                    // Lado derecho de la Topbar
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        // Botón de avatar de usuario con chevron
+                        let (avatar_rect, _) = ui.allocate_exact_size(Vec2::new(36.0, 28.0), egui::Sense::click());
+                        let p = ui.painter();
+                        p.rect_filled(avatar_rect, CornerRadius::same(14), RustCareTheme::BG_ELEVATED);
+                        p.rect_stroke(avatar_rect, CornerRadius::same(14), Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE), StrokeKind::Inside);
+                        let icon_rect = Rect::from_center_size(Pos2::new(avatar_rect.min.x + 14.0, avatar_rect.center().y), Vec2::splat(14.0));
+                        VectorIcons::draw_user(p, icon_rect, RustCareTheme::ACCENT_CYAN);
+                        // Flecha abajo (chevron)
+                        let ch_x = avatar_rect.max.x - 9.0;
+                        let ch_y = avatar_rect.center().y;
+                        p.line_segment([Pos2::new(ch_x - 3.0, ch_y - 2.0), Pos2::new(ch_x, ch_y + 1.5)], Stroke::new(1.5_f32, RustCareTheme::TEXT_MUTED));
+                        p.line_segment([Pos2::new(ch_x, ch_y + 1.5), Pos2::new(ch_x + 3.0, ch_y - 2.0)], Stroke::new(1.5_f32, RustCareTheme::TEXT_MUTED));
 
                         ui.add_space(10.0);
-                        ui.label(RichText::new("RAM:").small().color(RustCareTheme::TEXT_MUTED));
-                        let ram_col = if ram_pct > 80.0 { RustCareTheme::DANGER_RED } else if ram_pct > 50.0 { RustCareTheme::WARNING_AMBER } else { RustCareTheme::NEON_TEAL };
-                        ui.label(RichText::new(format!("{:.0}%", ram_pct)).small().strong().color(ram_col));
-                    });
 
-                    // Lado Derecho: Toggle Sandbox, Admin badge y Botón Opciones
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.add_space(6.0);
-                        if ui
-                            .button(
-                                RichText::new("⚙️ Opciones")
-                                    .size(13.0)
-                                    .strong()
-                                    .color(RustCareTheme::ACCENT_CYAN),
-                            )
-                            .clicked()
-                        {
-                            self.current_section = NavSection::Settings;
-                        }
-
-                        ui.add_space(8.0);
-
-                        // ==========================================
-                        // SELECTOR INTERACTIVO MODO SANDBOX / WINDOWS REAL
-                        // ==========================================
+                        // Píldora redondeada interactiva MODO SANDBOX / MODO REAL
                         let is_sb = self.backend.is_sandbox();
-                        let (badge_text, badge_color, badge_bg) = if is_sb {
-                            (
-                                "🧪 MODO SANDBOX (Aislado Seguro)",
-                                RustCareTheme::NEON_TEAL,
-                                Color32::from_rgba_premultiplied(0, 229, 168, 30),
-                            )
+                        let (pill_border, pill_bg, pill_text) = if is_sb {
+                            (RustCareTheme::ACCENT_AMBER, Color32::from_rgba_premultiplied(255, 176, 32, 38), "MODO SANDBOX")
                         } else {
-                            (
-                                "🔴 MODO WINDOWS REAL",
-                                RustCareTheme::DANGER_RED,
-                                Color32::from_rgba_premultiplied(255, 77, 109, 30),
-                            )
+                            (RustCareTheme::ACCENT_CORAL, Color32::from_rgba_premultiplied(255, 77, 109, 38), "MODO REAL")
                         };
 
-                        let btn_resp = ui.add(
-                            egui::Button::new(
-                                RichText::new(badge_text)
-                                    .size(12.0)
-                                    .strong()
-                                    .color(badge_color),
-                            )
-                            .fill(badge_bg)
-                            .stroke(Stroke::new(1.0, badge_color))
-                            .corner_radius(CornerRadius::same(6)),
+                        let pill_size = Vec2::new(145.0, 30.0);
+                        let (pill_rect, pill_resp) = ui.allocate_exact_size(pill_size, egui::Sense::click());
+                        let p = ui.painter();
+
+                        p.rect_filled(pill_rect, CornerRadius::same(15), pill_bg);
+                        p.rect_stroke(pill_rect, CornerRadius::same(15), Stroke::new(1.5_f32, pill_border), StrokeKind::Inside);
+
+                        // Texto de la píldora
+                        p.text(
+                            Pos2::new(pill_rect.min.x + 14.0, pill_rect.center().y),
+                            Align2::LEFT_CENTER,
+                            pill_text,
+                            FontId::proportional(12.0),
+                            pill_border,
                         );
 
-                        if btn_resp.clicked() {
+                        // Mini escudo vectorial dentro de la píldora
+                        let s_rect = Rect::from_center_size(Pos2::new(pill_rect.max.x - 20.0, pill_rect.center().y), Vec2::splat(14.0));
+                        VectorIcons::draw_shield(p, s_rect, pill_border, false);
+
+                        if pill_resp.clicked() {
                             if is_sb {
                                 self.backend = Arc::new(LiveWindowsBackend::default());
                             } else {
@@ -242,234 +232,293 @@ impl eframe::App for RustCareApp {
                             self.booster_view.startup_entries = self.backend.list_startup_entries();
                         }
 
-                        btn_resp.on_hover_text(if is_sb {
-                            "Entorno de pruebas 100% aislado en ./target/sandbox_env/. Clic para pasar a Windows Real."
+                        pill_resp.on_hover_text(if is_sb {
+                            "Modo aislado activo. Clic para alternar a Windows Real."
                         } else {
-                            "Operando directamente sobre Windows real. Clic para pasar a Sandbox aislado de pruebas."
+                            "Modo real activo. Clic para alternar a Sandbox aislado."
                         });
-
-                        ui.add_space(8.0);
-                        if self.is_admin {
-                            RustCareTheme::draw_badge(
-                                ui,
-                                "🛡️ Admin",
-                                RustCareTheme::SUCCESS_GREEN,
-                                Color32::from_rgba_premultiplied(16, 185, 129, 25),
-                            );
-                        }
                     });
                 });
             });
 
-        // Barra Lateral de Navegación 2026
+        // =====================================================================
+        // 2. SIDEBAR IZQUIERDA EXACTA (width: 210.0px, fondo #0D1118, borde #232D3F)
+        // =====================================================================
         egui::SidePanel::left("sidebar")
-            .exact_width(225.0)
+            .exact_width(210.0)
+            .show_separator_line(false)
+            .frame(
+                egui::Frame::NONE
+                    .fill(RustCareTheme::BG_SIDEBAR)
+                    .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE)),
+            )
             .show(ctx, |ui| {
-                ui.add_space(14.0);
+                ui.add_space(10.0);
 
-                fn nav_item(ui: &mut Ui, label: &str, active: bool) -> bool {
-                    let desired_size = Vec2::new(205.0, 44.0);
+                // Función auxiliar de ítem de navegación determinista
+                let nav_item = |ui: &mut Ui, label: &str, active: bool, icon_drawer: fn(&egui::Painter, Rect, Color32)| -> bool {
+                    let desired_size = Vec2::new(210.0, 44.0);
                     let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
+                    let p = ui.painter();
 
-                    let bg_color = if active {
-                        Color32::from_rgb(28, 36, 52)
+                    let (bg_col, text_col, icon_col) = if active {
+                        (
+                            Color32::from_rgba_premultiplied(24, 32, 44, 255), // #18202C
+                            Color32::WHITE,
+                            RustCareTheme::ACCENT_TEAL,
+                        )
                     } else if response.hovered() {
-                        Color32::from_rgb(22, 28, 40)
+                        (
+                            Color32::from_rgba_premultiplied(24, 32, 44, 150),
+                            RustCareTheme::TEXT_PRIMARY,
+                            RustCareTheme::ACCENT_TEAL,
+                        )
                     } else {
-                        Color32::TRANSPARENT
+                        (
+                            Color32::TRANSPARENT,
+                            RustCareTheme::TEXT_MUTED,
+                            RustCareTheme::TEXT_MUTED,
+                        )
                     };
 
-                    ui.painter().rect_filled(rect, CornerRadius::same(8), bg_color);
+                    p.rect_filled(rect, CornerRadius::ZERO, bg_col);
 
-                    // Indicador de acento izquierdo para el elemento activo
+                    // Si está activo: barra vertical brillante de 3.5px x 28.0px pegada al borde derecho
                     if active {
-                        let indicator_rect = Rect::from_min_size(
-                            rect.min,
-                            Vec2::new(4.0, rect.height()),
+                        let bar_rect = Rect::from_min_size(
+                            Pos2::new(rect.max.x - 3.5, rect.center().y - 14.0),
+                            Vec2::new(3.5, 28.0),
                         );
-                        ui.painter().rect_filled(
-                            indicator_rect,
-                            CornerRadius::same(2),
-                            RustCareTheme::NEON_TEAL,
-                        );
-                        ui.painter().rect_stroke(
-                            rect,
-                            CornerRadius::same(8),
-                            Stroke::new(1.0, Color32::from_rgba_premultiplied(0, 229, 168, 50)),
-                            StrokeKind::Inside,
-                        );
+                        p.rect_filled(bar_rect, CornerRadius::same(2), RustCareTheme::ACCENT_TEAL);
                     }
 
-                    let text_color = if active {
-                        Color32::WHITE
-                    } else if response.hovered() {
-                        RustCareTheme::TEXT_PRIMARY
-                    } else {
-                        RustCareTheme::TEXT_MUTED
-                    };
+                    // Icono vectorial 18x18 a la izquierda
+                    let icon_rect = Rect::from_center_size(Pos2::new(rect.min.x + 28.0, rect.center().y), Vec2::splat(18.0));
+                    icon_drawer(p, icon_rect, icon_col);
 
-                    let font_id = FontId::proportional(15.0);
-                    let text_pos = egui::pos2(rect.min.x + 14.0, rect.center().y);
-                    ui.painter().text(
-                        text_pos,
+                    // Texto 14px
+                    p.text(
+                        Pos2::new(rect.min.x + 46.0, rect.center().y),
                         Align2::LEFT_CENTER,
                         label,
-                        font_id,
-                        text_color,
+                        FontId::proportional(14.0),
+                        text_col,
                     );
 
                     response.clicked()
-                }
+                };
 
-                if nav_item(ui, "🚀  Análisis 1-Clic", self.current_section == NavSection::Care) {
+                if nav_item(ui, "Cuidar", self.current_section == NavSection::Care, VectorIcons::draw_radar) {
                     self.current_section = NavSection::Care;
                 }
-                ui.add_space(4.0);
-
-                if nav_item(ui, "🧹  Limpieza & Datos", self.current_section == NavSection::Cleaner) {
-                    self.current_section = NavSection::Cleaner;
-                }
-                ui.add_space(4.0);
-
-                if nav_item(ui, "⚡  Aceleración (Booster)", self.current_section == NavSection::Booster) {
+                if nav_item(ui, "Acelerar", self.current_section == NavSection::Booster, VectorIcons::draw_lightning) {
                     self.current_section = NavSection::Booster;
                 }
-                ui.add_space(4.0);
-
-                if nav_item(ui, "🛡️  Seguridad (Shield)", self.current_section == NavSection::Shield) {
+                if nav_item(ui, "Limpieza", self.current_section == NavSection::Cleaner, VectorIcons::draw_broom) {
+                    self.current_section = NavSection::Cleaner;
+                }
+                if nav_item(ui, "Escudo", self.current_section == NavSection::Shield, |p, r, c| VectorIcons::draw_shield(p, r, c, true)) {
                     self.current_section = NavSection::Shield;
                 }
-                ui.add_space(4.0);
-
-                if nav_item(ui, "🧰  Herramientas PRO", self.current_section == NavSection::Toolbox) {
+                if nav_item(ui, "Herramientas", self.current_section == NavSection::Toolbox, VectorIcons::draw_tools) {
                     self.current_section = NavSection::Toolbox;
                 }
-                ui.add_space(4.0);
-
-                if nav_item(ui, "📊  Monitor de Sistema", self.current_section == NavSection::Monitor) {
+                if nav_item(ui, "Monitor", self.current_section == NavSection::Monitor, VectorIcons::draw_monitor) {
                     self.current_section = NavSection::Monitor;
                 }
-                ui.add_space(4.0);
 
-                if nav_item(ui, "⚙️  Ajustes & AutoCare", self.current_section == NavSection::Settings) {
+                ui.add_space(8.0);
+                // Separador 1px #232D3F
+                let (sep_rect, _) = ui.allocate_exact_size(Vec2::new(190.0, 1.0), egui::Sense::hover());
+                ui.painter().line_segment(
+                    [Pos2::new(sep_rect.min.x + 10.0, sep_rect.min.y), Pos2::new(sep_rect.max.x + 10.0, sep_rect.min.y)],
+                    Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE),
+                );
+                ui.add_space(8.0);
+
+                if nav_item(ui, "Ajustes", self.current_section == NavSection::Settings, VectorIcons::draw_gear) {
                     self.current_section = NavSection::Settings;
                 }
 
+                // =====================================================================
+                // MINI-PANEL ANCLADO ABAJO (CPU/RAM en vivo + Botón Liberar RAM)
+                // =====================================================================
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
-                    ui.add_space(14.0);
-                    RustCareTheme::card_frame().show(ui, |ui| {
-                        ui.vertical_centered(|ui| {
-                            ui.label(RichText::new("⚡ 100% Rust Nativo").small().strong().color(RustCareTheme::NEON_TEAL));
-                            ui.label(RichText::new("Sin telemetría • Zero-Admin").small().color(RustCareTheme::TEXT_DIM));
+                    ui.add_space(12.0);
+
+                    egui::Frame::NONE
+                        .fill(RustCareTheme::BG_SURFACE)
+                        .corner_radius(CornerRadius::same(RustCareTheme::RADIUS_CARD as u8))
+                        .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
+                        .inner_margin(egui::Margin::same(10))
+                        .show(ui, |ui| {
+                            ui.vertical(|ui| {
+                                ui.set_width(182.0);
+                                let metrics = self.backend.get_metrics();
+                                let cpu_pct = metrics.cpu_global_percent.clamp(0.0, 100.0);
+                                let ram_pct = metrics.memory_usage_percent.clamp(0.0, 100.0);
+
+                                // CPU Bar
+                                ui.horizontal(|ui| {
+                                    ui.label(RichText::new("CPU").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                        ui.label(RichText::new(format!("{:.0}%", cpu_pct)).size(11.0).strong().color(RustCareTheme::ACCENT_TEAL));
+                                    });
+                                });
+                                let (cpu_bar, _) = ui.allocate_exact_size(Vec2::new(162.0, 4.0), egui::Sense::hover());
+                                ui.painter().rect_filled(cpu_bar, CornerRadius::same(2), RustCareTheme::BG_ELEVATED);
+                                let fill_w = (cpu_bar.width() * (cpu_pct / 100.0)).max(2.0);
+                                ui.painter().rect_filled(
+                                    Rect::from_min_size(cpu_bar.min, Vec2::new(fill_w, 4.0)),
+                                    CornerRadius::same(2),
+                                    RustCareTheme::ACCENT_TEAL,
+                                );
+
+                                ui.add_space(6.0);
+
+                                // RAM Bar
+                                ui.horizontal(|ui| {
+                                    ui.label(RichText::new("RAM").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                        ui.label(RichText::new(format!("{:.0}%", ram_pct)).size(11.0).strong().color(RustCareTheme::ACCENT_CYAN));
+                                    });
+                                });
+                                let (ram_bar, _) = ui.allocate_exact_size(Vec2::new(162.0, 4.0), egui::Sense::hover());
+                                ui.painter().rect_filled(ram_bar, CornerRadius::same(2), RustCareTheme::BG_ELEVATED);
+                                let fill_ram_w = (ram_bar.width() * (ram_pct / 100.0)).max(2.0);
+                                ui.painter().rect_filled(
+                                    Rect::from_min_size(ram_bar.min, Vec2::new(fill_ram_w, 4.0)),
+                                    CornerRadius::same(2),
+                                    RustCareTheme::ACCENT_CYAN,
+                                );
+
+                                ui.add_space(8.0);
+
+                                // Botón ancho completo Liberar RAM con border 1px #00E5A8
+                                if RustCareTheme::custom_button(
+                                    ui,
+                                    "Liberar RAM",
+                                    RustCareTheme::ACCENT_TEAL,
+                                    RustCareTheme::ACCENT_TEAL,
+                                    Color32::from_rgba_premultiplied(0, 229, 168, 15),
+                                    28.0,
+                                )
+                                .clicked()
+                                {
+                                    let _ = self.backend.clean_ram();
+                                }
+                            });
                         });
-                    });
                 });
             });
 
-        // Contenido Principal Central
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add_space(10.0);
-            match self.current_section {
-                NavSection::Care => {
-                    let tx = self.sender.clone();
-                    let clean_tx = self.sender.clone();
-                    let backend = self.backend.clone();
-                    let clean_backend = self.backend.clone();
+        // =====================================================================
+        // 3. CONTENIDO PRINCIPAL CENTRAL
+        // =====================================================================
+        egui::CentralPanel::default()
+            .frame(egui::Frame::NONE.fill(RustCareTheme::BG_VOID).inner_margin(egui::Margin::same(18)))
+            .show(ctx, |ui| {
+                match self.current_section {
+                    NavSection::Care => {
+                        let tx = self.sender.clone();
+                        let clean_tx = self.sender.clone();
+                        let backend = self.backend.clone();
+                        let clean_backend = self.backend.clone();
 
-                    self.care_view.render(
-                        ui,
-                        move |_options| {
-                            thread::spawn(move || {
-                                let _ = tx.send(AppEvent::CareScanProgress(0.20, "Iniciando escáner en entorno...".into()));
-                                let prefs = ConfigManager::load();
-                                let mut cleaner_cfg = RulesEngine::load_cleaner_rules().unwrap();
-                                cleaner_cfg.apply_preferences(&prefs);
-
-                                let _ = tx.send(AppEvent::CareScanProgress(0.50, "Analizando archivos temporales, logs y cachés...".into()));
-                                let scan_res = backend.scan_junk(&cleaner_cfg);
-
-                                let _ = tx.send(AppEvent::CareScanProgress(0.80, "Inspeccionando persistencias y memoria...".into()));
-                                let shield_res = ShieldEngine::scan_all();
-
-                                let _ = tx.send(AppEvent::CareScanProgress(0.98, "Consolidando métricas del sistema...".into()));
-                                thread::sleep(Duration::from_millis(150));
-
-                                let _ = tx.send(AppEvent::CareScanFinished {
-                                    bytes_found: scan_res.total_bytes,
-                                    files_found: scan_res.total_files,
-                                    threats_found: shield_res.threats.len(),
-                                });
-                            });
-                        },
-                        move || {
-                            thread::spawn(move || {
-                                let prefs = ConfigManager::load();
-                                let mut cleaner_cfg = RulesEngine::load_cleaner_rules().unwrap();
-                                cleaner_cfg.apply_preferences(&prefs);
-                                let scan_res = clean_backend.scan_junk(&cleaner_cfg);
-                                let clean_res = clean_backend.clean_junk(&scan_res);
-                                let _ = clean_backend.clean_ram();
-
-                                let _ = clean_tx.send(AppEvent::CareCleanFinished {
-                                    bytes_freed: clean_res.total_bytes_freed,
-                                    files_deleted: clean_res.total_files_deleted,
-                                });
-                            });
-                        },
-                    );
-                }
-                NavSection::Cleaner => {
-                    let tx = self.sender.clone();
-                    let clean_tx = self.sender.clone();
-                    let backend = self.backend.clone();
-                    let clean_backend = self.backend.clone();
-                    let scan_cache = self.cleaner_view.scan_result.clone();
-
-                    self.cleaner_view.render(
-                        ui,
-                        move |_selected_targets| {
-                            thread::spawn(move || {
-                                let prefs = ConfigManager::load();
-                                let mut config = RulesEngine::load_cleaner_rules().unwrap();
-                                config.apply_preferences(&prefs);
-                                let res = backend.scan_junk(&config);
-                                let _ = tx.send(AppEvent::CleanerScanFinished(res));
-                            });
-                        },
-                        move || {
-                            if let Some(scan) = scan_cache {
+                        self.care_view.render(
+                            ui,
+                            move |_options| {
                                 thread::spawn(move || {
-                                    let res = clean_backend.clean_junk(&scan);
-                                    let _ = clean_tx.send(AppEvent::CleanerCleanFinished(res));
+                                    let _ = tx.send(AppEvent::CareScanProgress(0.18, "Iniciando escáner de alta velocidad...".into()));
+                                    let prefs = ConfigManager::load();
+                                    let mut cleaner_cfg = RulesEngine::load_cleaner_rules().unwrap();
+                                    cleaner_cfg.apply_preferences(&prefs);
+
+                                    let _ = tx.send(AppEvent::CareScanProgress(0.55, "Analizando archivos temporales, logs y cachés...".into()));
+                                    let scan_res = backend.scan_junk(&cleaner_cfg);
+
+                                    let _ = tx.send(AppEvent::CareScanProgress(0.82, "Inspeccionando persistencias y memoria...".into()));
+                                    let shield_res = ShieldEngine::scan_all();
+
+                                    let _ = tx.send(AppEvent::CareScanProgress(0.98, "Consolidando métricas del sistema...".into()));
+                                    thread::sleep(Duration::from_millis(150));
+
+                                    let _ = tx.send(AppEvent::CareScanFinished {
+                                        bytes_found: scan_res.total_bytes,
+                                        files_found: scan_res.total_files,
+                                        threats_found: shield_res.threats.len(),
+                                    });
                                 });
-                            }
-                        },
-                    );
-                }
-                NavSection::Booster => {
-                    self.booster_view.render(ui, &self.backend);
-                }
-                NavSection::Shield => {
-                    let tx = self.sender.clone();
-                    self.shield_view.render(ui, move || {
-                        thread::spawn(move || {
-                            let res = ShieldEngine::scan_all();
-                            let _ = tx.send(AppEvent::ShieldScanFinished(res));
+                            },
+                            move || {
+                                thread::spawn(move || {
+                                    let prefs = ConfigManager::load();
+                                    let mut cleaner_cfg = RulesEngine::load_cleaner_rules().unwrap();
+                                    cleaner_cfg.apply_preferences(&prefs);
+                                    let scan_res = clean_backend.scan_junk(&cleaner_cfg);
+                                    let clean_res = clean_backend.clean_junk(&scan_res);
+                                    let _ = clean_backend.clean_ram();
+
+                                    let _ = clean_tx.send(AppEvent::CareCleanFinished {
+                                        bytes_freed: clean_res.total_bytes_freed,
+                                        files_deleted: clean_res.total_files_deleted,
+                                    });
+                                });
+                            },
+                        );
+                    }
+                    NavSection::Booster => {
+                        self.booster_view.render(ui, &self.backend);
+                    }
+                    NavSection::Cleaner => {
+                        let tx = self.sender.clone();
+                        let clean_tx = self.sender.clone();
+                        let backend = self.backend.clone();
+                        let clean_backend = self.backend.clone();
+                        let scan_cache = self.cleaner_view.scan_result.clone();
+
+                        self.cleaner_view.render(
+                            ui,
+                            move |_selected_targets| {
+                                thread::spawn(move || {
+                                    let prefs = ConfigManager::load();
+                                    let mut config = RulesEngine::load_cleaner_rules().unwrap();
+                                    config.apply_preferences(&prefs);
+                                    let res = backend.scan_junk(&config);
+                                    let _ = tx.send(AppEvent::CleanerScanFinished(res));
+                                });
+                            },
+                            move || {
+                                if let Some(scan) = scan_cache {
+                                    thread::spawn(move || {
+                                        let res = clean_backend.clean_junk(&scan);
+                                        let _ = clean_tx.send(AppEvent::CleanerCleanFinished(res));
+                                    });
+                                }
+                            },
+                        );
+                    }
+                    NavSection::Shield => {
+                        let tx = self.sender.clone();
+                        self.shield_view.render(ui, move || {
+                            thread::spawn(move || {
+                                let res = ShieldEngine::scan_all();
+                                let _ = tx.send(AppEvent::ShieldScanFinished(res));
+                            });
                         });
-                    });
+                    }
+                    NavSection::Toolbox => {
+                        self.toolbox_view.render(ui);
+                    }
+                    NavSection::Monitor => {
+                        self.monitor_view.render(ui);
+                        ctx.request_repaint_after(Duration::from_millis(1500));
+                    }
+                    NavSection::Settings => {
+                        self.settings_view.render(ui);
+                    }
                 }
-                NavSection::Toolbox => {
-                    self.toolbox_view.render(ui);
-                }
-                NavSection::Monitor => {
-                    self.monitor_view.render(ui);
-                    ctx.request_repaint_after(Duration::from_millis(1500));
-                }
-                NavSection::Settings => {
-                    self.settings_view.render(ui);
-                }
-            }
-        });
+            });
 
         if self.care_view.is_scanning
             || self.care_view.is_cleaning

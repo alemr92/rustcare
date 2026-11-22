@@ -1,6 +1,6 @@
 //! Vista de Limpieza y Privacidad Granular - 2026 Edition
 use crate::theme::RustCareTheme;
-use eframe::egui::{self, Color32, CornerRadius, RichText, ScrollArea, Ui};
+use eframe::egui::{self, Color32, RichText, ScrollArea, Ui};
 use rustcare_core::cleaner::{CleanerEngine, FullCleanResult, FullScanResult};
 use rustcare_core::rules::CleanerConfig;
 use rustcare_core::security::is_elevated;
@@ -43,7 +43,7 @@ impl CleanerView {
     ) {
         ui.horizontal(|ui| {
             ui.heading(
-                RichText::new("🧹 Limpieza & Privacidad Granular")
+                RichText::new("Limpieza & Privacidad Granular")
                     .size(22.0)
                     .strong()
                     .color(RustCareTheme::TEXT_PRIMARY),
@@ -51,42 +51,32 @@ impl CleanerView {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if let Some(res) = &self.scan_result {
                     if res.total_bytes > 0 {
-                        if ui
-                            .add_sized(
-                                [170.0, 36.0],
-                                egui::Button::new(
-                                    RichText::new("🗑️ Limpiar Selección")
-                                        .strong()
-                                        .color(Color32::WHITE),
-                                )
-                                .fill(RustCareTheme::DANGER_RED)
-                                .corner_radius(CornerRadius::same(8)),
-                            )
-                            .clicked()
-                        {
+                        if RustCareTheme::custom_button(
+                            ui,
+                            "Limpiar Selección",
+                            RustCareTheme::ACCENT_CORAL,
+                            RustCareTheme::ACCENT_CORAL,
+                            Color32::from_rgba_premultiplied(255, 77, 109, 20),
+                            32.0,
+                        ).clicked() {
                             on_clean();
                         }
                     }
                 }
 
-                if ui
-                    .add_sized(
-                        [140.0, 36.0],
-                        egui::Button::new(
-                            RichText::new("🔍 Escanear")
-                                .strong()
-                                .color(Color32::WHITE),
-                        )
-                        .fill(RustCareTheme::ACCENT_BLUE)
-                        .corner_radius(CornerRadius::same(8)),
-                    )
-                    .clicked()
-                {
+                if RustCareTheme::custom_button(
+                    ui,
+                    "Escanear",
+                    RustCareTheme::ACCENT_TEAL,
+                    RustCareTheme::ACCENT_TEAL,
+                    Color32::from_rgba_premultiplied(0, 229, 168, 20),
+                    32.0,
+                ).clicked() {
                     let targets: Vec<String> = self.selected_targets.iter().cloned().collect();
                     on_scan(targets);
                 }
 
-                if ui.button("Marcar Todo").clicked() {
+                if RustCareTheme::custom_button(ui, "Marcar Todo", RustCareTheme::BORDER_SUBTLE, RustCareTheme::TEXT_PRIMARY, RustCareTheme::BG_SURFACE, 28.0).clicked() {
                     for group in &self.config.groups {
                         for target in &group.targets {
                             if !target.requires_admin || is_elevated() {
@@ -96,7 +86,7 @@ impl CleanerView {
                     }
                 }
 
-                if ui.button("Desmarcar").clicked() {
+                if RustCareTheme::custom_button(ui, "Desmarcar", RustCareTheme::BORDER_SUBTLE, RustCareTheme::TEXT_MUTED, RustCareTheme::BG_SURFACE, 28.0).clicked() {
                     self.selected_targets.clear();
                 }
             });

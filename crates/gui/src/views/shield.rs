@@ -21,26 +21,21 @@ impl ShieldView {
     pub fn render(&mut self, ui: &mut Ui, on_scan: impl FnOnce()) {
         ui.horizontal(|ui| {
             ui.heading(
-                RichText::new("🛡️ RustCare Shield - Seguridad & Malware")
+                RichText::new("RustCare Shield - Seguridad & Malware")
                     .size(22.0)
                     .strong()
                     .color(RustCareTheme::TEXT_PRIMARY),
             );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if !self.is_scanning {
-                    if ui
-                        .add_sized(
-                            [180.0, 36.0],
-                            egui::Button::new(
-                                RichText::new("🔍 Escanear Amenazas")
-                                    .strong()
-                                    .color(Color32::WHITE),
-                            )
-                            .fill(RustCareTheme::ACCENT_BLUE)
-                            .corner_radius(CornerRadius::same(8)),
-                        )
-                        .clicked()
-                    {
+                    if RustCareTheme::custom_button(
+                        ui,
+                        "Escanear Amenazas",
+                        RustCareTheme::ACCENT_TEAL,
+                        RustCareTheme::ACCENT_TEAL,
+                        Color32::from_rgba_premultiplied(0, 229, 168, 20),
+                        32.0,
+                    ).clicked() {
                         self.is_scanning = true;
                         on_scan();
                     }
