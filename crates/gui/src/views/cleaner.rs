@@ -85,6 +85,20 @@ impl CleanerView {
                     let targets: Vec<String> = self.selected_targets.iter().cloned().collect();
                     on_scan(targets);
                 }
+
+                if ui.button("Marcar Todo").clicked() {
+                    for group in &self.config.groups {
+                        for target in &group.targets {
+                            if !target.requires_admin || is_elevated() {
+                                self.selected_targets.insert(target.id.clone());
+                            }
+                        }
+                    }
+                }
+
+                if ui.button("Desmarcar").clicked() {
+                    self.selected_targets.clear();
+                }
             });
         });
 

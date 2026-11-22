@@ -25,8 +25,52 @@ impl RustCareTheme {
     pub const TEXT_MUTED: Color32 = Color32::from_rgb(148, 163, 184);
     pub const TEXT_DIM: Color32 = Color32::from_rgb(100, 116, 139);
 
+    /// Configura las fuentes del sistema (Segoe UI, Segoe UI Symbol y Segoe UI Emoji)
+    pub fn configure_fonts(ctx: &egui::Context) {
+        let mut fonts = egui::FontDefinitions::default();
+
+        #[cfg(windows)]
+        {
+            if let Ok(bytes) = std::fs::read("C:\\Windows\\Fonts\\segoeui.ttf") {
+                fonts.font_data.insert(
+                    "segoe_ui".to_owned(),
+                    std::sync::Arc::new(egui::FontData::from_owned(bytes)),
+                );
+                fonts.families
+                    .entry(egui::FontFamily::Proportional)
+                    .or_default()
+                    .insert(0, "segoe_ui".to_owned());
+            }
+
+            if let Ok(bytes) = std::fs::read("C:\\Windows\\Fonts\\seguisym.ttf") {
+                fonts.font_data.insert(
+                    "segoe_symbol".to_owned(),
+                    std::sync::Arc::new(egui::FontData::from_owned(bytes)),
+                );
+                fonts.families
+                    .entry(egui::FontFamily::Proportional)
+                    .or_default()
+                    .push("segoe_symbol".to_owned());
+            }
+
+            if let Ok(bytes) = std::fs::read("C:\\Windows\\Fonts\\seguiemj.ttf") {
+                fonts.font_data.insert(
+                    "segoe_emoji".to_owned(),
+                    std::sync::Arc::new(egui::FontData::from_owned(bytes)),
+                );
+                fonts.families
+                    .entry(egui::FontFamily::Proportional)
+                    .or_default()
+                    .push("segoe_emoji".to_owned());
+            }
+        }
+
+        ctx.set_fonts(fonts);
+    }
+
     /// Configura el tema oscuro y estilo refinado de widgets
     pub fn apply(ctx: &egui::Context) {
+        Self::configure_fonts(ctx);
         let mut visuals = Visuals::dark();
 
         visuals.panel_fill = Self::BG_DARK;

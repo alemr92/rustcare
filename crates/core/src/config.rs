@@ -22,6 +22,42 @@ pub struct UserPreferences {
     pub notify_on_updates: bool,
     pub notify_on_drivers: bool,
     pub notify_on_high_junk: bool,
+
+    // Configuración Granular de Limpieza de Navegadores (Estilo ASC Pro)
+    pub browser_clean_chrome_cache: bool,
+    pub browser_clean_chrome_history: bool,
+    pub browser_clean_chrome_cookies: bool,
+    pub browser_clean_chrome_downloads: bool,
+    pub browser_clean_edge_cache: bool,
+    pub browser_clean_edge_history: bool,
+    pub browser_clean_edge_cookies: bool,
+    pub browser_clean_edge_downloads: bool,
+    pub browser_clean_firefox_cache: bool,
+    pub browser_clean_firefox_history: bool,
+    pub browser_clean_firefox_cookies: bool,
+    pub browser_clean_firefox_downloads: bool,
+    pub browser_clean_brave_cache: bool,
+    pub browser_clean_brave_history: bool,
+    pub browser_vacuum_sqlite_auto: bool,
+
+    // Configuración Granular de Archivos Basura del Sistema
+    pub junk_clean_user_temp: bool,
+    pub junk_clean_system_temp: bool,
+    pub junk_clean_recycle_bin: bool,
+    pub junk_clean_windows_logs: bool,
+    pub junk_clean_crash_dumps: bool,
+    pub junk_clean_windows_update: bool,
+    pub junk_clean_thumbnails: bool,
+    pub junk_clean_dev_caches: bool,
+
+    // Configuración de Limpieza y Reparación del Registro
+    pub registry_clean_uninstalled: bool,
+    pub registry_clean_file_extensions: bool,
+    pub registry_clean_app_paths: bool,
+    pub registry_auto_backup: bool,
+
+    // Lista Blanca de Exclusiones
+    pub excluded_paths: Vec<String>,
 }
 
 impl Default for UserPreferences {
@@ -43,6 +79,38 @@ impl Default for UserPreferences {
             notify_on_updates: true,
             notify_on_drivers: true,
             notify_on_high_junk: true,
+
+            browser_clean_chrome_cache: true,
+            browser_clean_chrome_history: true,
+            browser_clean_chrome_cookies: false, // Por seguridad de sesión
+            browser_clean_chrome_downloads: true,
+            browser_clean_edge_cache: true,
+            browser_clean_edge_history: true,
+            browser_clean_edge_cookies: false,
+            browser_clean_edge_downloads: true,
+            browser_clean_firefox_cache: true,
+            browser_clean_firefox_history: true,
+            browser_clean_firefox_cookies: false,
+            browser_clean_firefox_downloads: true,
+            browser_clean_brave_cache: true,
+            browser_clean_brave_history: true,
+            browser_vacuum_sqlite_auto: true,
+
+            junk_clean_user_temp: true,
+            junk_clean_system_temp: true,
+            junk_clean_recycle_bin: true,
+            junk_clean_windows_logs: true,
+            junk_clean_crash_dumps: true,
+            junk_clean_windows_update: true,
+            junk_clean_thumbnails: true,
+            junk_clean_dev_caches: false,
+
+            registry_clean_uninstalled: true,
+            registry_clean_file_extensions: true,
+            registry_clean_app_paths: true,
+            registry_auto_backup: true,
+
+            excluded_paths: Vec::new(),
         }
     }
 }

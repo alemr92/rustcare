@@ -227,7 +227,7 @@ impl eframe::App for RustCareApp {
                     };
 
                     let font_id = FontId::proportional(15.0);
-                    let text_pos = egui::pos2(rect.min.x + 14.0, rect.center().y - 8.0);
+                    let text_pos = egui::pos2(rect.min.x + 14.0, rect.center().y);
                     ui.painter().text(
                         text_pos,
                         Align2::LEFT_CENTER,

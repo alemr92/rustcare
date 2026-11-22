@@ -26,6 +26,7 @@ use rustcare_core::updater::{UpdaterEngine, WingetPackageUpdate};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolboxTab {
+    Overview,
     Uninstaller,
     DriverBooster,
     Duplicates,
@@ -119,6 +120,7 @@ pub struct ToolboxView {
     pub scheduled_tasks: Vec<ScheduledTaskItem>,
     pub tasks_search: String,
     pub tasks_msg: Option<String>,
+    pub toolbox_search: String,
 }
 
 impl Default for ToolboxView {
@@ -128,7 +130,7 @@ impl Default for ToolboxView {
             .unwrap_or_else(|_| "C:\\".to_string());
 
         Self {
-            current_tab: ToolboxTab::Uninstaller,
+            current_tab: ToolboxTab::Overview,
             apps: UninstallerEngine::list_installed_apps(),
             app_search: String::new(),
             residuals: Vec::new(),
@@ -171,54 +173,56 @@ impl Default for ToolboxView {
             scheduled_tasks: Vec::new(),
             tasks_search: String::new(),
             tasks_msg: None,
+            toolbox_search: String::new(),
         }
     }
 }
 
 impl ToolboxView {
     pub fn render(&mut self, ui: &mut Ui) {
-        ui.heading(RichText::new("🧰 Caja de Herramientas de Mantenimiento PRO").size(22.0).color(RustCareTheme::TEXT_PRIMARY));
-        ui.label(RichText::new("Conjunto de utilidades de ingeniería nativa: drivers, desinstalador, duplicados, archivos gigantes, destructor y rescate.").color(RustCareTheme::TEXT_MUTED));
-        ui.add_space(8.0);
+        if self.current_tab == ToolboxTab::Overview {
+            self.render_overview(ui);
+            return;
+        }
 
-        // Barra de pestañas horizontales con scroll si es necesario
-        ScrollArea::horizontal().show(ui, |ui| {
-            ui.horizontal(|ui| {
-                let tabs = [
-                    (ToolboxTab::Uninstaller, "📦 Desinstalador"),
-                    (ToolboxTab::DriverBooster, "🚗 Driver Booster"),
-                    (ToolboxTab::Duplicates, "👥 Duplicados"),
-                    (ToolboxTab::DiskAnalyzer, "📊 Analizador WizTree"),
-                    (ToolboxTab::LargeFiles, "🐘 Archivos Gigantes"),
-                    (ToolboxTab::EmptyFolders, "📂 Carpetas Vacías"),
-                    (ToolboxTab::Shortcuts, "🔗 Accesos Directos"),
-                    (ToolboxTab::FileShredder, "🛡️ Destructor Seguro"),
-                    (ToolboxTab::ContextMenu, "🖱️ Menú Contextual"),
-                    (ToolboxTab::Updater, "🔄 WinGet Updater"),
-                    (ToolboxTab::RescueCenter, "🛟 Centro de Rescate"),
-                    (ToolboxTab::InternetBooster, "🌐 Acelerador TCP/IP"),
-                    (ToolboxTab::DiskOptimizer, "⚡ SSD TRIM & Salud"),
-                    (ToolboxTab::BrowserVacuum, "🧭 Desfragmentar SQLite"),
-                    (ToolboxTab::UiRepair, "🎨 Reparar Iconos/Fuentes"),
-                    (ToolboxTab::SystemInfo, "💻 Ficha de Hardware"),
-                    (ToolboxTab::PowerPlan, "🔋 Planes de Energía"),
-                    (ToolboxTab::DismWinSxs, "🧹 Limpieza WinSxS (DISM)"),
-                    (ToolboxTab::Hibernation, "💤 Gestor hiberfil.sys"),
-                    (ToolboxTab::HardwareTroubleshooter, "⚠️ Diagnóstico de Hardware"),
-                    (ToolboxTab::ScheduledTasks, "⏱️ Tareas Huérfanas"),
-                ];
-
-                for (tab, label) in tabs {
-                    if ui.selectable_label(self.current_tab == tab, label).clicked() {
-                        self.current_tab = tab;
-                    }
-                }
-            });
+        // Barra de Navegación Superior Estilo Glary / ASC Pro
+        ui.horizontal(|ui| {
+            if ui.button(RichText::new("⬅ Volver al Centro de Herramientas").strong()).clicked() {
+                self.current_tab = ToolboxTab::Overview;
+            }
+            ui.add_space(8.0);
+            ui.label(RichText::new("🧰 Centro de Herramientas PRO > ").color(RustCareTheme::TEXT_MUTED));
+            let title = match self.current_tab {
+                ToolboxTab::Uninstaller => "Desinstalador Profundo de Software",
+                ToolboxTab::DriverBooster => "Driver Booster PRO (Controladores de Hardware)",
+                ToolboxTab::Duplicates => "Buscador de Archivos Duplicados",
+                ToolboxTab::DiskAnalyzer => "Analizador de Espacio en Disco WizTree",
+                ToolboxTab::LargeFiles => "Filtro de Archivos Gigantes",
+                ToolboxTab::EmptyFolders => "Limpiador de Carpetas Vacías",
+                ToolboxTab::Shortcuts => "Reparador de Accesos Directos Rotos",
+                ToolboxTab::FileShredder => "Destructor Seguro de Archivos (DoD Wipe)",
+                ToolboxTab::ContextMenu => "Gestor de Extensiones de Clic Derecho",
+                ToolboxTab::Updater => "WinGet Software Updater",
+                ToolboxTab::RescueCenter => "Centro de Rescate & Puntos de Restauración",
+                ToolboxTab::InternetBooster => "Acelerador de Red e Internet TCP/IP",
+                ToolboxTab::DiskOptimizer => "Desfragmentador & Comando TRIM de SSD",
+                ToolboxTab::BrowserVacuum => "Compactador SQLite de Navegadores",
+                ToolboxTab::UiRepair => "Reparador de Iconos y Miniaturas de Windows",
+                ToolboxTab::SystemInfo => "Ficha Técnica de Hardware y Sistema",
+                ToolboxTab::PowerPlan => "Planes de Energía y Rendimiento",
+                ToolboxTab::DismWinSxs => "Limpieza Profunda de WinSxS (DISM)",
+                ToolboxTab::Hibernation => "Gestor del Archivo hiberfil.sys",
+                ToolboxTab::HardwareTroubleshooter => "Diagnóstico de Conflictos de Hardware",
+                ToolboxTab::ScheduledTasks => "Auditor de Tareas Programadas Huérfanas",
+                ToolboxTab::Overview => "",
+            };
+            ui.label(RichText::new(title).strong().color(RustCareTheme::ACCENT_CYAN));
         });
         ui.separator();
         ui.add_space(8.0);
 
         match self.current_tab {
+            ToolboxTab::Overview => self.render_overview(ui),
             ToolboxTab::Uninstaller => self.render_uninstaller(ui),
             ToolboxTab::DriverBooster => self.render_drivers(ui),
             ToolboxTab::Duplicates => self.render_duplicates(ui),
@@ -241,6 +245,216 @@ impl ToolboxView {
             ToolboxTab::HardwareTroubleshooter => self.render_hardware_troubleshooter(ui),
             ToolboxTab::ScheduledTasks => self.render_scheduled_tasks(ui),
         }
+    }
+
+    fn render_overview(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                ui.heading(RichText::new("🧰 Centro de Herramientas de Mantenimiento PRO").size(24.0).color(RustCareTheme::TEXT_PRIMARY).strong());
+                ui.label(RichText::new("Suite de 21 utilidades de ingeniería nativa organizadas por categorías especializadas.").color(RustCareTheme::TEXT_MUTED));
+            });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.add_space(10.0);
+                ui.text_edit_singleline(&mut self.toolbox_search);
+                ui.label(RichText::new("🔍 Filtrar herramienta:").color(RustCareTheme::TEXT_MUTED));
+            });
+        });
+        ui.add_space(12.0);
+
+        let query = self.toolbox_search.to_lowercase();
+
+        fn card_matches(title: &str, desc: &str, query: &str) -> bool {
+            query.is_empty() || title.to_lowercase().contains(query) || desc.to_lowercase().contains(query)
+        }
+
+        fn draw_card(ui: &mut Ui, icon: &str, title: &str, desc: &str, badge: &str, badge_color: Color32) -> bool {
+            let desired_size = Vec2::new(265.0, 84.0);
+            let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
+            let is_hovered = response.hovered();
+
+            let bg_color = if is_hovered {
+                RustCareTheme::CARD_HOVER_BG
+            } else {
+                RustCareTheme::CARD_BG
+            };
+
+            let border_color = if is_hovered {
+                badge_color
+            } else {
+                RustCareTheme::CARD_BORDER
+            };
+
+            ui.painter().rect_filled(rect, CornerRadius::same(10), bg_color);
+            ui.painter().rect_stroke(
+                rect,
+                CornerRadius::same(10),
+                Stroke::new(if is_hovered { 1.5_f32 } else { 1.0_f32 }, border_color),
+                StrokeKind::Inside,
+            );
+
+            // Icon container
+            let icon_box = Rect::from_min_size(rect.min + Vec2::new(12.0, 14.0), Vec2::new(34.0, 34.0));
+            ui.painter().rect_filled(icon_box, CornerRadius::same(8), Color32::from_rgba_premultiplied(badge_color.r(), badge_color.g(), badge_color.b(), 25));
+            ui.painter().rect_stroke(icon_box, CornerRadius::same(8), Stroke::new(1.0_f32, badge_color), StrokeKind::Inside);
+            ui.painter().text(icon_box.center(), Align2::CENTER_CENTER, icon, FontId::proportional(16.0), badge_color);
+
+            // Title & badge
+            let title_pos = rect.min + Vec2::new(54.0, 12.0);
+            ui.painter().text(title_pos, Align2::LEFT_TOP, title, FontId::proportional(14.0), Color32::WHITE);
+
+            let badge_pos = rect.min + Vec2::new(54.0, 32.0);
+            let badge_font = FontId::proportional(10.0);
+            let galley = ui.painter().layout_no_wrap(badge.to_string(), badge_font, badge_color);
+            let badge_rect = Rect::from_min_size(badge_pos, galley.size() + Vec2::new(8.0, 3.0));
+            ui.painter().rect_filled(badge_rect, CornerRadius::same(4), Color32::from_rgba_premultiplied(badge_color.r(), badge_color.g(), badge_color.b(), 20));
+            ui.painter().galley(badge_pos + Vec2::new(4.0, 1.5), galley, badge_color);
+
+            // Subtitle
+            let desc_pos = rect.min + Vec2::new(54.0, 52.0);
+            let truncated_desc = if desc.len() > 36 {
+                format!("{}...", &desc[..34])
+            } else {
+                desc.to_string()
+            };
+            ui.painter().text(desc_pos, Align2::LEFT_TOP, truncated_desc, FontId::proportional(11.0), RustCareTheme::TEXT_MUTED);
+
+            response.clicked()
+        }
+
+        ScrollArea::vertical().show(ui, |ui| {
+            // Categoría 1: Rendimiento & Optimización
+            ui.label(RichText::new("⚡ Aceleración & Rendimiento").size(16.0).strong().color(RustCareTheme::ACCENT_CYAN));
+            ui.add_space(6.0);
+            ui.horizontal_wrapped(|ui| {
+                if card_matches("Driver Booster", "Auditoría y respaldo de drivers", &query) {
+                    if draw_card(ui, "🚗", "Driver Booster PRO", "Auditoría y respaldo de drivers", "Hardware", RustCareTheme::ACCENT_CYAN) {
+                        self.current_tab = ToolboxTab::DriverBooster;
+                    }
+                }
+                if card_matches("Acelerador TCP/IP", "Optimización de red y latencia", &query) {
+                    if draw_card(ui, "🌐", "Acelerador TCP/IP", "Optimización de red y latencia", "Internet", RustCareTheme::ACCENT_CYAN) {
+                        self.current_tab = ToolboxTab::InternetBooster;
+                    }
+                }
+                if card_matches("SSD TRIM & Salud", "Optimiza celdas flash y salud", &query) {
+                    if draw_card(ui, "⚡", "SSD TRIM & Salud", "Optimiza celdas flash y salud", "Almacenamiento", RustCareTheme::ACCENT_CYAN) {
+                        self.current_tab = ToolboxTab::DiskOptimizer;
+                    }
+                }
+                if card_matches("Planes de Energía", "Desbloquea Máximo Rendimiento", &query) {
+                    if draw_card(ui, "🔋", "Planes de Energía", "Desbloquea Máximo Rendimiento", "Kernel", RustCareTheme::ACCENT_CYAN) {
+                        self.current_tab = ToolboxTab::PowerPlan;
+                    }
+                }
+                if card_matches("Desfragmentar SQLite", "Compacta bases de Chrome/Edge", &query) {
+                    if draw_card(ui, "🧭", "Desfragmentar SQLite", "Compacta bases de Chrome/Edge", "Navegadores", RustCareTheme::ACCENT_CYAN) {
+                        self.current_tab = ToolboxTab::BrowserVacuum;
+                    }
+                }
+            });
+            ui.add_space(14.0);
+
+            // Categoría 2: Limpieza Profunda & Espacio en Disco
+            ui.label(RichText::new("🧹 Limpieza Profunda & Espacio en Disco").size(16.0).strong().color(RustCareTheme::ACCENT_BLUE));
+            ui.add_space(6.0);
+            ui.horizontal_wrapped(|ui| {
+                if card_matches("Analizador WizTree", "Mapa visual treemap a 60 FPS", &query) {
+                    if draw_card(ui, "📊", "Analizador WizTree", "Mapa visual treemap a 60 FPS", "Disco", RustCareTheme::ACCENT_BLUE) {
+                        self.current_tab = ToolboxTab::DiskAnalyzer;
+                    }
+                }
+                if card_matches("Limpieza WinSxS (DISM)", "Purga de actualizaciones obsoletas", &query) {
+                    if draw_card(ui, "🧹", "Limpieza WinSxS (DISM)", "Purga de actualizaciones obsoletas", "5 a 20 GB", RustCareTheme::ACCENT_BLUE) {
+                        self.current_tab = ToolboxTab::DismWinSxs;
+                    }
+                }
+                if card_matches("Gestor hiberfil.sys", "Recupera de 8 a 64 GB de SSD", &query) {
+                    if draw_card(ui, "💤", "Gestor hiberfil.sys", "Recupera de 8 a 64 GB de SSD", "Hibernación", RustCareTheme::ACCENT_BLUE) {
+                        self.current_tab = ToolboxTab::Hibernation;
+                    }
+                }
+                if card_matches("Archivos Gigantes", "Filtro rápido >50MB o >1GB", &query) {
+                    if draw_card(ui, "🐘", "Archivos Gigantes", "Filtro rápido >50MB o >1GB", "Filtro", RustCareTheme::ACCENT_BLUE) {
+                        self.current_tab = ToolboxTab::LargeFiles;
+                    }
+                }
+                if card_matches("Carpetas Vacías", "Elimina directorios huérfanos", &query) {
+                    if draw_card(ui, "📂", "Carpetas Vacías", "Elimina directorios huérfanos", "Limpieza", RustCareTheme::ACCENT_BLUE) {
+                        self.current_tab = ToolboxTab::EmptyFolders;
+                    }
+                }
+                if card_matches("Duplicados", "Algoritmo BLAKE3 en 3 fases", &query) {
+                    if draw_card(ui, "👥", "Buscador Duplicados", "Algoritmo BLAKE3 en 3 fases", "Deduplicar", RustCareTheme::ACCENT_BLUE) {
+                        self.current_tab = ToolboxTab::Duplicates;
+                    }
+                }
+            });
+            ui.add_space(14.0);
+
+            // Categoría 3: Seguridad, Diagnóstico & Reparación
+            ui.label(RichText::new("🛡️ Seguridad, Diagnóstico & Reparación").size(16.0).strong().color(RustCareTheme::WARNING_AMBER));
+            ui.add_space(6.0);
+            ui.horizontal_wrapped(|ui| {
+                if card_matches("Diagnóstico Hardware", "Detección de errores PnP (Código 10/43)", &query) {
+                    if draw_card(ui, "⚠️", "Diagnóstico Hardware", "Detección de errores PnP (Código 10/43)", "Hardware", RustCareTheme::WARNING_AMBER) {
+                        self.current_tab = ToolboxTab::HardwareTroubleshooter;
+                    }
+                }
+                if card_matches("Reparar Iconos", "Reconstruye IconCache y fuentes", &query) {
+                    if draw_card(ui, "🎨", "Reparador de Iconos", "Reconstruye IconCache y fuentes", "Interfaz", RustCareTheme::WARNING_AMBER) {
+                        self.current_tab = ToolboxTab::UiRepair;
+                    }
+                }
+                if card_matches("Destructor Seguro", "Sobrescritura irreversible DoD", &query) {
+                    if draw_card(ui, "🛡️", "Destructor Seguro", "Sobrescritura irreversible DoD", "Privacidad", RustCareTheme::WARNING_AMBER) {
+                        self.current_tab = ToolboxTab::FileShredder;
+                    }
+                }
+                if card_matches("Tareas Huérfanas", "Limpieza de tareas en Task Scheduler", &query) {
+                    if draw_card(ui, "⏱️", "Tareas Huérfanas", "Limpieza de tareas en Task Scheduler", "Arranque", RustCareTheme::WARNING_AMBER) {
+                        self.current_tab = ToolboxTab::ScheduledTasks;
+                    }
+                }
+                if card_matches("Menú Contextual", "Gestión de menú de clic derecho", &query) {
+                    if draw_card(ui, "🖱️", "Menú Contextual", "Gestión de menú de clic derecho", "Explorer", RustCareTheme::WARNING_AMBER) {
+                        self.current_tab = ToolboxTab::ContextMenu;
+                    }
+                }
+                if card_matches("Centro de Rescate", "Puntos de Restauración y copias .reg", &query) {
+                    if draw_card(ui, "🛟", "Centro de Rescate", "Puntos de Restauración y copias .reg", "Rollback", RustCareTheme::WARNING_AMBER) {
+                        self.current_tab = ToolboxTab::RescueCenter;
+                    }
+                }
+                if card_matches("Accesos Directos", "Reparador de enlaces rotos .lnk", &query) {
+                    if draw_card(ui, "🔗", "Accesos Directos", "Reparador de enlaces rotos .lnk", "Escritorio", RustCareTheme::WARNING_AMBER) {
+                        self.current_tab = ToolboxTab::Shortcuts;
+                    }
+                }
+            });
+            ui.add_space(14.0);
+
+            // Categoría 4: Gestión de Software & Sistema
+            ui.label(RichText::new("📦 Gestión de Software & Sistema").size(16.0).strong().color(RustCareTheme::SUCCESS_GREEN));
+            ui.add_space(6.0);
+            ui.horizontal_wrapped(|ui| {
+                if card_matches("Desinstalador", "Desinstalación con rastreo de residuos", &query) {
+                    if draw_card(ui, "📦", "Desinstalador PRO", "Desinstalación con rastreo de residuos", "Programas", RustCareTheme::SUCCESS_GREEN) {
+                        self.current_tab = ToolboxTab::Uninstaller;
+                    }
+                }
+                if card_matches("WinGet Updater", "Actualizaciones de software oficiales", &query) {
+                    if draw_card(ui, "🔄", "WinGet Updater", "Actualizaciones de software oficiales", "Actualizar", RustCareTheme::SUCCESS_GREEN) {
+                        self.current_tab = ToolboxTab::Updater;
+                    }
+                }
+                if card_matches("Ficha de Hardware", "Reporte detallado de CPU, GPU y RAM", &query) {
+                    if draw_card(ui, "💻", "Ficha de Hardware", "Reporte detallado de CPU, GPU y RAM", "Speccy", RustCareTheme::SUCCESS_GREEN) {
+                        self.current_tab = ToolboxTab::SystemInfo;
+                    }
+                }
+            });
+            ui.add_space(20.0);
+        });
     }
 
     fn render_uninstaller(&mut self, ui: &mut Ui) {
@@ -297,13 +511,42 @@ impl ToolboxView {
     }
 
     fn render_drivers(&mut self, ui: &mut Ui) {
+        ui.heading(RichText::new("🚗 Driver Booster PRO - Auditoría & Respaldo de Controladores").size(18.0).color(RustCareTheme::ACCENT_CYAN).strong());
+        ui.label(RichText::new("Inspección a bajo nivel de controladores de hardware (Kernel Class GUIDs) con exportación oficial vía pnputil.").color(RustCareTheme::TEXT_MUTED));
+        ui.add_space(10.0);
+
+        // Banner de Métricas KPI Estilo IObit Driver Booster
+        ui.horizontal(|ui| {
+            let total_drivers = self.drivers.len();
+            let gpu_drivers = self.drivers.iter().filter(|d| d.class_name.to_lowercase().contains("pantalla") || d.class_name.to_lowercase().contains("display") || d.class_name.to_lowercase().contains("gpu")).count();
+            let net_drivers = self.drivers.iter().filter(|d| d.class_name.to_lowercase().contains("net") || d.class_name.to_lowercase().contains("red") || d.class_name.to_lowercase().contains("wifi")).count();
+            let audio_drivers = self.drivers.iter().filter(|d| d.class_name.to_lowercase().contains("audio") || d.class_name.to_lowercase().contains("sound") || d.class_name.to_lowercase().contains("media")).count();
+
+            fn draw_kpi(ui: &mut Ui, title: &str, count: usize, color: Color32) {
+                let (rect, _) = ui.allocate_exact_size(Vec2::new(170.0, 56.0), Sense::hover());
+                ui.painter().rect_filled(rect, CornerRadius::same(8), RustCareTheme::CARD_BG);
+                ui.painter().rect_stroke(rect, CornerRadius::same(8), Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER), StrokeKind::Inside);
+                ui.painter().text(rect.min + Vec2::new(12.0, 8.0), Align2::LEFT_TOP, title, FontId::proportional(11.0), RustCareTheme::TEXT_MUTED);
+                ui.painter().text(rect.min + Vec2::new(12.0, 24.0), Align2::LEFT_TOP, count.to_string(), FontId::proportional(20.0), color);
+            }
+
+            draw_kpi(ui, "Total Controladores", total_drivers, RustCareTheme::ACCENT_CYAN);
+            ui.add_space(8.0);
+            draw_kpi(ui, "Gráficos / GPU", gpu_drivers, RustCareTheme::ACCENT_PURPLE);
+            ui.add_space(8.0);
+            draw_kpi(ui, "Adaptadores de Red", net_drivers, RustCareTheme::ACCENT_BLUE);
+            ui.add_space(8.0);
+            draw_kpi(ui, "Audio & Multimedia", audio_drivers, RustCareTheme::SUCCESS_GREEN);
+        });
+        ui.add_space(12.0);
+
         ui.horizontal(|ui| {
             ui.label("Filtrar controlador:");
             ui.text_edit_singleline(&mut self.driver_search);
             if ui.button("🔄 Reanalizar Hardware").clicked() {
                 self.drivers = DriverManager::scan_installed_drivers();
             }
-            if ui.button("💾 Crear Copia de Respaldo de Controladores").clicked() {
+            if ui.button("💾 Crear Copia de Respaldo Completa").clicked() {
                 match DriverManager::backup_drivers() {
                     Ok(res) => {
                         self.driver_backup_msg = Some(format!(
@@ -355,9 +598,22 @@ impl ToolboxView {
                 .show(ui, |ui| {
                     for drv in filtered {
                         ui.horizontal(|ui| {
+                            let (badge_text, badge_color) = if drv.class_name.to_lowercase().contains("pantalla") || drv.class_name.to_lowercase().contains("display") || drv.class_name.to_lowercase().contains("gpu") {
+                                ("GPU", RustCareTheme::ACCENT_PURPLE)
+                            } else if drv.class_name.to_lowercase().contains("net") || drv.class_name.to_lowercase().contains("red") || drv.class_name.to_lowercase().contains("wifi") {
+                                ("Red", RustCareTheme::ACCENT_BLUE)
+                            } else if drv.class_name.to_lowercase().contains("audio") || drv.class_name.to_lowercase().contains("sound") || drv.class_name.to_lowercase().contains("media") {
+                                ("Audio", RustCareTheme::SUCCESS_GREEN)
+                            } else {
+                                ("Sistema", RustCareTheme::TEXT_DIM)
+                            };
+
+                            RustCareTheme::draw_badge(ui, badge_text, badge_color, Color32::from_rgba_premultiplied(badge_color.r(), badge_color.g(), badge_color.b(), 25));
+                            ui.add_space(4.0);
+
                             ui.vertical(|ui| {
                                 ui.label(RichText::new(&drv.name).strong());
-                                ui.label(RichText::new(format!("Tipo: {} | Fabricante: {}", drv.class_name, drv.provider)).small().color(RustCareTheme::TEXT_MUTED));
+                                ui.label(RichText::new(format!("Clase: {} | Fabricante: {}", drv.class_name, drv.provider)).small().color(RustCareTheme::TEXT_MUTED));
                             });
 
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

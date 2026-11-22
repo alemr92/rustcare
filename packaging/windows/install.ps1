@@ -1,4 +1,4 @@
-﻿# Instaldor Automático de RustCare para Windows (PowerShell)
+# Instaldor Automático de RustCare para Windows (PowerShell)
 param (
     [string]$InstallDir = "$env:LOCALAPPDATA\Programs\RustCare"
 )

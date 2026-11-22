@@ -1,7 +1,9 @@
 //! Vista de Aceleración (Booster, RAM, DNS y Gestor de Arranque) - 2026 Edition
 use crate::theme::RustCareTheme;
-use eframe::egui::{self, Color32, CornerRadius, RichText, ScrollArea, Ui};
+use eframe::egui::{self, Color32, CornerRadius, ProgressBar, RichText, ScrollArea, Ui};
 use rustcare_core::booster::{BoosterEngine, RamCleanResult};
+use rustcare_core::cleaner::CleanerEngine;
+use rustcare_core::monitor::SystemMonitor;
 use rustcare_core::startup::{StartupEngine, StartupEntry};
 
 pub struct BoosterView {
@@ -48,7 +50,16 @@ impl BoosterView {
                             .color(RustCareTheme::ACCENT_CYAN),
                     );
                     ui.label("Libera memoria no utilizada vaciando los Working Sets de los procesos.");
-                    ui.add_space(10.0);
+                    ui.add_space(6.0);
+
+                    let mut mon = SystemMonitor::new();
+                    let snap = mon.refresh_snapshot();
+                    let total = snap.memory_total_bytes;
+                    let used = snap.memory_used_bytes;
+                    let pct = snap.memory_usage_percent;
+
+                    ui.add(ProgressBar::new(pct / 100.0).text(format!("{:.1}% en uso ({} de {})", pct, CleanerEngine::format_bytes(used), CleanerEngine::format_bytes(total))).corner_radius(CornerRadius::same(6)));
+                    ui.add_space(8.0);
 
                     if ui
                         .add_sized(
