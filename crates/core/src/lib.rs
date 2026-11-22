@@ -2,6 +2,7 @@
 //! Arquitectura central de optimización, limpieza, monitorización y seguridad para Windows 10/11.
 
 pub mod automation;
+pub mod backend;
 pub mod booster;
 pub mod browser_vacuum;
 pub mod cleaner;
@@ -34,6 +35,7 @@ pub mod uninstaller;
 pub mod updater;
 
 pub use automation::AutomationEngine;
+pub use backend::{LiveWindowsBackend, SandboxBackend, SystemBackend, TurboBoostMode, TurboBoostResult};
 pub use booster::{BoosterEngine, BoosterStatus, RamCleanResult};
 pub use browser_vacuum::{BrowserVacuum, DatabaseCompactResult};
 pub use cleaner::{CleanerEngine, FullCleanResult, FullScanResult, ScannedFile, TargetCleanResult, TargetScanResult};

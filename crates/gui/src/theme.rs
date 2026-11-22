@@ -4,21 +4,22 @@ use eframe::egui::{self, Color32, CornerRadius, FontId, Margin, Rect, Stroke, St
 pub struct RustCareTheme;
 
 impl RustCareTheme {
-    // Paleta 2026 Cosmic Obsidian & Neon Accents
-    pub const BG_DARK: Color32 = Color32::from_rgb(10, 12, 18);
-    pub const SIDEBAR_BG: Color32 = Color32::from_rgb(14, 17, 24);
-    pub const TOPBAR_BG: Color32 = Color32::from_rgb(13, 16, 23);
-    pub const CARD_BG: Color32 = Color32::from_rgb(19, 23, 34);
-    pub const CARD_HOVER_BG: Color32 = Color32::from_rgb(26, 32, 48);
-    pub const CARD_BORDER: Color32 = Color32::from_rgb(33, 40, 60);
+    // Paleta Cyber-Dark & Neon (Inspirada en IObit Advanced SystemCare)
+    pub const BG_DARK: Color32 = Color32::from_rgb(15, 19, 26); // #0F131A
+    pub const SIDEBAR_BG: Color32 = Color32::from_rgb(17, 21, 30);
+    pub const TOPBAR_BG: Color32 = Color32::from_rgb(19, 24, 34);
+    pub const CARD_BG: Color32 = Color32::from_rgb(26, 33, 46); // #1A212E
+    pub const CARD_HOVER_BG: Color32 = Color32::from_rgb(33, 42, 58);
+    pub const CARD_BORDER: Color32 = Color32::from_rgb(38, 48, 68);
 
     // Acentos Neón / Cyber
     pub const ACCENT_CYAN: Color32 = Color32::from_rgb(0, 229, 255);
+    pub const NEON_TEAL: Color32 = Color32::from_rgb(0, 229, 168); // #00E5A8 Óptimo
     pub const ACCENT_BLUE: Color32 = Color32::from_rgb(59, 130, 246);
     pub const ACCENT_PURPLE: Color32 = Color32::from_rgb(168, 85, 247);
-    pub const SUCCESS_GREEN: Color32 = Color32::from_rgb(16, 185, 129);
-    pub const WARNING_AMBER: Color32 = Color32::from_rgb(245, 158, 11);
-    pub const DANGER_RED: Color32 = Color32::from_rgb(244, 63, 94);
+    pub const SUCCESS_GREEN: Color32 = Color32::from_rgb(0, 229, 168); // #00E5A8
+    pub const WARNING_AMBER: Color32 = Color32::from_rgb(255, 176, 32); // #FFB020
+    pub const DANGER_RED: Color32 = Color32::from_rgb(255, 77, 109); // #FF4D6D Crítico
 
     // Tipografía
     pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(248, 250, 252);

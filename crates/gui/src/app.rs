@@ -3,11 +3,13 @@ use crate::theme::RustCareTheme;
 use crate::views::{BoosterView, CareView, CleanerView, MonitorView, SettingsView, ShieldView, ToolboxView};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Rect, RichText, Stroke, StrokeKind, Ui, Vec2};
-use rustcare_core::config::ConfigManager;
+use rustcare_core::backend::{LiveWindowsBackend, SandboxBackend, SystemBackend};
 use rustcare_core::cleaner::{CleanerEngine, FullCleanResult, FullScanResult};
+use rustcare_core::config::ConfigManager;
 use rustcare_core::rules::RulesEngine;
 use rustcare_core::security::is_elevated;
 use rustcare_core::shield::{ShieldEngine, ShieldScanResult};
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -39,17 +41,18 @@ pub enum AppEvent {
 }
 
 pub struct RustCareApp {
-    current_section: NavSection,
-    is_admin: bool,
+    pub current_section: NavSection,
+    pub is_admin: bool,
+    pub backend: Arc<dyn SystemBackend>,
 
     // Vistas
-    care_view: CareView,
-    cleaner_view: CleanerView,
-    booster_view: BoosterView,
-    shield_view: ShieldView,
-    toolbox_view: ToolboxView,
-    monitor_view: MonitorView,
-    settings_view: SettingsView,
+    pub care_view: CareView,
+    pub cleaner_view: CleanerView,
+    pub booster_view: BoosterView,
+    pub shield_view: ShieldView,
+    pub toolbox_view: ToolboxView,
+    pub monitor_view: MonitorView,
+    pub settings_view: SettingsView,
 
     // Canales asíncronos para evitar congelamientos de UI
     sender: Sender<AppEvent>,
@@ -57,14 +60,21 @@ pub struct RustCareApp {
 }
 
 impl RustCareApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>, is_sandbox: bool) -> Self {
         let (sender, receiver) = crossbeam_channel::unbounded();
         let cleaner_config = RulesEngine::load_cleaner_rules()
             .unwrap_or_else(|_| rustcare_core::rules::CleanerConfig { groups: Vec::new() });
 
+        let backend: Arc<dyn SystemBackend> = if is_sandbox {
+            Arc::new(SandboxBackend::new())
+        } else {
+            Arc::new(LiveWindowsBackend::default())
+        };
+
         Self {
             current_section: NavSection::Care,
             is_admin: is_elevated(),
+            backend,
             care_view: CareView::default(),
             cleaner_view: CleanerView::new(cleaner_config),
             booster_view: BoosterView::default(),
@@ -94,6 +104,7 @@ impl RustCareApp {
                     self.care_view.total_bytes_found = bytes_found;
                     self.care_view.total_items_found = files_found;
                     self.care_view.threats_found = threats_found;
+                    self.care_view.health_score = 42; // Estado crítico inicial tras escaneo
                     self.care_view.progress = 1.0;
                 }
                 AppEvent::CareCleanFinished {
@@ -104,6 +115,7 @@ impl RustCareApp {
                     self.care_view.clean_completed = true;
                     self.care_view.total_bytes_found = bytes_freed;
                     self.care_view.total_items_found = files_deleted;
+                    self.care_view.health_score = 98; // Óptimo
                     self.care_view.progress = 1.0;
                 }
                 AppEvent::CleanerScanFinished(res) => {
@@ -131,36 +143,52 @@ impl eframe::App for RustCareApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.handle_events();
 
-        // Barra Superior de Estado y Privilegios 2026
+        // Barra Superior de Estado, Privilegios y Selector de Sandbox 2026
         egui::TopBottomPanel::top("top_bar")
             .exact_height(54.0)
             .show_separator_line(true)
-            .frame(egui::Frame::NONE.fill(RustCareTheme::TOPBAR_BG).inner_margin(egui::Margin::symmetric(12, 8)))
+            .frame(egui::Frame::NONE.fill(RustCareTheme::TOPBAR_BG).inner_margin(egui::Margin::symmetric(14, 8)))
             .show(ctx, |ui| {
-                ui.add_space(8.0);
+                ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    ui.add_space(8.0);
-                    // Logotipo Futurista
+                    ui.add_space(4.0);
+                    // Logotipo Cyber-Dark
                     ui.label(
                         RichText::new("⚡ RUSTCARE")
-                            .size(21.0)
+                            .size(20.0)
                             .strong()
                             .color(RustCareTheme::ACCENT_CYAN),
                     );
                     ui.label(
-                        RichText::new("PRO 2026")
+                        RichText::new("ASC PRO 2026")
                             .size(11.0)
                             .strong()
                             .color(RustCareTheme::ACCENT_PURPLE),
                     );
-                    ui.label(
-                        RichText::new("• Cross-Platform Suite")
-                            .small()
-                            .color(RustCareTheme::TEXT_DIM),
-                    );
 
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add_space(20.0);
+
+                    // ==========================================
+                    // Quick Performance Mini-Monitor en TopBar
+                    // ==========================================
+                    let metrics = self.backend.get_metrics();
+                    let cpu_pct = metrics.cpu_global_percent;
+                    let ram_pct = metrics.memory_usage_percent;
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("CPU:").small().color(RustCareTheme::TEXT_MUTED));
+                        let cpu_col = if cpu_pct > 80.0 { RustCareTheme::DANGER_RED } else if cpu_pct > 50.0 { RustCareTheme::WARNING_AMBER } else { RustCareTheme::NEON_TEAL };
+                        ui.label(RichText::new(format!("{:.0}%", cpu_pct)).small().strong().color(cpu_col));
+
                         ui.add_space(10.0);
+                        ui.label(RichText::new("RAM:").small().color(RustCareTheme::TEXT_MUTED));
+                        let ram_col = if ram_pct > 80.0 { RustCareTheme::DANGER_RED } else if ram_pct > 50.0 { RustCareTheme::WARNING_AMBER } else { RustCareTheme::NEON_TEAL };
+                        ui.label(RichText::new(format!("{:.0}%", ram_pct)).small().strong().color(ram_col));
+                    });
+
+                    // Lado Derecho: Toggle Sandbox, Admin badge y Botón Opciones
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.add_space(6.0);
                         if ui
                             .button(
                                 RichText::new("⚙️ Opciones")
@@ -172,20 +200,61 @@ impl eframe::App for RustCareApp {
                         {
                             self.current_section = NavSection::Settings;
                         }
+
+                        ui.add_space(8.0);
+
+                        // ==========================================
+                        // SELECTOR INTERACTIVO MODO SANDBOX / WINDOWS REAL
+                        // ==========================================
+                        let is_sb = self.backend.is_sandbox();
+                        let (badge_text, badge_color, badge_bg) = if is_sb {
+                            (
+                                "🧪 MODO SANDBOX (Aislado Seguro)",
+                                RustCareTheme::NEON_TEAL,
+                                Color32::from_rgba_premultiplied(0, 229, 168, 30),
+                            )
+                        } else {
+                            (
+                                "🔴 MODO WINDOWS REAL",
+                                RustCareTheme::DANGER_RED,
+                                Color32::from_rgba_premultiplied(255, 77, 109, 30),
+                            )
+                        };
+
+                        let btn_resp = ui.add(
+                            egui::Button::new(
+                                RichText::new(badge_text)
+                                    .size(12.0)
+                                    .strong()
+                                    .color(badge_color),
+                            )
+                            .fill(badge_bg)
+                            .stroke(Stroke::new(1.0, badge_color))
+                            .corner_radius(CornerRadius::same(6)),
+                        );
+
+                        if btn_resp.clicked() {
+                            if is_sb {
+                                self.backend = Arc::new(LiveWindowsBackend::default());
+                            } else {
+                                self.backend = Arc::new(SandboxBackend::new());
+                            }
+                            self.booster_view.startup_entries = self.backend.list_startup_entries();
+                        }
+
+                        btn_resp.on_hover_text(if is_sb {
+                            "Entorno de pruebas 100% aislado en ./target/sandbox_env/. Clic para pasar a Windows Real."
+                        } else {
+                            "Operando directamente sobre Windows real. Clic para pasar a Sandbox aislado de pruebas."
+                        });
+
                         ui.add_space(8.0);
                         if self.is_admin {
                             RustCareTheme::draw_badge(
                                 ui,
-                                "🛡️ Modo Administrador Activo",
+                                "🛡️ Admin",
                                 RustCareTheme::SUCCESS_GREEN,
-                                Color32::from_rgba_premultiplied(16, 185, 129, 30),
-                            );
-                        } else {
-                            RustCareTheme::draw_badge(
-                                ui,
-                                "🛡️ Modo Usuario Seguro (Zero-Admin)",
-                                RustCareTheme::ACCENT_CYAN,
-                                Color32::from_rgba_premultiplied(0, 229, 255, 25),
+                                Color32::from_rgba_premultiplied(16, 185, 129, 25),
                             );
                         }
                     });
@@ -196,16 +265,16 @@ impl eframe::App for RustCareApp {
         egui::SidePanel::left("sidebar")
             .exact_width(225.0)
             .show(ctx, |ui| {
-                ui.add_space(15.0);
+                ui.add_space(14.0);
 
                 fn nav_item(ui: &mut Ui, label: &str, active: bool) -> bool {
                     let desired_size = Vec2::new(205.0, 44.0);
                     let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
 
                     let bg_color = if active {
-                        Color32::from_rgb(28, 34, 52)
+                        Color32::from_rgb(28, 36, 52)
                     } else if response.hovered() {
-                        Color32::from_rgb(22, 26, 38)
+                        Color32::from_rgb(22, 28, 40)
                     } else {
                         Color32::TRANSPARENT
                     };
@@ -221,12 +290,12 @@ impl eframe::App for RustCareApp {
                         ui.painter().rect_filled(
                             indicator_rect,
                             CornerRadius::same(2),
-                            RustCareTheme::ACCENT_CYAN,
+                            RustCareTheme::NEON_TEAL,
                         );
                         ui.painter().rect_stroke(
                             rect,
                             CornerRadius::same(8),
-                            Stroke::new(1.0_f32, Color32::from_rgba_premultiplied(0, 229, 255, 50)),
+                            Stroke::new(1.0, Color32::from_rgba_premultiplied(0, 229, 168, 50)),
                             StrokeKind::Inside,
                         );
                     }
@@ -290,7 +359,7 @@ impl eframe::App for RustCareApp {
                     ui.add_space(14.0);
                     RustCareTheme::card_frame().show(ui, |ui| {
                         ui.vertical_centered(|ui| {
-                            ui.label(RichText::new("⚡ 100% Rust Nativo").small().strong().color(RustCareTheme::ACCENT_CYAN));
+                            ui.label(RichText::new("⚡ 100% Rust Nativo").small().strong().color(RustCareTheme::NEON_TEAL));
                             ui.label(RichText::new("Sin telemetría • Zero-Admin").small().color(RustCareTheme::TEXT_DIM));
                         });
                     });
@@ -304,22 +373,26 @@ impl eframe::App for RustCareApp {
                 NavSection::Care => {
                     let tx = self.sender.clone();
                     let clean_tx = self.sender.clone();
+                    let backend = self.backend.clone();
+                    let clean_backend = self.backend.clone();
 
                     self.care_view.render(
                         ui,
                         move |_options| {
                             thread::spawn(move || {
-                                let _ = tx.send(AppEvent::CareScanProgress(0.25, "Analizando según tus opciones configuradas...".into()));
+                                let _ = tx.send(AppEvent::CareScanProgress(0.20, "Iniciando escáner en entorno...".into()));
                                 let prefs = ConfigManager::load();
                                 let mut cleaner_cfg = RulesEngine::load_cleaner_rules().unwrap();
                                 cleaner_cfg.apply_preferences(&prefs);
-                                let scan_res = CleanerEngine::scan_all(&cleaner_cfg);
 
-                                let _ = tx.send(AppEvent::CareScanProgress(0.65, "Inspeccionando persistencias y procesos en memoria...".into()));
+                                let _ = tx.send(AppEvent::CareScanProgress(0.50, "Analizando archivos temporales, logs y cachés...".into()));
+                                let scan_res = backend.scan_junk(&cleaner_cfg);
+
+                                let _ = tx.send(AppEvent::CareScanProgress(0.80, "Inspeccionando persistencias y memoria...".into()));
                                 let shield_res = ShieldEngine::scan_all();
 
-                                let _ = tx.send(AppEvent::CareScanProgress(0.95, "Consolidando métricas del sistema...".into()));
-                                thread::sleep(Duration::from_millis(250));
+                                let _ = tx.send(AppEvent::CareScanProgress(0.98, "Consolidando métricas del sistema...".into()));
+                                thread::sleep(Duration::from_millis(150));
 
                                 let _ = tx.send(AppEvent::CareScanFinished {
                                     bytes_found: scan_res.total_bytes,
@@ -333,9 +406,9 @@ impl eframe::App for RustCareApp {
                                 let prefs = ConfigManager::load();
                                 let mut cleaner_cfg = RulesEngine::load_cleaner_rules().unwrap();
                                 cleaner_cfg.apply_preferences(&prefs);
-                                let scan_res = CleanerEngine::scan_all(&cleaner_cfg);
-                                let clean_res = CleanerEngine::clean_all(&scan_res);
-                                let _ = rustcare_core::booster::BoosterEngine::clean_ram();
+                                let scan_res = clean_backend.scan_junk(&cleaner_cfg);
+                                let clean_res = clean_backend.clean_junk(&scan_res);
+                                let _ = clean_backend.clean_ram();
 
                                 let _ = clean_tx.send(AppEvent::CareCleanFinished {
                                     bytes_freed: clean_res.total_bytes_freed,
@@ -348,6 +421,8 @@ impl eframe::App for RustCareApp {
                 NavSection::Cleaner => {
                     let tx = self.sender.clone();
                     let clean_tx = self.sender.clone();
+                    let backend = self.backend.clone();
+                    let clean_backend = self.backend.clone();
                     let scan_cache = self.cleaner_view.scan_result.clone();
 
                     self.cleaner_view.render(
@@ -357,14 +432,14 @@ impl eframe::App for RustCareApp {
                                 let prefs = ConfigManager::load();
                                 let mut config = RulesEngine::load_cleaner_rules().unwrap();
                                 config.apply_preferences(&prefs);
-                                let res = CleanerEngine::scan_all(&config);
+                                let res = backend.scan_junk(&config);
                                 let _ = tx.send(AppEvent::CleanerScanFinished(res));
                             });
                         },
                         move || {
                             if let Some(scan) = scan_cache {
                                 thread::spawn(move || {
-                                    let res = CleanerEngine::clean_all(&scan);
+                                    let res = clean_backend.clean_junk(&scan);
                                     let _ = clean_tx.send(AppEvent::CleanerCleanFinished(res));
                                 });
                             }
@@ -372,7 +447,7 @@ impl eframe::App for RustCareApp {
                     );
                 }
                 NavSection::Booster => {
-                    self.booster_view.render(ui);
+                    self.booster_view.render(ui, &self.backend);
                 }
                 NavSection::Shield => {
                     let tx = self.sender.clone();
