@@ -15,6 +15,10 @@ use rustcare_core::power_plan::{PowerPlanOptimizer, PowerSchemeInfo};
 use rustcare_core::rescue::{BackupEntry, RescueCenter};
 use rustcare_core::shortcuts::{BrokenShortcut, ShortcutCleaner};
 use rustcare_core::shredder::FileShredder;
+use rustcare_core::dism_cleanup::DismEngine;
+use rustcare_core::hardware_troubleshooter::{HardwareTroubleshooter, ProblemDevice};
+use rustcare_core::hibernation::{HibernationManager, HibernationStatus};
+use rustcare_core::scheduled_tasks::{ScheduledTaskItem, ScheduledTaskManager};
 use rustcare_core::system_info::{SystemHardwareReport, SystemInfoHub};
 use rustcare_core::ui_repair::UiRepair;
 use rustcare_core::uninstaller::{InstalledApp, ResidualFolder, UninstallerEngine};
@@ -39,6 +43,10 @@ pub enum ToolboxTab {
     UiRepair,
     SystemInfo,
     PowerPlan,
+    DismWinSxs,
+    Hibernation,
+    HardwareTroubleshooter,
+    ScheduledTasks,
 }
 
 pub struct ToolboxView {
@@ -100,6 +108,17 @@ pub struct ToolboxView {
     pub system_report: Option<SystemHardwareReport>,
     pub power_schemes: Vec<PowerSchemeInfo>,
     pub power_msg: Option<String>,
+
+    // Nuevas Herramientas Fase 7
+    pub dism_msg: Option<String>,
+    pub hibernation_status: Option<HibernationStatus>,
+    pub hibernation_msg: Option<String>,
+    pub problem_devices: Vec<ProblemDevice>,
+    pub problem_search: String,
+    pub hardware_msg: Option<String>,
+    pub scheduled_tasks: Vec<ScheduledTaskItem>,
+    pub tasks_search: String,
+    pub tasks_msg: Option<String>,
 }
 
 impl Default for ToolboxView {
@@ -143,6 +162,15 @@ impl Default for ToolboxView {
             system_report: None,
             power_schemes: PowerPlanOptimizer::list_schemes(),
             power_msg: None,
+            dism_msg: None,
+            hibernation_status: None,
+            hibernation_msg: None,
+            problem_devices: Vec::new(),
+            problem_search: String::new(),
+            hardware_msg: None,
+            scheduled_tasks: Vec::new(),
+            tasks_search: String::new(),
+            tasks_msg: None,
         }
     }
 }
@@ -174,6 +202,10 @@ impl ToolboxView {
                     (ToolboxTab::UiRepair, "🎨 Reparar Iconos/Fuentes"),
                     (ToolboxTab::SystemInfo, "💻 Ficha de Hardware"),
                     (ToolboxTab::PowerPlan, "🔋 Planes de Energía"),
+                    (ToolboxTab::DismWinSxs, "🧹 Limpieza WinSxS (DISM)"),
+                    (ToolboxTab::Hibernation, "💤 Gestor hiberfil.sys"),
+                    (ToolboxTab::HardwareTroubleshooter, "⚠️ Diagnóstico de Hardware"),
+                    (ToolboxTab::ScheduledTasks, "⏱️ Tareas Huérfanas"),
                 ];
 
                 for (tab, label) in tabs {
@@ -204,6 +236,10 @@ impl ToolboxView {
             ToolboxTab::UiRepair => self.render_ui_repair(ui),
             ToolboxTab::SystemInfo => self.render_system_info(ui),
             ToolboxTab::PowerPlan => self.render_power_plan(ui),
+            ToolboxTab::DismWinSxs => self.render_dism_winsxs(ui),
+            ToolboxTab::Hibernation => self.render_hibernation(ui),
+            ToolboxTab::HardwareTroubleshooter => self.render_hardware_troubleshooter(ui),
+            ToolboxTab::ScheduledTasks => self.render_scheduled_tasks(ui),
         }
     }
 
@@ -1118,6 +1154,226 @@ impl ToolboxView {
                     self.power_schemes = PowerPlanOptimizer::list_schemes();
                 }
                 Err(e) => self.power_msg = Some(format!("Error: {}", e)),
+            }
+        }
+    }
+
+    fn render_dism_winsxs(&mut self, ui: &mut Ui) {
+        ui.heading(RichText::new("🧹 Limpieza Profunda del Almacén de Componentes (WinSxS / DISM)").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.label("Invoca la herramienta oficial de mantenimiento de Windows (Dism.exe) para purgar copias de seguridad de actualizaciones antiguas. Puede liberar entre 5 GB y 20 GB de disco.");
+        ui.add_space(8.0);
+
+        ui.horizontal(|ui| {
+            if ui.button("🚀 Ejecutar StartComponentCleanup").clicked() {
+                let res = DismEngine::start_component_cleanup(false);
+                self.dism_msg = Some(res.output_message);
+            }
+
+            if ui.button("🛡️ Limpieza Definitiva con /ResetBase").clicked() {
+                let res = DismEngine::start_component_cleanup(true);
+                self.dism_msg = Some(res.output_message);
+            }
+        });
+        ui.add_space(8.0);
+
+        if let Some(msg) = &self.dism_msg {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                ui.label(RichText::new(msg).color(RustCareTheme::SUCCESS_GREEN));
+            });
+        }
+    }
+
+    fn render_hibernation(&mut self, ui: &mut Ui) {
+        ui.heading(RichText::new("💤 Gestor del Archivo de Hibernación (hiberfil.sys)").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.label("Controla el archivo de hibernación de Windows. Si no usas hibernación en tu PC, desactivarlo libera inmediatamente tantos gigabytes en el SSD como gigas de memoria RAM tengas.");
+        ui.add_space(8.0);
+
+        if self.hibernation_status.is_none() {
+            self.hibernation_status = Some(HibernationManager::get_status());
+        }
+
+        if let Some(stat) = &self.hibernation_status {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new(format!("Estado de Hibernación: {}", if stat.is_enabled { "Activada" } else { "Desactivada" })).strong());
+                    ui.label(format!("| Ahorro potencial: {}", stat.potential_savings));
+                });
+            });
+            ui.add_space(8.0);
+        }
+
+        ui.horizontal(|ui| {
+            if ui.button("🗑️ Desactivar Hibernación (Liberar SSD)").clicked() {
+                match HibernationManager::disable_hibernation() {
+                    Ok(true) => {
+                        self.hibernation_msg = Some("¡Hibernación desactivada! Archivo hiberfil.sys eliminado del SSD.".into());
+                        self.hibernation_status = Some(HibernationManager::get_status());
+                    }
+                    _ => self.hibernation_msg = Some("Error al desactivar (se requieren permisos de Administrador).".into()),
+                }
+            }
+
+            if ui.button("⚡ Modo Reducido (Fast Startup con 50% de tamaño)").clicked() {
+                match HibernationManager::set_reduced_hibernation() {
+                    Ok(true) => {
+                        self.hibernation_msg = Some("Modo de hibernación reducida configurado con éxito.".into());
+                        self.hibernation_status = Some(HibernationManager::get_status());
+                    }
+                    _ => self.hibernation_msg = Some("Error al configurar modo reducido.".into()),
+                }
+            }
+
+            if ui.button("🔄 Reactivar Hibernación").clicked() {
+                match HibernationManager::enable_hibernation() {
+                    Ok(true) => {
+                        self.hibernation_msg = Some("Hibernación activada.".into());
+                        self.hibernation_status = Some(HibernationManager::get_status());
+                    }
+                    _ => self.hibernation_msg = Some("Error al activar hibernación.".into()),
+                }
+            }
+        });
+        ui.add_space(8.0);
+
+        if let Some(msg) = &self.hibernation_msg {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                ui.label(RichText::new(msg).color(RustCareTheme::SUCCESS_GREEN));
+            });
+        }
+    }
+
+    fn render_hardware_troubleshooter(&mut self, ui: &mut Ui) {
+        ui.heading(RichText::new("⚠️ Diagnóstico de Hardware y Conflictos de Dispositivos").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.label("Audita el Administrador de Dispositivos y detecta controladores con fallos (Código 10, 43, 28) con opción de reinicio del dispositivo PnP.");
+        ui.add_space(8.0);
+
+        ui.horizontal(|ui| {
+            ui.label("Filtrar dispositivos:");
+            ui.text_edit_singleline(&mut self.problem_search);
+            if ui.button("🔍 Escanear Dispositivos con Error").clicked() {
+                self.problem_devices = HardwareTroubleshooter::scan_problem_devices();
+                self.hardware_msg = Some(format!(
+                    "Escaneo finalizado: {} dispositivos con advertencias encontrados.",
+                    self.problem_devices.len()
+                ));
+            }
+        });
+        ui.add_space(8.0);
+
+        if let Some(msg) = &self.hardware_msg {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                ui.label(RichText::new(msg).color(RustCareTheme::SUCCESS_GREEN));
+            });
+            ui.add_space(6.0);
+        }
+
+        let filtered: Vec<&ProblemDevice> = self
+            .problem_devices
+            .iter()
+            .filter(|d| self.problem_search.is_empty() || d.description.to_lowercase().contains(&self.problem_search.to_lowercase()) || d.instance_id.to_lowercase().contains(&self.problem_search.to_lowercase()))
+            .collect();
+
+        ScrollArea::vertical().show(ui, |ui| {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                if filtered.is_empty() {
+                    ui.label("✅ No se detectaron dispositivos de hardware con código de error.");
+                    return;
+                }
+
+                for dev in filtered {
+                    ui.horizontal(|ui| {
+                        ui.vertical(|ui| {
+                            ui.label(RichText::new(&dev.description).strong().color(RustCareTheme::WARNING_AMBER));
+                            ui.label(RichText::new(format!("ID: {} | Código: {} ({})", dev.instance_id, dev.problem_code, dev.status)).small().color(RustCareTheme::TEXT_MUTED));
+                        });
+
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.button("🔄 Reiniciar Dispositivo").clicked() {
+                                match HardwareTroubleshooter::restart_device(&dev.instance_id) {
+                                    Ok(true) => self.hardware_msg = Some(format!("Dispositivo '{}' reiniciado con éxito.", dev.description)),
+                                    _ => self.hardware_msg = Some(format!("No se pudo reiniciar el dispositivo (requiere permisos de Administrador).")),
+                                }
+                            }
+                        });
+                    });
+                    ui.separator();
+                }
+            });
+        });
+    }
+
+    fn render_scheduled_tasks(&mut self, ui: &mut Ui) {
+        ui.heading(RichText::new("⏱️ Auditor de Tareas Programadas Huérfanas de Windows").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.label("Inspecciona el Programador de Tareas (Task Scheduler) e identifica tareas residuales dejadas por programas desinstalados cuyos ejecutables ya no existen.");
+        ui.add_space(8.0);
+
+        ui.horizontal(|ui| {
+            ui.label("Buscar tarea:");
+            ui.text_edit_singleline(&mut self.tasks_search);
+            if ui.button("🔄 Analizar Tareas").clicked() {
+                self.scheduled_tasks = ScheduledTaskManager::list_tasks();
+                let orphan_count = self.scheduled_tasks.iter().filter(|t| t.is_orphaned).count();
+                self.tasks_msg = Some(format!(
+                    "Análisis completado: {} tareas auditadas, {} huérfanas encontradas.",
+                    self.scheduled_tasks.len(),
+                    orphan_count
+                ));
+            }
+        });
+        ui.add_space(8.0);
+
+        if let Some(msg) = &self.tasks_msg {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                ui.label(RichText::new(msg).color(RustCareTheme::SUCCESS_GREEN));
+            });
+            ui.add_space(6.0);
+        }
+
+        let filtered: Vec<&ScheduledTaskItem> = self
+            .scheduled_tasks
+            .iter()
+            .filter(|t| self.tasks_search.is_empty() || t.task_name.to_lowercase().contains(&self.tasks_search.to_lowercase()))
+            .collect();
+
+        let mut delete_task_name = None;
+
+        ScrollArea::vertical().show(ui, |ui| {
+            RustCareTheme::card_frame().show(ui, |ui| {
+                if filtered.is_empty() {
+                    ui.label("Presiona 'Analizar Tareas' para auditar las tareas programadas.");
+                    return;
+                }
+
+                for task in filtered {
+                    ui.horizontal(|ui| {
+                        ui.vertical(|ui| {
+                            let title = if task.is_orphaned {
+                                RichText::new(format!("⚠️ [Huérfana] {}", task.task_name)).strong().color(RustCareTheme::WARNING_AMBER)
+                            } else {
+                                RichText::new(&task.task_name).strong()
+                            };
+                            ui.label(title);
+                            ui.label(RichText::new(format!("Comando: {} | Estado: {}", task.action_exec, task.status)).small().color(RustCareTheme::TEXT_MUTED));
+                        });
+
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if task.is_orphaned && ui.button("🗑️ Eliminar").clicked() {
+                                delete_task_name = Some(task.task_name.clone());
+                            }
+                        });
+                    });
+                    ui.separator();
+                }
+            });
+        });
+
+        if let Some(name) = delete_task_name {
+            match ScheduledTaskManager::delete_task(&name) {
+                Ok(true) => {
+                    self.tasks_msg = Some(format!("Tarea '{}' eliminada con éxito.", name));
+                    self.scheduled_tasks = ScheduledTaskManager::list_tasks();
+                }
+                _ => self.tasks_msg = Some("Error al eliminar la tarea (requiere permisos de Administrador).".into()),
             }
         }
     }

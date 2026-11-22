@@ -57,6 +57,10 @@ RustCare es una suite de optimización, limpieza, mantenimiento, privacidad y se
 | **Reparador de Iconos** | Windows Fix / Icon Cache Rebuilder. | Reconstrucción de `IconCache.db` y reinicio fluido de `explorer.exe`. | ✅ **100% Implementado** |
 | **Ficha Técnica Hardware** | System Information Hub (Speccy clone). | Reporte detallado de CPU, GPU, RAM física, BIOS y exportación TXT. | ✅ **100% Implementado** |
 | **Planes de Energía** | Power Plan Optimizer / Ultimate Perf. | Gestión reversible de planes y desbloqueo de Máximo Rendimiento. | ✅ **100% Implementado** |
+| **Limpieza WinSxS (DISM)** | Component Store Cleanup (Limpieza profunda de parches). | Integración oficial con `Dism.exe /StartComponentCleanup /ResetBase`. | ✅ **100% Implementado** |
+| **Gestor hiberfil.sys** | Hibernation Size Optimizer. | Desactivación o reducción (`powercfg /h /type reduced`) de 8 a 64 GB de SSD. | ✅ **100% Implementado** |
+| **Diagnóstico de Hardware** | Device Manager Conflict & Error Fixer. | Detección de dispositivos PnP con error (Código 10, 43, 28) y reinicio. | ✅ **100% Implementado** |
+| **Tareas Huérfanas** | Orphaned Scheduled Tasks Cleaner. | Auditoría de Task Scheduler para eliminar tareas de apps ya desinstaladas. | ✅ **100% Implementado** |
 | **AutoCare & Alertas** | AutoCare & Notifications Daemon. | Tareas automáticas en segundo plano y notificaciones nativas de escritorio. | ✅ **100% Implementado** |
 | **Multiplataforma** | Portabilidad a otros sistemas operativos. | Soporte cruzado para Windows, Linux (systemd/XDG) y macOS (Apple/Intel). | ✅ **100% Implementado** |
 
@@ -76,4 +80,9 @@ RustCare es una suite de optimización, limpieza, mantenimiento, privacidad y se
   - Reparador de caché de iconos y fuentes de Windows.
   - Generador de informe y ficha técnica de hardware.
   - Optimizador de planes de energía con desbloqueo de Máximo Rendimiento.
-  - Batería exhaustiva de 54 pruebas automatizadas superadas (31 pruebas unitarias + 23 pruebas de validación aislada sin riesgo).
+- [x] **Fase 7: Mantenimiento Profundo y Diagnóstico de Sistema:**
+  - Limpieza del Almacén de Componentes de Windows con DISM (`StartComponentCleanup /ResetBase`) para liberar entre 5 y 20 GB.
+  - Gestor de Hibernación (`hiberfil.sys`) para recuperar entre 8 y 64 GB de SSD conmutando a modo reducido o desactivado.
+  - Diagnóstico de hardware y resolución de conflictos PnP (Códigos 10, 43, 28) con reinicio asistido de controladores.
+  - Auditor de tareas programadas huérfanas de Task Scheduler con borrado seguro de restos de software desinstalado.
+  - Batería exhaustiva de 62 pruebas automatizadas superadas (35 pruebas unitarias + 27 pruebas de validación aislada sin riesgo).

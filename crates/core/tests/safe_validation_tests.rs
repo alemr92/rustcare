@@ -348,3 +348,30 @@ fn test_safe_power_plan_listing() {
     let schemes = rustcare_core::power_plan::PowerPlanOptimizer::list_schemes();
     assert!(!schemes.is_empty());
 }
+
+#[test]
+fn test_safe_dism_status() {
+    let status = rustcare_core::dism_cleanup::DismEngine::check_status();
+    assert!(!status.recommended_action.is_empty());
+}
+
+#[test]
+fn test_safe_hibernation_status() {
+    let status = rustcare_core::hibernation::HibernationManager::get_status();
+    assert!(status.ram_size_bytes > 0);
+    assert!(!status.potential_savings.is_empty());
+}
+
+#[test]
+fn test_safe_hardware_troubleshooter() {
+    let problem_devices = rustcare_core::hardware_troubleshooter::HardwareTroubleshooter::scan_problem_devices();
+    // In normal systems this is 0 or contains problem devices, should not panic
+    let _ = problem_devices.len();
+}
+
+#[test]
+fn test_safe_scheduled_tasks_audit() {
+    let tasks = rustcare_core::scheduled_tasks::ScheduledTaskManager::list_tasks();
+    // Audit must run safely without modifying system state
+    let _ = tasks.len();
+}
