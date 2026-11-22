@@ -39,7 +39,7 @@ pub use browser_vacuum::{BrowserVacuum, DatabaseCompactResult};
 pub use cleaner::{CleanerEngine, FullCleanResult, FullScanResult, ScannedFile, TargetCleanResult, TargetScanResult};
 pub use config::{ConfigManager, UserPreferences};
 pub use context_menu::{ContextMenuItem, ContextMenuManager};
-pub use disk_analyzer::{DiskAnalysisResult, DiskAnalyzer, DiskEntryInfo, TreemapItem};
+pub use disk_analyzer::{DetectedDrive, DiskAnalysisResult, DiskAnalyzer, DiskEntryInfo, TreemapItem};
 pub use disk_optimizer::{DiskHealthCheck, DiskOptimizer, DiskTrimResult};
 pub use dism_cleanup::{DismCleanupResult, DismEngine, DismStatus};
 pub use drivers::{DeviceDriverInfo, DriverBackupResult, DriverManager};

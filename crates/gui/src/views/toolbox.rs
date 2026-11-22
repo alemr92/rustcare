@@ -1,10 +1,10 @@
 //! Vista de Herramientas Completas (Toolbox PRO) con Diagrama WizTree
 use crate::theme::RustCareTheme;
-use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Pos2, ProgressBar, Rect, RichText, ScrollArea, Sense, Stroke, StrokeKind, Ui, Vec2};
+use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Margin, Pos2, ProgressBar, Rect, RichText, ScrollArea, Sense, Stroke, StrokeKind, Ui, Vec2};
 use rustcare_core::browser_vacuum::{BrowserVacuum, DatabaseCompactResult};
 use rustcare_core::cleaner::CleanerEngine;
 use rustcare_core::context_menu::{ContextMenuItem, ContextMenuManager};
-use rustcare_core::disk_analyzer::{DiskAnalysisResult, DiskAnalyzer, TreemapItem};
+use rustcare_core::disk_analyzer::{DetectedDrive, DiskAnalysisResult, DiskAnalyzer, TreemapItem};
 use rustcare_core::disk_optimizer::DiskOptimizer;
 use rustcare_core::drivers::{DeviceDriverInfo, DriverManager};
 use rustcare_core::duplicates::{DuplicateFinder, DuplicateScanResult};
@@ -71,6 +71,7 @@ pub struct ToolboxView {
     // Analizador de disco
     pub disk_path: String,
     pub disk_result: Option<DiskAnalysisResult>,
+    pub detected_drives: Vec<DetectedDrive>,
 
     // Archivos Grandes
     pub large_files_path: String,
@@ -142,6 +143,7 @@ impl Default for ToolboxView {
             duplicate_result: None,
             disk_path: "C:\\".to_string(),
             disk_result: None,
+            detected_drives: DiskAnalyzer::list_drives(),
             large_files_path: default_path.clone(),
             large_files_min_mb: 50,
             large_files: Vec::new(),
@@ -764,22 +766,111 @@ impl ToolboxView {
     }
 
     fn render_disk_analyzer(&mut self, ui: &mut Ui) {
+        ui.label(
+            RichText::new("📊 Analizador de Espacio en Disco WizTree (Treemap a 60 FPS)")
+                .size(18.0)
+                .strong()
+                .color(RustCareTheme::ACCENT_CYAN),
+        );
+        ui.label(
+            RichText::new("Selecciona cualquier unidad de disco detectada o especifica una carpeta para visualizar qué archivos ocupan más espacio.")
+                .color(RustCareTheme::TEXT_MUTED),
+        );
+        ui.add_space(10.0);
+
+        // Selector visual de unidades detectadas (C:, D:, E:, etc.)
         ui.horizontal(|ui| {
-            ui.label("Directorio raíz:");
+            ui.label(RichText::new("💽 UNIDADES DETECTADAS EN TU EQUIPO:").small().strong().color(RustCareTheme::TEXT_PRIMARY));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.small_button("🔄 Actualizar Unidades").clicked() {
+                    self.detected_drives = DiskAnalyzer::list_drives();
+                }
+            });
+        });
+        ui.add_space(6.0);
+
+        if self.detected_drives.is_empty() {
+            self.detected_drives = DiskAnalyzer::list_drives();
+        }
+
+        ui.horizontal_wrapped(|ui| {
+            for drive in &self.detected_drives {
+                let is_selected = self.disk_path.to_uppercase().starts_with(&drive.letter.to_uppercase());
+                let border_color = if is_selected {
+                    RustCareTheme::ACCENT_CYAN
+                } else {
+                    RustCareTheme::CARD_BORDER
+                };
+
+                let bg_color = if is_selected {
+                    Color32::from_rgb(26, 36, 56)
+                } else {
+                    RustCareTheme::CARD_BG
+                };
+
+                egui::Frame::NONE
+                    .fill(bg_color)
+                    .corner_radius(CornerRadius::same(8))
+                    .stroke(Stroke::new(if is_selected { 1.5_f32 } else { 1.0_f32 }, border_color))
+                    .inner_margin(Margin::same(10))
+                    .show(ui, |ui| {
+                        ui.set_width(215.0);
+                        ui.vertical(|ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new("💽").size(22.0));
+                                ui.vertical(|ui| {
+                                    ui.label(RichText::new(&drive.name).strong().color(Color32::WHITE));
+                                    ui.label(RichText::new(format!("Formato {}", drive.fs_type)).small().color(RustCareTheme::TEXT_DIM));
+                                });
+                            });
+
+                            if drive.total_bytes > 0 {
+                                let used = drive.total_bytes.saturating_sub(drive.available_bytes);
+                                let ratio = (used as f32 / drive.total_bytes as f32).clamp(0.0, 1.0);
+                                ui.add_space(4.0);
+                                let free_str = CleanerEngine::format_bytes(drive.available_bytes);
+                                let total_str = CleanerEngine::format_bytes(drive.total_bytes);
+                                ui.label(RichText::new(format!("{} libres / {}", free_str, total_str)).small().color(RustCareTheme::TEXT_MUTED));
+
+                                let bar_color = if ratio > 0.90 {
+                                    RustCareTheme::DANGER_RED
+                                } else if ratio > 0.80 {
+                                    RustCareTheme::WARNING_AMBER
+                                } else {
+                                    RustCareTheme::ACCENT_BLUE
+                                };
+                                ui.add(ProgressBar::new(ratio).fill(bar_color).show_percentage());
+                            }
+
+                            ui.add_space(6.0);
+                            let btn_label = if is_selected && self.disk_result.is_some() { "✔ Analizado (Reanalizar)" } else { "🔍 Analizar Unidad" };
+                            if ui.add_sized([200.0, 26.0], egui::Button::new(RichText::new(btn_label).small().strong())).clicked() {
+                                self.disk_path = drive.letter.clone();
+                                self.disk_result = Some(DiskAnalyzer::analyze_directory(&self.disk_path));
+                            }
+                        });
+                    });
+            }
+        });
+
+        ui.add_space(10.0);
+        ui.horizontal(|ui| {
+            ui.label(RichText::new("Ruta actual o carpeta personalizada:").strong().color(Color32::WHITE));
             ui.text_edit_singleline(&mut self.disk_path);
-            if ui.button("📊 Analizar y Generar Treemap (WizTree)").clicked() {
+            if ui.button(RichText::new("📊 Analizar Ruta").strong()).clicked() {
                 self.disk_result = Some(DiskAnalyzer::analyze_directory(&self.disk_path));
             }
         });
-        ui.add_space(8.0);
+        ui.add_space(10.0);
 
         if let Some(res) = &self.disk_result {
             ui.label(
                 RichText::new(format!(
-                    "Tamaño total en '{}': {}",
+                    "Tamaño analizado en '{}': {}",
                     res.root_path.display(),
                     CleanerEngine::format_bytes(res.total_size_bytes)
                 ))
+                .size(15.0)
                 .strong()
                 .color(RustCareTheme::ACCENT_CYAN),
             );
@@ -790,7 +881,7 @@ impl ToolboxView {
             ui.add_space(4.0);
 
             let canvas_width = ui.available_width().max(400.0);
-            let canvas_height = 260.0;
+            let canvas_height = 320.0;
             let (response, painter) = ui.allocate_painter(Vec2::new(canvas_width, canvas_height), Sense::hover());
             let bounding_rect = response.rect;
 
@@ -846,7 +937,7 @@ impl ToolboxView {
 
             // Tabla jerárquica con porcentajes
             ui.label(RichText::new("Explorador de Carpetas Más Pesadas:").strong());
-            ScrollArea::vertical().show(ui, |ui| {
+            ScrollArea::vertical().max_height(250.0).show(ui, |ui| {
                 egui::Frame::NONE
                     .fill(RustCareTheme::CARD_BG)
                     .corner_radius(8)

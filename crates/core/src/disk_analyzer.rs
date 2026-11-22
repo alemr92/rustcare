@@ -14,6 +14,16 @@ pub struct DiskEntryInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DetectedDrive {
+    pub letter: String,
+    pub mount_point: PathBuf,
+    pub name: String,
+    pub total_bytes: u64,
+    pub available_bytes: u64,
+    pub fs_type: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TreemapItem {
     pub name: String,
     pub path: PathBuf,
@@ -32,6 +42,54 @@ pub struct DiskAnalysisResult {
 pub struct DiskAnalyzer;
 
 impl DiskAnalyzer {
+    /// Detecta y lista todas las unidades de almacenamiento lógicas y físicas disponibles en el sistema
+    pub fn list_drives() -> Vec<DetectedDrive> {
+        let disks = sysinfo::Disks::new_with_refreshed_list();
+        let mut list = Vec::new();
+
+        for d in &disks {
+            let mp = d.mount_point();
+            let letter = mp.to_string_lossy().to_string();
+            let raw_name = d.name().to_string_lossy();
+            let name = if raw_name.is_empty() {
+                format!("Disco Local ({})", letter.trim_end_matches('\\'))
+            } else {
+                format!("{} ({})", raw_name, letter.trim_end_matches('\\'))
+            };
+
+            list.push(DetectedDrive {
+                letter: letter.clone(),
+                mount_point: mp.to_path_buf(),
+                name,
+                total_bytes: d.total_space(),
+                available_bytes: d.available_space(),
+                fs_type: d.file_system().to_string_lossy().to_string(),
+            });
+        }
+
+        if list.is_empty() {
+            #[cfg(windows)]
+            {
+                for b in b'C'..=b'Z' {
+                    let path_str = format!("{}:\\", b as char);
+                    let p = PathBuf::from(&path_str);
+                    if p.exists() {
+                        list.push(DetectedDrive {
+                            letter: path_str.clone(),
+                            mount_point: p,
+                            name: format!("Disco Local ({}:)", b as char),
+                            total_bytes: 0,
+                            available_bytes: 0,
+                            fs_type: "NTFS".into(),
+                        });
+                    }
+                }
+            }
+        }
+
+        list
+    }
+
     /// Calcula el tamaño recursivo de un directorio de forma segura
     pub fn calculate_dir_size<P: AsRef<Path>>(dir: P) -> u64 {
         let mut total = 0u64;
