@@ -3,6 +3,7 @@ use crate::theme::RustCareTheme;
 use crate::views::{BoosterView, CareView, CleanerView, MonitorView, SettingsView, ShieldView, ToolboxView};
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Rect, RichText, Stroke, StrokeKind, Ui, Vec2};
+use rustcare_core::config::ConfigManager;
 use rustcare_core::cleaner::{CleanerEngine, FullCleanResult, FullScanResult};
 use rustcare_core::rules::RulesEngine;
 use rustcare_core::security::is_elevated;
@@ -160,6 +161,18 @@ impl eframe::App for RustCareApp {
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.add_space(10.0);
+                        if ui
+                            .button(
+                                RichText::new("⚙️ Opciones")
+                                    .size(13.0)
+                                    .strong()
+                                    .color(RustCareTheme::ACCENT_CYAN),
+                            )
+                            .clicked()
+                        {
+                            self.current_section = NavSection::Settings;
+                        }
+                        ui.add_space(8.0);
                         if self.is_admin {
                             RustCareTheme::draw_badge(
                                 ui,
@@ -296,8 +309,10 @@ impl eframe::App for RustCareApp {
                         ui,
                         move |_options| {
                             thread::spawn(move || {
-                                let _ = tx.send(AppEvent::CareScanProgress(0.25, "Analizando archivos basura y cachés dev...".into()));
-                                let cleaner_cfg = RulesEngine::load_cleaner_rules().unwrap();
+                                let _ = tx.send(AppEvent::CareScanProgress(0.25, "Analizando según tus opciones configuradas...".into()));
+                                let prefs = ConfigManager::load();
+                                let mut cleaner_cfg = RulesEngine::load_cleaner_rules().unwrap();
+                                cleaner_cfg.apply_preferences(&prefs);
                                 let scan_res = CleanerEngine::scan_all(&cleaner_cfg);
 
                                 let _ = tx.send(AppEvent::CareScanProgress(0.65, "Inspeccionando persistencias y procesos en memoria...".into()));
@@ -315,7 +330,9 @@ impl eframe::App for RustCareApp {
                         },
                         move || {
                             thread::spawn(move || {
-                                let cleaner_cfg = RulesEngine::load_cleaner_rules().unwrap();
+                                let prefs = ConfigManager::load();
+                                let mut cleaner_cfg = RulesEngine::load_cleaner_rules().unwrap();
+                                cleaner_cfg.apply_preferences(&prefs);
                                 let scan_res = CleanerEngine::scan_all(&cleaner_cfg);
                                 let clean_res = CleanerEngine::clean_all(&scan_res);
                                 let _ = rustcare_core::booster::BoosterEngine::clean_ram();
@@ -337,7 +354,9 @@ impl eframe::App for RustCareApp {
                         ui,
                         move |_selected_targets| {
                             thread::spawn(move || {
-                                let config = RulesEngine::load_cleaner_rules().unwrap();
+                                let prefs = ConfigManager::load();
+                                let mut config = RulesEngine::load_cleaner_rules().unwrap();
+                                config.apply_preferences(&prefs);
                                 let res = CleanerEngine::scan_all(&config);
                                 let _ = tx.send(AppEvent::CleanerScanFinished(res));
                             });

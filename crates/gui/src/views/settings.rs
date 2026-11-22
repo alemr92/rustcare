@@ -1,7 +1,7 @@
 //! Vista de Centro de Configuración & Opciones PRO
 //! Reproducción 1:1 de las opciones de Advanced SystemCare (IObit) con árbol de navegación
 use crate::theme::RustCareTheme;
-use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, ScrollArea, Slider, Stroke, Ui, Vec2};
+use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Margin, Rect, RichText, ScrollArea, Slider, Stroke, Ui, Vec2};
 use rustcare_core::automation::AutomationEngine;
 use rustcare_core::config::{ConfigManager, UserPreferences};
 
@@ -63,10 +63,11 @@ impl Default for SettingsView {
 
 impl SettingsView {
     pub fn render(&mut self, ui: &mut Ui) {
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
         let available_size = ui.available_size();
-        let sidebar_width = 240.0;
-        let content_width = (available_size.x - sidebar_width - 16.0).max(450.0);
-        let panel_height = (available_size.y - 45.0).max(480.0);
+        let sidebar_width = 230.0;
+        let content_width = (available_size.x - sidebar_width - 16.0).max(380.0);
+        let max_panel_h = (available_size.y - 42.0).max(400.0);
 
         // Encabezado superior de la ventana de opciones
         ui.horizontal(|ui| {
@@ -90,20 +91,47 @@ impl SettingsView {
         ui.separator();
         ui.add_space(4.0);
 
-        // Disposición en Dos Columnas: Árbol de Navegación Izquierdo (240px) + Panel de Controles Derecho
-        ui.horizontal(|ui| {
+        // Disposición en Dos Columnas Verticales: Izquierda (Árbol 230px) + Derecha (Opciones)
+        ui.horizontal_top(|ui| {
             // Columna Izquierda: Árbol de Categorías ASC
-            ui.allocate_ui(Vec2::new(sidebar_width, panel_height), |ui| {
+            ui.vertical(|ui| {
+                ui.set_width(sidebar_width);
+                ui.set_max_height(max_panel_h);
                 self.render_navigation_sidebar(ui);
             });
 
             ui.separator();
 
             // Columna Derecha: Contenido de Opciones
-            ui.allocate_ui(Vec2::new(content_width, panel_height), |ui| {
+            ui.vertical(|ui| {
+                ui.set_width(content_width);
+                ui.set_max_height(max_panel_h);
                 self.render_right_content_panel(ui);
             });
         });
+    }
+
+    /// Cabecera desplegable de categoría
+    fn render_category_header(&mut self, ui: &mut Ui, title: &str, expanded: &mut bool) {
+        let row_width = (ui.available_width() - 4.0).max(180.0);
+        let (rect, response) = ui.allocate_exact_size(Vec2::new(row_width, 32.0), egui::Sense::click());
+        let bg = if response.hovered() {
+            Color32::from_rgb(22, 28, 42)
+        } else {
+            Color32::TRANSPARENT
+        };
+        ui.painter().rect_filled(rect, CornerRadius::same(4), bg);
+
+        let arrow = if *expanded { "▾" } else { "▸" };
+        let text = format!("{} {}", arrow, title);
+        let font_id = FontId::proportional(13.5);
+        let text_pos = egui::pos2(rect.min.x + 6.0, rect.center().y);
+        ui.painter().text(text_pos, Align2::LEFT_CENTER, text, font_id, Color32::WHITE);
+
+        if response.clicked() {
+            *expanded = !*expanded;
+        }
+        ui.add_space(2.0);
     }
 
     /// Árbol jerárquico de navegación izquierdo idéntico a Advanced SystemCare
@@ -136,20 +164,9 @@ impl SettingsView {
                         );
 
                         // 3. Limpiar y optimizar (Desplegable con flecha)
-                        ui.horizontal(|ui| {
-                            let arrow = if self.expand_clean_optimize { "▾" } else { "▸" };
-                            if ui
-                                .selectable_label(
-                                    false,
-                                    RichText::new(format!("{} 🧹 Limpiar y optimizar", arrow))
-                                        .strong()
-                                        .color(RustCareTheme::TEXT_PRIMARY),
-                                )
-                                .clicked()
-                            {
-                                self.expand_clean_optimize = !self.expand_clean_optimize;
-                            }
-                        });
+                        let mut expand_clean = self.expand_clean_optimize;
+                        self.render_category_header(ui, "🧹 Limpiar y optimizar", &mut expand_clean);
+                        self.expand_clean_optimize = expand_clean;
 
                         if self.expand_clean_optimize {
                             self.render_tree_item(ui, "🛡  Eliminador de Spyware", SettingsSection::SpywareRemover, 16);
@@ -164,20 +181,9 @@ impl SettingsView {
                         }
 
                         // 4. Servicio automático (Desplegable con flecha)
-                        ui.horizontal(|ui| {
-                            let arrow = if self.expand_auto_service { "▾" } else { "▸" };
-                            if ui
-                                .selectable_label(
-                                    false,
-                                    RichText::new(format!("{} 🤖 Servicio automático", arrow))
-                                        .strong()
-                                        .color(RustCareTheme::TEXT_PRIMARY),
-                                )
-                                .clicked()
-                            {
-                                self.expand_auto_service = !self.expand_auto_service;
-                            }
-                        });
+                        let mut expand_auto = self.expand_auto_service;
+                        self.render_category_header(ui, "🤖 Servicio automático", &mut expand_auto);
+                        self.expand_auto_service = expand_auto;
 
                         if self.expand_auto_service {
                             self.render_tree_item(ui, "🕒  Auto Cuidador", SettingsSection::AutoCare, 16);
@@ -209,96 +215,115 @@ impl SettingsView {
             title.to_string()
         };
 
+        let row_width = (ui.available_width() - 4.0).max(180.0);
+        let (rect, response) = ui.allocate_exact_size(Vec2::new(row_width, 30.0), egui::Sense::click());
+
+        let bg_color = if is_selected {
+            Color32::from_rgb(28, 38, 60)
+        } else if response.hovered() {
+            Color32::from_rgb(22, 28, 42)
+        } else {
+            Color32::TRANSPARENT
+        };
+
+        ui.painter().rect_filled(rect, CornerRadius::same(4), bg_color);
+        if is_selected {
+            let bar = Rect::from_min_size(rect.min, Vec2::new(3.0, rect.height()));
+            ui.painter().rect_filled(bar, CornerRadius::same(1), RustCareTheme::ACCENT_CYAN);
+        }
+
         let text_color = if is_selected {
             RustCareTheme::ACCENT_CYAN
+        } else if response.hovered() {
+            Color32::WHITE
         } else {
             RustCareTheme::TEXT_MUTED
         };
 
-        let response = ui.selectable_label(
-            is_selected,
-            RichText::new(display_text).color(text_color).strong(),
-        );
+        let font_id = FontId::proportional(13.0);
+        let text_pos = egui::pos2(rect.min.x + 8.0 + indent as f32, rect.center().y);
+        ui.painter().text(text_pos, Align2::LEFT_CENTER, display_text.trim(), font_id, text_color);
 
         if response.clicked() {
             self.selected_section = section;
             self.status_message = None;
         }
+        ui.add_space(2.0);
     }
 
     /// Panel de Controles Derecho con Scroll y Barra Inferior de Acción
     fn render_right_content_panel(&mut self, ui: &mut Ui) {
-        ui.vertical(|ui| {
-            let max_scroll_h = (ui.available_height() - 50.0).max(300.0);
-            ScrollArea::vertical()
-                .id_salt("settings_right_panel_scroll")
-                .auto_shrink([false, false])
-                .max_height(max_scroll_h)
-                .show(ui, |ui| {
-                    ui.set_width(ui.available_width() - 8.0);
-                    match self.selected_section {
-                        SettingsSection::General => self.render_general_screen(ui),
-                        SettingsSection::RegistryCleaner => self.render_registry_screen(ui),
-                        SettingsSection::PrivacyCleaner => self.render_privacy_screen(ui),
-                        SettingsSection::JunkFilesCleaner => self.render_junk_screen(ui),
-                        SettingsSection::SystemOptimization => self.render_system_opt_screen(ui),
-                        SettingsSection::InternetBooster => self.render_internet_booster_screen(ui),
-                        SettingsSection::AntiSpyware | SettingsSection::SpywareRemover => {
-                            self.render_antispyware_screen(ui)
-                        }
-                        SettingsSection::SecurityReinforce => self.render_security_screen(ui),
-                        SettingsSection::VulnerabilityFixes => self.render_vulnerability_screen(ui),
-                        SettingsSection::DiskOptimization => self.render_disk_opt_screen(ui),
-                        SettingsSection::AutoCare => self.render_auto_care_screen(ui),
-                        SettingsSection::AutoCleaner => self.render_auto_cleaner_screen(ui),
-                        SettingsSection::AutoUpdater => self.render_auto_updater_screen(ui),
-                        SettingsSection::AutoRamCleaner => self.render_auto_ram_screen(ui),
-                        SettingsSection::CustomCleaning => self.render_custom_cleaning_screen(ui),
-                        SettingsSection::IgnoreList => self.render_ignore_list_screen(ui),
-                        SettingsSection::LogsAndBackups => self.render_backups_screen(ui),
-                        SettingsSection::Notifications => self.render_notifications_screen(ui),
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+        let scroll_h = (ui.available_height() - 52.0).max(180.0);
+
+        ScrollArea::vertical()
+            .id_salt("settings_right_panel_scroll")
+            .auto_shrink([false, false])
+            .max_height(scroll_h)
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width() - 8.0);
+                match self.selected_section {
+                    SettingsSection::General => self.render_general_screen(ui),
+                    SettingsSection::RegistryCleaner => self.render_registry_screen(ui),
+                    SettingsSection::PrivacyCleaner => self.render_privacy_screen(ui),
+                    SettingsSection::JunkFilesCleaner => self.render_junk_screen(ui),
+                    SettingsSection::SystemOptimization => self.render_system_opt_screen(ui),
+                    SettingsSection::InternetBooster => self.render_internet_booster_screen(ui),
+                    SettingsSection::AntiSpyware | SettingsSection::SpywareRemover => {
+                        self.render_antispyware_screen(ui)
                     }
-                });
+                    SettingsSection::SecurityReinforce => self.render_security_screen(ui),
+                    SettingsSection::VulnerabilityFixes => self.render_vulnerability_screen(ui),
+                    SettingsSection::DiskOptimization => self.render_disk_opt_screen(ui),
+                    SettingsSection::AutoCare => self.render_auto_care_screen(ui),
+                    SettingsSection::AutoCleaner => self.render_auto_cleaner_screen(ui),
+                    SettingsSection::AutoUpdater => self.render_auto_updater_screen(ui),
+                    SettingsSection::AutoRamCleaner => self.render_auto_ram_screen(ui),
+                    SettingsSection::CustomCleaning => self.render_custom_cleaning_screen(ui),
+                    SettingsSection::IgnoreList => self.render_ignore_list_screen(ui),
+                    SettingsSection::LogsAndBackups => self.render_backups_screen(ui),
+                    SettingsSection::Notifications => self.render_notifications_screen(ui),
+                }
+            });
 
-            ui.add_space(6.0);
-            ui.separator();
-            ui.add_space(6.0);
+        ui.add_space(4.0);
+        ui.separator();
+        ui.add_space(4.0);
 
-            // Barra de Botones Inferior de Acción (Restablecer, Aplicar, Guardar)
-            ui.horizontal(|ui| {
+        // Barra de Botones Inferior de Acción (Restablecer, Aplicar, Guardar)
+        ui.horizontal(|ui| {
+            if ui
+                .button(
+                    RichText::new("↺ Restablecer predeterminados")
+                        .color(RustCareTheme::TEXT_MUTED),
+                )
+                .clicked()
+            {
+                self.prefs = UserPreferences::default();
+                self.status_message = Some("Preferencias restablecidas a los valores originales.".into());
+            }
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui
-                    .button(
-                        RichText::new("↺ Restablecer predeterminados")
-                            .color(RustCareTheme::TEXT_MUTED),
+                    .add_sized(
+                        [180.0, 32.0],
+                        egui::Button::new(
+                            RichText::new("💾 Guardar y Aplicar")
+                                .size(13.0)
+                                .strong()
+                                .color(Color32::WHITE),
+                        )
+                        .fill(RustCareTheme::SUCCESS_GREEN)
+                        .corner_radius(CornerRadius::same(6)),
                     )
                     .clicked()
                 {
-                    self.prefs = UserPreferences::default();
-                    self.status_message = Some("Preferencias restablecidas a los valores originales.".into());
-                }
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui
-                        .add_sized(
-                            [210.0, 36.0],
-                            egui::Button::new(
-                                RichText::new("💾 Guardar y Aplicar")
-                                    .size(14.0)
-                                    .strong()
-                                    .color(Color32::WHITE),
-                            )
-                            .fill(RustCareTheme::SUCCESS_GREEN)
-                            .corner_radius(CornerRadius::same(6)),
-                        )
-                        .clicked()
-                    {
-                        let _ = AutomationEngine::set_autostart(self.prefs.auto_start_with_system);
-                        if let Ok(()) = ConfigManager::save(&self.prefs) {
-                            self.status_message =
-                                Some("¡Configuración guardada y aplicada con éxito!".into());
-                        }
+                    let _ = AutomationEngine::set_autostart(self.prefs.auto_start_with_system);
+                    if let Ok(()) = ConfigManager::save(&self.prefs) {
+                        self.status_message =
+                            Some("¡Configuración guardada y aplicada con éxito!".into());
                     }
-                });
+                }
             });
         });
     }
