@@ -1,0 +1,163 @@
+name: Release Multiplatform Installers
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows x86_64
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run test suite
+        run: cargo test --workspace
+
+      - name: Build Release binary
+        run: cargo build --release -p rustcare-gui
+
+      - name: Package Windows ZIP & Installer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          $zipName = "RustCare-${{ github.ref_name }}-windows-x86_64.zip"
+          Compress-Archive -Path target\release\rustcare-gui.exe, rules, README.md, LICENSE, packaging\windows\install.ps1 -DestinationPath dist\$zipName
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: dist/*
+
+  build-linux:
+    name: Build Linux x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libudev-dev pkg-config
+
+      - name: Run test suite
+        run: cargo test --workspace
+
+      - name: Build Release binary
+        run: cargo build --release -p rustcare-gui
+
+      - name: Package Linux TAR.GZ
+        run: |
+          mkdir -p dist/rustcare
+          cp target/release/rustcare-gui dist/rustcare/
+          cp -r rules dist/rustcare/
+          cp packaging/linux/install.sh dist/rustcare/
+          cp packaging/linux/rustcare.desktop dist/rustcare/
+          cp README.md LICENSE dist/rustcare/
+          cd dist
+          tar -czf "RustCare-${{ github.ref_name }}-linux-x86_64.tar.gz" rustcare
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release
+          path: dist/*.tar.gz
+
+  build-macos:
+    name: Build macOS Universal (Intel + Apple Silicon)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin, aarch64-apple-darwin
+
+      - name: Run test suite
+        run: cargo test --workspace
+
+      - name: Build for aarch64 (Apple Silicon M1/M2/M3)
+        run: cargo build --release -p rustcare-gui --target aarch64-apple-darwin
+
+      - name: Build for x86_64 (Intel Mac)
+        run: cargo build --release -p rustcare-gui --target x86_64-apple-darwin
+
+      - name: Create Universal Binary
+        run: |
+          mkdir -p target/release-universal
+          lipo -create -output target/release-universal/rustcare-gui target/aarch64-apple-darwin/release/rustcare-gui target/x86_64-apple-darwin/release/rustcare-gui
+
+      - name: Package macOS App Bundle and DMG
+        run: |
+          mkdir -p dist/RustCare.app/Contents/MacOS
+          mkdir -p dist/RustCare.app/Contents/Resources/rules
+          cp target/release-universal/rustcare-gui dist/RustCare.app/Contents/MacOS/
+          cp packaging/macos/Info.plist dist/RustCare.app/Contents/
+          cp -r rules/* dist/RustCare.app/Contents/Resources/rules/
+          cd dist
+          zip -r "RustCare-${{ github.ref_name }}-macos-universal.zip" RustCare.app
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: dist/*.zip
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Flatten release assets
+        run: |
+          mkdir -p release-final
+          find release-artifacts/ -type f -exec cp {} release-final/ \;
+          ls -lah release-final/
+
+      - name: Create Official GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-final/*
+          name: "RustCare ${{ github.ref_name }} (Official Release)"
+          body: |
+            ## 🚀 RustCare v0.1.0 - Official Multiplatform Release
+
+            A high-performance, zero-telemetry, and zero-admin system maintenance and optimization suite built in pure native Rust.
+
+            ### 📦 Downloads & Installers:
+            - **Windows (x86_64)**: `RustCare-v0.1.0-windows-x86_64.zip` (includes standalone executable and `install.ps1`)
+            - **Linux (x86_64)**: `RustCare-v0.1.0-linux-x86_64.tar.gz` (includes `install.sh` and desktop entry)
+            - **macOS (Universal - Apple Silicon & Intel)**: `RustCare-v0.1.0-macos-universal.zip` (ready to drag to `/Applications`)
+
+            ### ✨ Key Highlights:
+            - **1-Click Care HUD**: Multi-threaded circular radar diagnostic engine.
+            - **Zero Mandatory Admin**: 100% functional for unprivileged users; unlocks deep system maintenance with UAC elevation.
+            - **WizTree Disk Treemap**: Interactive, responsive disk space visualizer at 60 FPS.
+            - **Rescue Center & Non-Destructive Rollback**: Automated registry snapshots, restore points, and TCP/IP backup snapshots.
+            - **Toolbox PRO**: 21 native system utilities (SSD TRIM, WinSxS DISM cleanup, SQLite VACUUM, hiberfil.sys manager, driver backup, PnP hardware diagnostic, and orphaned tasks cleaner).
+          draft: false
+          prerelease: false

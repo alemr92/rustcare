@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=RustCare
+Comment=High-performance system maintenance, privacy & optimization suite
+Exec=rustcare-gui
+Icon=rustcare
+Terminal=false
+Type=Application
+Categories=System;Utility;Settings;
+StartupNotify=true
