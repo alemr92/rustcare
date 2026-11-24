@@ -1,6 +1,8 @@
 //! Tema visual determinante y elegante para RustCare
 //! Paleta moderna inspirada en interfaces premium (Obsidian Dark & Electric Azure/Emerald)
-use eframe::egui::{self, Color32, CornerRadius, FontId, Margin, Stroke, StrokeKind, Ui, Vec2, Visuals};
+use eframe::egui::{
+    self, Color32, CornerRadius, FontId, Margin, Rect, Stroke, StrokeKind, Ui, Vec2, Visuals,
+};
 
 #[allow(dead_code)]
 pub struct RustCareTheme;
@@ -42,11 +44,73 @@ impl RustCareTheme {
     pub const ACCENT_PURPLE: Color32 = Self::ACCENT_INDIGO;
 
     // Radios y Espaciados Geométricos
-    pub const RADIUS_CARD: f32 = 12.0;
+    pub const RADIUS_CARD: f32 = 14.0;
     pub const RADIUS_BUTTON: f32 = 8.0;
     pub const RADIUS_PILL: f32 = 21.0;
     pub const PADDING_CARD: f32 = 16.0;
     pub const ITEM_SPACING: f32 = 14.0;
+
+    /// Dibuja la luz ambiental difusa en el fondo de la ventana (Ambient Mesh Glow 2027)
+    pub fn draw_ambient_mesh_glow(painter: &eframe::egui::Painter, screen_rect: Rect, time: f32) {
+        let c = screen_rect.center();
+        let pulse = (time * 0.8).sin() * 20.0;
+        // Halo central cian (#00E5A8) de radio 440px
+        painter.circle_filled(
+            egui::pos2(c.x + 60.0, c.y - 40.0),
+            420.0 + pulse,
+            Color32::from_rgba_unmultiplied(0, 229, 168, 11), // alpha 0.045
+        );
+        // Halo superior azul cobalto (#2563EB) de radio 420px
+        painter.circle_filled(
+            egui::pos2(screen_rect.min.x + 140.0, screen_rect.min.y + 90.0),
+            420.0,
+            Color32::from_rgba_unmultiplied(37, 99, 235, 13), // alpha 0.05
+        );
+        // Halo inferior-derecho cian suave (#38BDF8)
+        painter.circle_filled(
+            egui::pos2(screen_rect.max.x - 100.0, screen_rect.max.y - 80.0),
+            380.0,
+            Color32::from_rgba_unmultiplied(56, 189, 248, 10), // alpha 0.04
+        );
+    }
+
+    /// Dibuja una tarjeta con profundidad tridimensional, luz de cristal superior y borde reactivo (Bento Glass Card 2027)
+    pub fn draw_glass_card(
+        painter: &eframe::egui::Painter,
+        rect: Rect,
+        is_hovered: bool,
+        accent: Option<Color32>,
+    ) {
+        let bg = if is_hovered {
+            Color32::from_rgba_unmultiplied(26, 36, 54, 235)
+        } else {
+            Color32::from_rgba_unmultiplied(18, 24, 36, 220)
+        };
+        let radius = CornerRadius::same(Self::RADIUS_CARD as u8);
+        painter.rect_filled(rect, radius, bg);
+
+        // Borde perimetral con iluminación al hover
+        let border_col = if is_hovered {
+            accent.unwrap_or(Color32::from_rgb(0, 229, 168))
+        } else {
+            Color32::from_rgb(34, 46, 66)
+        };
+        painter.rect_stroke(rect, radius, Stroke::new(1.0_f32, border_col), StrokeKind::Inside);
+
+        // Luz superior especular (Rim Light de 1px, blanco alpha 38 / 60)
+        let top_highlight = if is_hovered {
+            Color32::from_rgba_unmultiplied(255, 255, 255, 65)
+        } else {
+            Color32::from_rgba_unmultiplied(255, 255, 255, 38)
+        };
+        painter.line_segment(
+            [
+                egui::pos2(rect.min.x + Self::RADIUS_CARD, rect.min.y + 1.0),
+                egui::pos2(rect.max.x - Self::RADIUS_CARD, rect.min.y + 1.0),
+            ],
+            Stroke::new(1.0_f32, top_highlight),
+        );
+    }
 
     /// Dibuja una píldora / etiqueta de estado compacta
     pub fn draw_badge(ui: &mut Ui, text: &str, fg: Color32, bg: Color32) {
@@ -131,6 +195,15 @@ impl RustCareTheme {
             .fill(Self::BG_SURFACE)
             .corner_radius(CornerRadius::same(Self::RADIUS_CARD as u8))
             .stroke(Stroke::new(1.0_f32, Self::BORDER_SUBTLE))
+            .inner_margin(Margin::same(Self::PADDING_CARD as i8))
+    }
+
+    /// Marco de tarjeta de cristal semitransparente con radio 14px (Bento Glass Card 2027)
+    pub fn glass_card_frame() -> egui::Frame {
+        egui::Frame::NONE
+            .fill(Color32::from_rgba_unmultiplied(18, 24, 36, 220))
+            .corner_radius(CornerRadius::same(14))
+            .stroke(Stroke::new(1.0_f32, Color32::from_rgb(34, 46, 66)))
             .inner_margin(Margin::same(Self::PADDING_CARD as i8))
     }
 

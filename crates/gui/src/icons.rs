@@ -24,6 +24,8 @@ pub enum AppIcon {
     Shredder,
     Gauge,
     User,
+    Brain,
+    Folder,
 }
 
 pub fn draw_icon(painter: &Painter, rect: Rect, icon: AppIcon, color: Color32, stroke_width: f32) {
@@ -443,6 +445,49 @@ pub fn draw_icon(painter: &Painter, rect: Rect, icon: AppIcon, color: Color32, s
             painter.line_segment([Pos2::new(c.x - shoulder_w, shoulder_y), Pos2::new(c.x + shoulder_w, shoulder_y)], stroke);
             painter.line_segment([Pos2::new(c.x - shoulder_w, shoulder_y), Pos2::new(c.x - shoulder_w + 1.0, rect.max.y - 2.0)], stroke);
             painter.line_segment([Pos2::new(c.x + shoulder_w, shoulder_y), Pos2::new(c.x + shoulder_w - 1.0, rect.max.y - 2.0)], stroke);
+        }
+
+        AppIcon::Brain => {
+            // Cerebro estilizado con circuitos neuronales
+            let r_lobe = (w.min(h) * 0.36).max(5.0);
+            let left_cx = c.x - r_lobe * 0.38;
+            let right_cx = c.x + r_lobe * 0.38;
+
+            // Lóbulo superior izquierdo y derecho
+            painter.circle_stroke(Pos2::new(left_cx, c.y - r_lobe * 0.35), r_lobe * 0.52, Stroke::new(stroke_width, color));
+            painter.circle_stroke(Pos2::new(right_cx, c.y - r_lobe * 0.35), r_lobe * 0.52, Stroke::new(stroke_width, color));
+
+            // Lóbulo inferior izquierdo y derecho
+            painter.circle_stroke(Pos2::new(left_cx + 1.0, c.y + r_lobe * 0.38), r_lobe * 0.44, Stroke::new(stroke_width, color));
+            painter.circle_stroke(Pos2::new(right_cx - 1.0, c.y + r_lobe * 0.38), r_lobe * 0.44, Stroke::new(stroke_width, color));
+
+            // Hendidura central
+            painter.line_segment([Pos2::new(c.x, c.y - r_lobe * 0.85), Pos2::new(c.x, c.y + r_lobe * 0.82)], stroke);
+
+            // Nodos y sinapsis neuronales
+            painter.circle_filled(Pos2::new(left_cx, c.y), 1.6, color);
+            painter.circle_filled(Pos2::new(right_cx, c.y), 1.6, color);
+            painter.line_segment([Pos2::new(left_cx, c.y), Pos2::new(c.x, c.y)], Stroke::new(1.0, color));
+            painter.line_segment([Pos2::new(right_cx, c.y), Pos2::new(c.x, c.y)], Stroke::new(1.0, color));
+        }
+
+        AppIcon::Folder => {
+            let left = rect.min.x + 2.5;
+            let right = rect.max.x - 2.5;
+            let top = rect.min.y + 3.0;
+            let bot = rect.max.y - 2.5;
+            let tab_w = (right - left) * 0.45;
+
+            // Pestaña superior de la carpeta
+            painter.line_segment([Pos2::new(left, top + 3.0), Pos2::new(left, top)], stroke);
+            painter.line_segment([Pos2::new(left, top), Pos2::new(left + tab_w, top)], stroke);
+            painter.line_segment([Pos2::new(left + tab_w, top), Pos2::new(left + tab_w + 3.0, top + 3.0)], stroke);
+            painter.line_segment([Pos2::new(left + tab_w + 3.0, top + 3.0), Pos2::new(right, top + 3.0)], stroke);
+
+            // Cuerpo de la carpeta
+            painter.line_segment([Pos2::new(right, top + 3.0), Pos2::new(right, bot)], stroke);
+            painter.line_segment([Pos2::new(right, bot), Pos2::new(left, bot)], stroke);
+            painter.line_segment([Pos2::new(left, bot), Pos2::new(left, top + 3.0)], stroke);
         }
     }
 }

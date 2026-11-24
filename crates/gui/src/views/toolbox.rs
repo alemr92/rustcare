@@ -1,7 +1,7 @@
 //! Vista de Herramientas Completas (Toolbox PRO) con Diagrama WizTree
 use crate::icons::AppIcon;
 use crate::theme::RustCareTheme;
-use crate::widgets::{danger_button, ghost_button, neon_button, tool_card};
+use crate::widgets::{danger_button, ghost_button, neon_button};
 use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Margin, Pos2, ProgressBar, Rect, RichText, ScrollArea, Sense, Stroke, StrokeKind, Ui, Vec2};
 use rustcare_core::browser_vacuum::{BrowserVacuum, DatabaseCompactResult};
 use rustcare_core::cleaner::CleanerEngine;
@@ -126,6 +126,10 @@ pub struct ToolboxView {
     pub tasks_msg: Option<String>,
     #[allow(dead_code)]
     pub toolbox_search: String,
+    pub ai_opt_boost: bool,
+    pub ai_opt_procs: bool,
+    pub shred_dod_toggle: bool,
+    pub drivers_auto_toggle: bool,
 }
 
 impl Default for ToolboxView {
@@ -180,6 +184,10 @@ impl Default for ToolboxView {
             tasks_search: String::new(),
             tasks_msg: None,
             toolbox_search: String::new(),
+            ai_opt_boost: true,
+            ai_opt_procs: true,
+            shred_dod_toggle: true,
+            drivers_auto_toggle: true,
         }
     }
 }
@@ -255,212 +263,439 @@ impl ToolboxView {
 
     fn render_overview(&mut self, ui: &mut Ui) {
         let avail_w = ui.available_width();
+        let spacing = RustCareTheme::ITEM_SPACING;
 
         // =====================================================================
-        // 1. FILA SUPERIOR: 2 BLOQUES (67% IZQUIERDA / 33% DERECHA, height: 240px)
+        // 1. TIRA SUPERIOR DE 4 SENSORES LÍQUIDOS (CPU, GPU, RAM, NVMe SSD)
         // =====================================================================
-        let top_h = 240.0;
-        let left_w = (avail_w - RustCareTheme::ITEM_SPACING) * 0.67;
-        let right_w = avail_w - left_w - RustCareTheme::ITEM_SPACING;
+        let sensor_w = (avail_w - (spacing * 3.0)) / 4.0;
+        let sensor_h = 104.0;
+
+        let cpu_hist = [14.0, 18.0, 16.0, 22.0, 19.0, 18.0, 20.0, 18.0];
+        let gpu_hist = [28.0, 32.0, 30.0, 35.0, 34.0, 36.0, 33.0, 34.0];
+        let ram_hist = [40.0, 41.0, 42.0, 41.5, 42.0, 42.0, 42.5, 42.0];
+        let ssd_hist = [2.0, 8.0, 3.0, 12.0, 4.0, 18.0, 5.0, 4.0];
 
         ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = RustCareTheme::ITEM_SPACING;
+            ui.spacing_mut().item_spacing.x = spacing;
 
-            // BLOQUE IZQUIERDO: Analizador de Disco estilo WizTree
-            RustCareTheme::card_frame().show(ui, |ui| {
-                ui.set_width(left_w - 32.0);
-                ui.set_height(top_h - 32.0);
+            // SENSOR 1: CPU
+            crate::widgets::sparkline_card(
+                ui,
+                "CPU",
+                "Peak Real time",
+                "18%",
+                "Peak 18%",
+                "Current 18%",
+                &cpu_hist,
+                RustCareTheme::ACCENT_CYAN,
+                sensor_w,
+                sensor_h,
+            );
+
+            // SENSOR 2: GPU
+            crate::widgets::sparkline_card(
+                ui,
+                "GPU",
+                "Active rest Real time",
+                "34%",
+                "Active read",
+                "34%",
+                &gpu_hist,
+                Color32::from_rgb(45, 212, 191),
+                sensor_w,
+                sensor_h,
+            );
+
+            // SENSOR 3: RAM
+            crate::widgets::sparkline_card(
+                ui,
+                "RAM",
+                "Capacity",
+                "42% - 13.4 GB",
+                "Capacity 32 GB",
+                "Load 42%",
+                &ram_hist,
+                RustCareTheme::ACCENT_INDIGO,
+                sensor_w,
+                sensor_h,
+            );
+
+            // SENSOR 4: NVMe SSD
+            crate::widgets::sparkline_card(
+                ui,
+                "NVMe SSD",
+                "Read / Write",
+                "4%",
+                "Read 44 MB/s",
+                "Write 32 MB/s",
+                &ssd_hist,
+                Color32::from_rgb(37, 99, 235),
+                sensor_w,
+                sensor_h,
+            );
+        });
+
+        ui.add_space(spacing);
+
+        // =====================================================================
+        // 2. BENTO GRID ASIMÉTRICO (WizTree Treemap + Bento Cards)
+        // =====================================================================
+        let bento_h = 330.0;
+        let left_w = (avail_w - spacing) * 0.33;
+        let right_w = avail_w - left_w - spacing;
+
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = spacing;
+
+            // -----------------------------------------------------------------
+            // COLUMNA IZQUIERDA: WizTree Disk Treemap (Alto)
+            // -----------------------------------------------------------------
+            let (rect, resp) = ui.allocate_exact_size(Vec2::new(left_w, bento_h), Sense::click());
+            RustCareTheme::draw_glass_card(ui.painter(), rect, resp.hovered(), Some(RustCareTheme::ACCENT_CYAN));
+
+            // Cabecera de la tarjeta WizTree
+            let p = ui.painter();
+            let ic_rect = Rect::from_min_size(Pos2::new(rect.min.x + 14.0, rect.min.y + 12.0), Vec2::splat(22.0));
+            crate::icons::draw_icon(p, ic_rect, AppIcon::Folder, RustCareTheme::ACCENT_AMBER, 1.5);
+
+            p.text(
+                Pos2::new(rect.min.x + 42.0, rect.min.y + 16.0),
+                Align2::LEFT_CENTER,
+                "WizTree Disk Treemap",
+                FontId::proportional(13.0),
+                RustCareTheme::TEXT_PRIMARY,
+            );
+            p.text(
+                Pos2::new(rect.min.x + 42.0, rect.min.y + 30.0),
+                Align2::LEFT_CENTER,
+                "Mapa de Disco",
+                FontId::proportional(10.5),
+                RustCareTheme::TEXT_MUTED,
+            );
+
+            // Botón Scan en la esquina superior derecha
+            let scan_rect = Rect::from_min_size(Pos2::new(rect.max.x - 64.0, rect.min.y + 14.0), Vec2::new(50.0, 22.0));
+            let scan_resp = ui.interact(scan_rect, ui.id().with("btn_wiztree_scan"), Sense::click());
+            p.rect_filled(scan_rect, CornerRadius::same(5), if scan_resp.hovered() { RustCareTheme::BG_HOVER } else { RustCareTheme::BG_ELEVATED });
+            p.rect_stroke(scan_rect, CornerRadius::same(5), Stroke::new(1.0, RustCareTheme::BORDER_SUBTLE), StrokeKind::Inside);
+            p.text(scan_rect.center(), Align2::CENTER_CENTER, "Scan", FontId::proportional(11.0), RustCareTheme::TEXT_PRIMARY);
+
+            if scan_resp.clicked() || resp.clicked() {
+                self.current_tab = ToolboxTab::DiskAnalyzer;
+            }
+
+            // Canvas Treemap densamente poblado
+            let tree_rect = Rect::from_min_max(
+                Pos2::new(rect.min.x + 12.0, rect.min.y + 44.0),
+                Pos2::new(rect.max.x - 12.0, rect.max.y - 12.0),
+            );
+            p.rect_filled(tree_rect, CornerRadius::same(6), Color32::BLACK);
+
+            let stroke_t = Stroke::new(1.5, Color32::from_rgb(18, 24, 36));
+            let t_x0 = tree_rect.min.x;
+            let t_y0 = tree_rect.min.y;
+            let tw = tree_rect.width();
+            let th = tree_rect.height();
+
+            // Bloques proporcionales en cian, cobalt blue, púrpura y magenta
+            let c_cyan = Color32::from_rgb(0, 229, 168);
+            let c_teal = Color32::from_rgb(45, 212, 191);
+            let c_blue = Color32::from_rgb(37, 99, 235);
+            let c_indigo = Color32::from_rgb(99, 102, 241);
+            let c_purple = Color32::from_rgb(168, 85, 247);
+            let c_pink = Color32::from_rgb(236, 72, 153);
+            let c_darkblue = Color32::from_rgb(30, 58, 138);
+
+            // Columna 1 (45% ancho)
+            let col1_w = tw * 0.44;
+            p.rect_filled(Rect::from_min_size(Pos2::new(t_x0, t_y0), Vec2::new(col1_w, th * 0.48)), CornerRadius::ZERO, c_cyan);
+            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x0, t_y0), Vec2::new(col1_w, th * 0.48)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
+
+            let half_c1 = col1_w * 0.5;
+            p.rect_filled(Rect::from_min_size(Pos2::new(t_x0, t_y0 + th * 0.48), Vec2::new(half_c1, th * 0.30)), CornerRadius::ZERO, c_teal);
+            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x0, t_y0 + th * 0.48), Vec2::new(half_c1, th * 0.30)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
+
+            p.rect_filled(Rect::from_min_size(Pos2::new(t_x0 + half_c1, t_y0 + th * 0.48), Vec2::new(half_c1, th * 0.30)), CornerRadius::ZERO, c_blue);
+            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x0 + half_c1, t_y0 + th * 0.48), Vec2::new(half_c1, th * 0.30)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
+
+            // Fila inferior col1
+            let q_c1 = col1_w * 0.25;
+            for i in 0..4 {
+                let col = if i % 2 == 0 { c_indigo } else { c_purple };
+                p.rect_filled(Rect::from_min_size(Pos2::new(t_x0 + (i as f32) * q_c1, t_y0 + th * 0.78), Vec2::new(q_c1, th * 0.22)), CornerRadius::ZERO, col);
+                p.rect_stroke(Rect::from_min_size(Pos2::new(t_x0 + (i as f32) * q_c1, t_y0 + th * 0.78), Vec2::new(q_c1, th * 0.22)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
+            }
+
+            // Columna 2 (56% ancho)
+            let t_x1 = t_x0 + col1_w;
+            let col2_w = tw - col1_w;
+
+            // Bloques superiores col2
+            p.rect_filled(Rect::from_min_size(Pos2::new(t_x1, t_y0), Vec2::new(col2_w * 0.65, th * 0.38)), CornerRadius::ZERO, c_blue);
+            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x1, t_y0), Vec2::new(col2_w * 0.65, th * 0.38)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
+
+            p.rect_filled(Rect::from_min_size(Pos2::new(t_x1 + col2_w * 0.65, t_y0), Vec2::new(col2_w * 0.35, th * 0.38)), CornerRadius::ZERO, c_pink);
+            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x1 + col2_w * 0.65, t_y0), Vec2::new(col2_w * 0.35, th * 0.38)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
+
+            // Bloques medios col2
+            p.rect_filled(Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.38), Vec2::new(col2_w, th * 0.32)), CornerRadius::ZERO, c_darkblue);
+            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.38), Vec2::new(col2_w, th * 0.32)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
+
+            // Grid fino inferior derecho
+            let half_c2 = col2_w * 0.5;
+            p.rect_filled(Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.70), Vec2::new(half_c2, th * 0.30)), CornerRadius::ZERO, c_purple);
+            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.70), Vec2::new(half_c2, th * 0.30)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
+
+            p.rect_filled(Rect::from_min_size(Pos2::new(t_x1 + half_c2, t_y0 + th * 0.70), Vec2::new(half_c2, th * 0.30)), CornerRadius::ZERO, c_pink);
+            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x1 + half_c2, t_y0 + th * 0.70), Vec2::new(half_c2, th * 0.30)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
+
+            // -----------------------------------------------------------------
+            // COLUMNA DERECHA: Bento Grid Superior + Inferior
+            // -----------------------------------------------------------------
+            ui.vertical(|ui| {
+                ui.set_width(right_w);
+
+                // --- FILA DERECHA SUPERIOR (2 Tarjetas) ---
+                let row_top_h = 162.0;
+                let half_right_w = (right_w - spacing) * 0.5;
 
                 ui.horizontal(|ui| {
-                    // Sub-panel izquierdo (155px): Árbol de carpetas
-                    ui.allocate_ui_with_layout(Vec2::new(155.0, top_h - 32.0), egui::Layout::top_down(egui::Align::LEFT), |ui| {
-                        ui.label(RichText::new("Disco (C:)").size(12.0).strong().color(RustCareTheme::TEXT_PRIMARY));
-                        ui.add_space(2.0);
-                        ui.label(RichText::new("  Archivos de programa").size(11.0).color(RustCareTheme::TEXT_MUTED));
-                        ui.label(RichText::new("  Usuarios").size(11.0).color(RustCareTheme::TEXT_MUTED));
-                        ui.label(RichText::new("  Sistema & Drivers").size(11.0).color(RustCareTheme::TEXT_MUTED));
-                        ui.label(RichText::new("  Descargas & Vídeos").size(11.0).color(RustCareTheme::TEXT_MUTED));
-                        ui.label(RichText::new("  Windows (WinSxS)").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                    ui.spacing_mut().item_spacing.x = spacing;
 
-                        ui.add_space(18.0);
-                        if ghost_button(ui, "Analizar Disco (C:)", Some(150.0)).clicked() {
-                            self.current_tab = ToolboxTab::DiskAnalyzer;
-                        }
-                    });
+                    // TARJETA: Desinstalador Avanzado
+                    let (card1_r, card1_resp) = ui.allocate_exact_size(Vec2::new(half_right_w, row_top_h), Sense::click());
+                    RustCareTheme::draw_glass_card(ui.painter(), card1_r, card1_resp.hovered(), Some(RustCareTheme::ACCENT_CYAN));
+                    let p1 = ui.painter();
 
-                    // Separador vertical sutil
-                    let (sep_rect, _) = ui.allocate_exact_size(Vec2::new(1.0, top_h - 36.0), Sense::hover());
-                    ui.painter().line_segment(
-                        [Pos2::new(sep_rect.min.x, sep_rect.min.y), Pos2::new(sep_rect.min.x, sep_rect.max.y)],
-                        Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE),
+                    // Título
+                    p1.text(
+                        Pos2::new(card1_r.min.x + 16.0, card1_r.min.y + 16.0),
+                        Align2::LEFT_TOP,
+                        "Desinstalador Avanzado",
+                        FontId::proportional(14.0),
+                        RustCareTheme::TEXT_PRIMARY,
                     );
-                    ui.add_space(6.0);
 
-                    // Sub-panel derecho: TREEMAP VISUAL REAL estilo WizTree
-                    let treemap_w = left_w - 200.0;
-                    let treemap_h = top_h - 36.0;
-                    let (tree_rect, _) = ui.allocate_exact_size(Vec2::new(treemap_w, treemap_h), Sense::hover());
-                    let p = ui.painter();
+                    // Gran Icono Neón
+                    let ic_r1 = Rect::from_min_size(Pos2::new(card1_r.min.x + 18.0, card1_r.min.y + 44.0), Vec2::splat(58.0));
+                    p1.rect_filled(ic_r1, CornerRadius::same(12), Color32::from_rgba_unmultiplied(0, 229, 168, 20));
+                    p1.rect_stroke(ic_r1, CornerRadius::same(12), Stroke::new(1.0, Color32::from_rgba_unmultiplied(0, 229, 168, 80)), StrokeKind::Inside);
+                    crate::icons::draw_icon(p1, ic_r1, AppIcon::Trash, RustCareTheme::ACCENT_CYAN, 1.8);
 
-                    // Fondo base del treemap
-                    p.rect_filled(tree_rect, CornerRadius::same(6), Color32::BLACK);
-
-                    // Mosaico jerárquico determinista estilo WizTree con bordes 1.5px negros
-                    let stroke_tile = Stroke::new(1.5_f32, Color32::BLACK);
-                    let palette = [
-                        RustCareTheme::ACCENT_TEAL,
+                    // Estadísticas a la derecha del icono
+                    let tx_x1 = card1_r.min.x + 88.0;
+                    p1.text(
+                        Pos2::new(tx_x1, card1_r.min.y + 46.0),
+                        Align2::LEFT_TOP,
+                        &format!("{} apps encontradas", self.apps.len()),
+                        FontId::proportional(14.5),
+                        RustCareTheme::TEXT_PRIMARY,
+                    );
+                    p1.text(
+                        Pos2::new(tx_x1, card1_r.min.y + 68.0),
+                        Align2::LEFT_TOP,
+                        "Data status: Optimizado",
+                        FontId::proportional(11.0),
+                        RustCareTheme::TEXT_MUTED,
+                    );
+                    p1.text(
+                        Pos2::new(tx_x1, card1_r.min.y + 86.0),
+                        Align2::LEFT_TOP,
+                        "Limpieza profunda de sobras",
+                        FontId::proportional(11.0),
                         RustCareTheme::ACCENT_CYAN,
-                        RustCareTheme::ACCENT_INDIGO,
-                        RustCareTheme::ACCENT_AMBER,
-                        RustCareTheme::ACCENT_CORAL,
-                        Color32::from_rgb(45, 212, 191),
-                        Color32::from_rgb(167, 139, 250),
-                    ];
+                    );
 
-                    // Subdivisión de tiles real
-                    let x0 = tree_rect.min.x;
-                    let y0 = tree_rect.min.y;
-                    let tw = tree_rect.width();
-                    let th = tree_rect.height();
-
-                    // Columna 1 (25% ancho): 3 filas
-                    let col1_w = tw * 0.24;
-                    p.rect_filled(Rect::from_min_size(Pos2::new(x0, y0), Vec2::new(col1_w, th * 0.40)), CornerRadius::ZERO, palette[0]);
-                    p.rect_stroke(Rect::from_min_size(Pos2::new(x0, y0), Vec2::new(col1_w, th * 0.40)), CornerRadius::ZERO, stroke_tile, StrokeKind::Inside);
-
-                    p.rect_filled(Rect::from_min_size(Pos2::new(x0, y0 + th * 0.40), Vec2::new(col1_w, th * 0.35)), CornerRadius::ZERO, palette[1]);
-                    p.rect_stroke(Rect::from_min_size(Pos2::new(x0, y0 + th * 0.40), Vec2::new(col1_w, th * 0.35)), CornerRadius::ZERO, stroke_tile, StrokeKind::Inside);
-
-                    p.rect_filled(Rect::from_min_size(Pos2::new(x0, y0 + th * 0.75), Vec2::new(col1_w, th * 0.25)), CornerRadius::ZERO, palette[4]);
-                    p.rect_stroke(Rect::from_min_size(Pos2::new(x0, y0 + th * 0.75), Vec2::new(col1_w, th * 0.25)), CornerRadius::ZERO, stroke_tile, StrokeKind::Inside);
-
-                    // Columna 2 (36% ancho): Bloque superior grande + grid inferior de 4 tiles
-                    let x1 = x0 + col1_w;
-                    let col2_w = tw * 0.36;
-                    p.rect_filled(Rect::from_min_size(Pos2::new(x1, y0), Vec2::new(col2_w, th * 0.50)), CornerRadius::ZERO, palette[2]);
-                    p.rect_stroke(Rect::from_min_size(Pos2::new(x1, y0), Vec2::new(col2_w, th * 0.50)), CornerRadius::ZERO, stroke_tile, StrokeKind::Inside);
-
-                    let half_c2 = col2_w * 0.5;
-                    p.rect_filled(Rect::from_min_size(Pos2::new(x1, y0 + th * 0.50), Vec2::new(half_c2, th * 0.25)), CornerRadius::ZERO, palette[0]);
-                    p.rect_stroke(Rect::from_min_size(Pos2::new(x1, y0 + th * 0.50), Vec2::new(half_c2, th * 0.25)), CornerRadius::ZERO, stroke_tile, StrokeKind::Inside);
-
-                    p.rect_filled(Rect::from_min_size(Pos2::new(x1 + half_c2, y0 + th * 0.50), Vec2::new(half_c2, th * 0.25)), CornerRadius::ZERO, palette[3]);
-                    p.rect_stroke(Rect::from_min_size(Pos2::new(x1 + half_c2, y0 + th * 0.50), Vec2::new(half_c2, th * 0.25)), CornerRadius::ZERO, stroke_tile, StrokeKind::Inside);
-
-                    p.rect_filled(Rect::from_min_size(Pos2::new(x1, y0 + th * 0.75), Vec2::new(col2_w, th * 0.25)), CornerRadius::ZERO, palette[4]);
-                    p.rect_stroke(Rect::from_min_size(Pos2::new(x1, y0 + th * 0.75), Vec2::new(col2_w, th * 0.25)), CornerRadius::ZERO, stroke_tile, StrokeKind::Inside);
-
-                    // Columna 3 (40% ancho): Sub-mosaico derecho denso con colores ámbar y púrpura
-                    let x2 = x1 + col2_w;
-                    let col3_w = tw - col1_w - col2_w;
-
-                    p.rect_filled(Rect::from_min_size(Pos2::new(x2, y0), Vec2::new(col3_w * 0.6, th * 0.60)), CornerRadius::ZERO, palette[3]);
-                    p.rect_stroke(Rect::from_min_size(Pos2::new(x2, y0), Vec2::new(col3_w * 0.6, th * 0.60)), CornerRadius::ZERO, stroke_tile, StrokeKind::Inside);
-
-                    p.rect_filled(Rect::from_min_size(Pos2::new(x2 + col3_w * 0.6, y0), Vec2::new(col3_w * 0.4, th * 0.60)), CornerRadius::ZERO, palette[5]);
-                    p.rect_stroke(Rect::from_min_size(Pos2::new(x2 + col3_w * 0.6, y0), Vec2::new(col3_w * 0.4, th * 0.60)), CornerRadius::ZERO, stroke_tile, StrokeKind::Inside);
-
-                    // Fila inferior de col3 dividida en 3 piezas
-                    let c3_third = col3_w / 3.0;
-                    for j in 0..3 {
-                        let c_idx = (j + 1) % palette.len();
-                        p.rect_filled(Rect::from_min_size(Pos2::new(x2 + j as f32 * c3_third, y0 + th * 0.60), Vec2::new(c3_third, th * 0.40)), CornerRadius::ZERO, palette[c_idx]);
-                        p.rect_stroke(Rect::from_min_size(Pos2::new(x2 + j as f32 * c3_third, y0 + th * 0.60), Vec2::new(c3_third, th * 0.40)), CornerRadius::ZERO, stroke_tile, StrokeKind::Inside);
+                    if card1_resp.clicked() {
+                        self.current_tab = ToolboxTab::Uninstaller;
                     }
+
+                    // TARJETA: Optimización IA de Inicio
+                    let (card2_r, card2_resp) = ui.allocate_exact_size(Vec2::new(half_right_w, row_top_h), Sense::hover());
+                    RustCareTheme::draw_glass_card(ui.painter(), card2_r, card2_resp.hovered(), Some(RustCareTheme::ACCENT_INDIGO));
+
+                    // Título
+                    ui.painter().text(
+                        Pos2::new(card2_r.min.x + 16.0, card2_r.min.y + 16.0),
+                        Align2::LEFT_TOP,
+                        "Optimización IA de Inicio",
+                        FontId::proportional(14.0),
+                        RustCareTheme::TEXT_PRIMARY,
+                    );
+
+                    // Gran Icono IA Cerebro Neón
+                    let ic_r2 = Rect::from_min_size(Pos2::new(card2_r.min.x + 18.0, card2_r.min.y + 44.0), Vec2::splat(58.0));
+                    ui.painter().rect_filled(ic_r2, CornerRadius::same(12), Color32::from_rgba_unmultiplied(56, 189, 248, 20));
+                    ui.painter().rect_stroke(ic_r2, CornerRadius::same(12), Stroke::new(1.0, Color32::from_rgba_unmultiplied(56, 189, 248, 80)), StrokeKind::Inside);
+                    crate::icons::draw_icon(ui.painter(), ic_r2, AppIcon::Brain, RustCareTheme::ACCENT_INDIGO, 1.8);
+
+                    // Toggles a la derecha del icono
+                    let tog_x = card2_r.min.x + 88.0;
+                    let tog_r_w = card2_r.max.x - tog_x - 14.0;
+
+                    let mut toggle_ui = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(Pos2::new(tog_x, card2_r.min.y + 44.0), Vec2::new(tog_r_w, 100.0))));
+                    toggle_ui.horizontal(|ui| {
+                        ui.label(RichText::new("32ms de mejora").size(11.0).color(RustCareTheme::TEXT_PRIMARY));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            crate::widgets::pill_toggle(ui, &mut self.ai_opt_boost);
+                        });
+                    });
+                    toggle_ui.add_space(6.0);
+                    toggle_ui.horizontal(|ui| {
+                        ui.label(RichText::new("Active procesos").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            crate::widgets::pill_toggle(ui, &mut self.ai_opt_procs);
+                        });
+                    });
                 });
-            });
 
-            // BLOQUE DERECHO: Actualizador de Software
-            RustCareTheme::card_frame().show(ui, |ui| {
-                ui.set_width(right_w - 32.0);
-                ui.set_height(top_h - 32.0);
+                ui.add_space(spacing);
 
-                ui.vertical(|ui| {
-                    // Cabecera con icono circular de refresco
-                    ui.horizontal(|ui| {
-                        let (ref_rect, _) = ui.allocate_exact_size(Vec2::splat(18.0), Sense::hover());
-                        crate::icons::draw_icon(ui.painter(), ref_rect, AppIcon::Refresh, RustCareTheme::ACCENT_TEAL, 1.5);
-                        ui.add_space(4.0);
-                        ui.label(
-                            RichText::new("ACTUALIZADOR DE SOFTWARE")
-                                .size(13.0)
-                                .strong()
-                                .color(RustCareTheme::TEXT_PRIMARY),
-                        );
+                // --- FILA DERECHA INFERIOR (3 Tarjetas) ---
+                let row_bot_h = 152.0;
+                let third_right_w = (right_w - (spacing * 2.0)) / 3.0;
+
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = spacing;
+
+                    // TARJETA INFERIOR 1: Impulsor de Red
+                    let (bot1_r, bot1_resp) = ui.allocate_exact_size(Vec2::new(third_right_w, row_bot_h), Sense::click());
+                    RustCareTheme::draw_glass_card(ui.painter(), bot1_r, bot1_resp.hovered(), Some(Color32::from_rgb(45, 212, 191)));
+                    let p_b1 = ui.painter();
+
+                    p_b1.text(
+                        Pos2::new(bot1_r.min.x + 14.0, bot1_r.min.y + 14.0),
+                        Align2::LEFT_TOP,
+                        "Impulsor de Red",
+                        FontId::proportional(13.0),
+                        RustCareTheme::TEXT_PRIMARY,
+                    );
+
+                    let ic_b1 = Rect::from_min_size(Pos2::new(bot1_r.min.x + 14.0, bot1_r.min.y + 40.0), Vec2::splat(40.0));
+                    p_b1.rect_filled(ic_b1, CornerRadius::same(10), Color32::from_rgba_unmultiplied(45, 212, 191, 20));
+                    p_b1.rect_stroke(ic_b1, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(45, 212, 191, 80)), StrokeKind::Inside);
+                    crate::icons::draw_icon(p_b1, ic_b1, AppIcon::Gauge, Color32::from_rgb(45, 212, 191), 1.6);
+
+                    p_b1.text(
+                        Pos2::new(bot1_r.min.x + 14.0, bot1_r.max.y - 28.0),
+                        Align2::LEFT_CENTER,
+                        "12ms Latencia",
+                        FontId::proportional(12.0),
+                        RustCareTheme::ACCENT_CYAN,
+                    );
+                    p_b1.text(
+                        Pos2::new(bot1_r.min.x + 14.0, bot1_r.max.y - 14.0),
+                        Align2::LEFT_CENTER,
+                        "TCP/MTU Optimizado",
+                        FontId::proportional(10.5),
+                        RustCareTheme::TEXT_MUTED,
+                    );
+
+                    if bot1_resp.clicked() {
+                        self.current_tab = ToolboxTab::InternetBooster;
+                    }
+
+                    // TARJETA INFERIOR 2: Destructor de Archivos
+                    let (bot2_r, bot2_resp) = ui.allocate_exact_size(Vec2::new(third_right_w, row_bot_h), Sense::hover());
+                    RustCareTheme::draw_glass_card(ui.painter(), bot2_r, bot2_resp.hovered(), Some(RustCareTheme::ACCENT_CORAL));
+
+                    ui.painter().text(
+                        Pos2::new(bot2_r.min.x + 14.0, bot2_r.min.y + 14.0),
+                        Align2::LEFT_TOP,
+                        "Destructor de Archivos",
+                        FontId::proportional(13.0),
+                        RustCareTheme::TEXT_PRIMARY,
+                    );
+
+                    let ic_b2 = Rect::from_min_size(Pos2::new(bot2_r.min.x + 14.0, bot2_r.min.y + 40.0), Vec2::splat(40.0));
+                    ui.painter().rect_filled(ic_b2, CornerRadius::same(10), Color32::from_rgba_unmultiplied(244, 63, 94, 20));
+                    ui.painter().rect_stroke(ic_b2, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(244, 63, 94, 80)), StrokeKind::Inside);
+                    crate::icons::draw_icon(ui.painter(), ic_b2, AppIcon::Shredder, RustCareTheme::ACCENT_CORAL, 1.6);
+
+                    let mut tog_shred = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(Pos2::new(bot2_r.min.x + 60.0, bot2_r.min.y + 40.0), Vec2::new(third_right_w - 74.0, 90.0))));
+                    tog_shred.horizontal(|ui| {
+                        ui.label(RichText::new("DoD 5220").size(10.5).color(RustCareTheme::TEXT_MUTED));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            crate::widgets::pill_toggle(ui, &mut self.shred_dod_toggle);
+                        });
                     });
 
-                    ui.add_space(10.0);
+                    let shred_btn_r = Rect::from_min_size(Pos2::new(bot2_r.min.x + 14.0, bot2_r.max.y - 30.0), Vec2::new(third_right_w - 28.0, 22.0));
+                    let shred_btn = ui.interact(shred_btn_r, ui.id().with("btn_shred_open"), Sense::click());
+                    ui.painter().rect_filled(shred_btn_r, CornerRadius::same(5), if shred_btn.hovered() { RustCareTheme::BG_HOVER } else { RustCareTheme::BG_ELEVATED });
+                    ui.painter().rect_stroke(shred_btn_r, CornerRadius::same(5), Stroke::new(1.0, RustCareTheme::BORDER_SUBTLE), StrokeKind::Inside);
+                    ui.painter().text(shred_btn_r.center(), Align2::CENTER_CENTER, "Abrir Destructor", FontId::proportional(11.0), RustCareTheme::TEXT_PRIMARY);
 
-                    // Lista de 4 apps desactualizadas
-                    let apps = [
-                        "Navegador Web",
-                        "Entorno de Ejecución",
-                        "Herramienta Compresión",
-                        "Reproductor Multimedia",
-                    ];
-
-                    for app in apps {
-                        ui.horizontal(|ui| {
-                            ui.label(RichText::new(app).size(11.5).color(RustCareTheme::TEXT_PRIMARY));
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                let (p_rect, _) = ui.allocate_exact_size(Vec2::new(82.0, 18.0), Sense::hover());
-                                ui.painter().rect_filled(p_rect, CornerRadius::same(9), Color32::from_rgba_unmultiplied(245, 158, 11, 25));
-                                ui.painter().rect_stroke(p_rect, CornerRadius::same(9), Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(245, 158, 11, 150)), StrokeKind::Inside);
-                                ui.painter().text(p_rect.center(), Align2::CENTER_CENTER, "Desactualizado", FontId::proportional(9.5), RustCareTheme::ACCENT_AMBER);
-                            });
-                        });
-                        ui.add_space(4.0);
+                    if shred_btn.clicked() {
+                        self.current_tab = ToolboxTab::FileShredder;
                     }
 
-                    ui.add_space(10.0);
+                    // TARJETA INFERIOR 3: Protección de Drivers
+                    let (bot3_r, bot3_resp) = ui.allocate_exact_size(Vec2::new(third_right_w, row_bot_h), Sense::hover());
+                    RustCareTheme::draw_glass_card(ui.painter(), bot3_r, bot3_resp.hovered(), Some(Color32::from_rgb(37, 99, 235)));
 
-                    // Botón ancho completo inferior Actualizar Todo
-                    if neon_button(ui, "Actualizar Todo", Some(right_w - 32.0)).clicked() {
-                        self.current_tab = ToolboxTab::Updater;
+                    ui.painter().text(
+                        Pos2::new(bot3_r.min.x + 14.0, bot3_r.min.y + 14.0),
+                        Align2::LEFT_TOP,
+                        "Protección Drivers",
+                        FontId::proportional(13.0),
+                        RustCareTheme::TEXT_PRIMARY,
+                    );
+
+                    let ic_b3 = Rect::from_min_size(Pos2::new(bot3_r.min.x + 14.0, bot3_r.min.y + 40.0), Vec2::splat(40.0));
+                    ui.painter().rect_filled(ic_b3, CornerRadius::same(10), Color32::from_rgba_unmultiplied(37, 99, 235, 20));
+                    ui.painter().rect_stroke(ic_b3, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(37, 99, 235, 80)), StrokeKind::Inside);
+                    crate::icons::draw_icon(ui.painter(), ic_b3, AppIcon::ShieldCheck, Color32::from_rgb(37, 99, 235), 1.6);
+
+                    let mut tog_drv = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(Pos2::new(bot3_r.min.x + 60.0, bot3_r.min.y + 40.0), Vec2::new(third_right_w - 74.0, 90.0))));
+                    tog_drv.horizontal(|ui| {
+                        ui.label(RichText::new("Auto-Update").size(10.5).color(RustCareTheme::TEXT_MUTED));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            crate::widgets::pill_toggle(ui, &mut self.drivers_auto_toggle);
+                        });
+                    });
+
+                    let drv_btn_r = Rect::from_min_size(Pos2::new(bot3_r.min.x + 14.0, bot3_r.max.y - 30.0), Vec2::new(third_right_w - 28.0, 22.0));
+                    let drv_btn = ui.interact(drv_btn_r, ui.id().with("btn_drv_open"), Sense::click());
+                    ui.painter().rect_filled(drv_btn_r, CornerRadius::same(5), if drv_btn.hovered() { RustCareTheme::BG_HOVER } else { RustCareTheme::BG_ELEVATED });
+                    ui.painter().rect_stroke(drv_btn_r, CornerRadius::same(5), Stroke::new(1.0, RustCareTheme::BORDER_SUBTLE), StrokeKind::Inside);
+                    ui.painter().text(drv_btn_r.center(), Align2::CENTER_CENTER, "Ver Drivers", FontId::proportional(11.0), RustCareTheme::TEXT_PRIMARY);
+
+                    if drv_btn.clicked() {
+                        self.current_tab = ToolboxTab::DriverBooster;
                     }
                 });
             });
         });
 
-        ui.add_space(RustCareTheme::ITEM_SPACING);
+        ui.add_space(spacing);
 
         // =====================================================================
-        // 2. CUADRÍCULA INFERIOR (GRID DE 4 COLUMNAS X 2 FILAS, 8 TARJETAS IGUALES)
+        // 3. BARRA DE ACCESO RÁPIDO A HERRAMIENTAS ESPECIALIZADAS
         // =====================================================================
-        let card_w = (avail_w - (RustCareTheme::ITEM_SPACING * 3.0)) / 4.0;
-        let card_h = 138.0;
+        ui.horizontal(|ui| {
+            ui.label(RichText::new("Herramientas Avanzadas:").size(11.5).strong().color(RustCareTheme::TEXT_MUTED));
+            ui.add_space(4.0);
 
-        let tool_cards = [
-            // Fila 1
-            ("Desinstalador de Apps", "Elimina residuos y sobras", "24.5 GB", AppIcon::Trash, "Liberar Espacio", ToolboxTab::Uninstaller),
-            ("Buscador de Duplicados", "Archivos clonados idénticos", "24.5 GB", AppIcon::SearchDoc, "Liberar Espacio", ToolboxTab::Duplicates),
-            ("Destructor de Archivos", "Sobrescritura segura DoD", "0 B", AppIcon::Shredder, "Analizar", ToolboxTab::FileShredder),
-            ("Reparación del Sistema", "Repara errores del sistema", "3.8 GB", AppIcon::Tools, "Limpiar Registro", ToolboxTab::UiRepair),
-            // Fila 2
-            ("Gestor de Inicio", "Acelera el encendido", "9.1 MB", AppIcon::Gauge, "Analizar", ToolboxTab::ScheduledTasks),
-            ("Limpiador Navegadores", "Purga cachés y cookies", "9.2 MB", AppIcon::Broom, "Analizar", ToolboxTab::BrowserVacuum),
-            ("Optimizador de RAM", "Vaciado de memoria activa", "512 MB", AppIcon::RamChip, "Analizar", ToolboxTab::DriverBooster),
-            ("Optimizar Disco / TRIM", "Desfragmentación y TRIM", "23.7 GB", AppIcon::Bolt, "Analizar", ToolboxTab::DiskOptimizer),
-        ];
+            let extra_tools = [
+                ("Actualizador WinGet", ToolboxTab::Updater),
+                ("Limpieza WinSxS DISM", ToolboxTab::DismWinSxs),
+                ("Compactar SQLite", ToolboxTab::BrowserVacuum),
+                ("Centro de Rescate", ToolboxTab::RescueCenter),
+                ("Duplicados", ToolboxTab::Duplicates),
+                ("Archivos Grandes", ToolboxTab::LargeFiles),
+                ("Reparar Iconos", ToolboxTab::UiRepair),
+                ("Planes de Energía", ToolboxTab::PowerPlan),
+                ("TRIM SSD", ToolboxTab::DiskOptimizer),
+            ];
 
-        for row in 0..2 {
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = RustCareTheme::ITEM_SPACING;
-
-                for col in 0..4 {
-                    let idx = row * 4 + col;
-                    let (title, desc, size_info, icon, action_lbl, target_tab) = tool_cards[idx];
-
-                    if tool_card(ui, title, desc, size_info, icon, action_lbl, card_w, card_h).clicked() {
-                        self.current_tab = target_tab;
-                    }
+            for (name, tab) in extra_tools {
+                if ghost_button(ui, name, None).clicked() {
+                    self.current_tab = tab;
                 }
-            });
-
-            if row == 0 {
-                ui.add_space(RustCareTheme::ITEM_SPACING);
             }
-        }
+        });
     }
 
     fn render_uninstaller(&mut self, ui: &mut Ui) {

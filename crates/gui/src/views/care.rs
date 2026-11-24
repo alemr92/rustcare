@@ -3,8 +3,7 @@ use crate::icons::{draw_icon, AppIcon};
 use crate::theme::RustCareTheme;
 use crate::widgets;
 use eframe::egui::{
-    Align2, Color32, CornerRadius, FontId, Pos2, Rect, RichText, Sense, Stroke, StrokeKind, Ui,
-    Vec2,
+    Color32, CornerRadius, RichText, Sense, Stroke, StrokeKind, Ui, Vec2,
 };
 use rustcare_core::cleaner::CleanerEngine;
 
@@ -82,7 +81,7 @@ impl CareView {
             } else if self.scan_completed {
                 "Diagnóstico completado"
             } else {
-                "El sistema requiere análisis"
+                "El sistema requiere optimización"
             };
 
             ui.label(
@@ -141,23 +140,30 @@ impl CareView {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = card_spacing;
 
-                // TARJETA 1: ARCHIVOS BASURA
-                RustCareTheme::card_frame().show(ui, |ui| {
+                // TARJETA 1: ARCHIVOS BASURA (Acento Cian Neón)
+                let c1_accent = Color32::from_rgb(0, 229, 168);
+                RustCareTheme::glass_card_frame().show(ui, |ui| {
                     ui.set_width(card_w - 32.0);
                     ui.set_height(card_h - 32.0);
+                    let card_rect = ui.max_rect();
+                    ui.painter().line_segment(
+                        [egui::pos2(card_rect.min.x + 8.0, card_rect.min.y + 1.0), egui::pos2(card_rect.max.x - 8.0, card_rect.min.y + 1.0)],
+                        Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(0, 229, 168, 70)),
+                    );
+
                     ui.vertical(|ui| {
                         ui.label(
                             RichText::new("ARCHIVOS BASURA")
-                                .size(11.5)
+                                .size(11.0)
                                 .strong()
                                 .color(RustCareTheme::TEXT_MUTED),
                         );
                         ui.add_space(4.0);
                         ui.horizontal(|ui| {
-                            let (box_rect, _) = ui.allocate_exact_size(Vec2::splat(32.0), Sense::hover());
-                            ui.painter().rect_filled(box_rect, CornerRadius::same(6), Color32::from_rgba_unmultiplied(14, 165, 233, 20));
-                            ui.painter().rect_stroke(box_rect, CornerRadius::same(6), Stroke::new(1.0, Color32::from_rgba_unmultiplied(14, 165, 233, 40)), StrokeKind::Inside);
-                            draw_icon(ui.painter(), box_rect, AppIcon::Trash, RustCareTheme::ACCENT_CYAN, 1.5);
+                            let (box_rect, _) = ui.allocate_exact_size(Vec2::splat(36.0), Sense::hover());
+                            ui.painter().rect_filled(box_rect, CornerRadius::same(10), Color32::from_rgba_unmultiplied(0, 229, 168, 28));
+                            ui.painter().rect_stroke(box_rect, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(0, 229, 168, 110)), StrokeKind::Inside);
+                            draw_icon(ui.painter(), box_rect, AppIcon::Trash, c1_accent, 1.6);
                             ui.add_space(6.0);
 
                             let size_text = if self.scan_completed && self.total_bytes_found > 0 {
@@ -165,146 +171,128 @@ impl CareView {
                             } else {
                                 "0 GB".to_string()
                             };
-                            let val_col = if self.scan_completed && self.total_bytes_found > 0 {
-                                RustCareTheme::ACCENT_CORAL
-                            } else {
-                                RustCareTheme::TEXT_PRIMARY
-                            };
                             ui.label(
                                 RichText::new(size_text)
-                                    .size(16.0)
-                                    .strong()
-                                    .color(val_col),
-                            );
-                        });
-                        ui.add_space(6.0);
-                        // Barra de progreso de 4px
-                        let (bar_rect, _) = ui.allocate_exact_size(Vec2::new(card_w - 34.0, 4.0), Sense::hover());
-                        ui.painter().rect_filled(bar_rect, CornerRadius::same(2), RustCareTheme::BG_ELEVATED);
-                        let bar_fill = if self.scan_completed && self.total_bytes_found > 0 {
-                            (bar_rect.width() * 0.65).min(bar_rect.width())
-                        } else {
-                            12.0
-                        };
-                        ui.painter().rect_filled(
-                            Rect::from_min_size(bar_rect.min, Vec2::new(bar_fill, 4.0)),
-                            CornerRadius::same(2),
-                            RustCareTheme::ACCENT_TEAL,
-                        );
-                    });
-                });
-
-                // TARJETA 2: PRIVACIDAD
-                RustCareTheme::card_frame().show(ui, |ui| {
-                    ui.set_width(card_w - 32.0);
-                    ui.set_height(card_h - 32.0);
-                    ui.vertical(|ui| {
-                        ui.label(
-                            RichText::new("PRIVACIDAD")
-                                .size(11.5)
-                                .strong()
-                                .color(RustCareTheme::TEXT_MUTED),
-                        );
-                        ui.add_space(4.0);
-                        ui.horizontal(|ui| {
-                            let (box_rect, _) = ui.allocate_exact_size(Vec2::splat(32.0), Sense::hover());
-                            ui.painter().rect_filled(box_rect, CornerRadius::same(6), Color32::from_rgba_unmultiplied(14, 165, 233, 20));
-                            ui.painter().rect_stroke(box_rect, CornerRadius::same(6), Stroke::new(1.0, Color32::from_rgba_unmultiplied(14, 165, 233, 40)), StrokeKind::Inside);
-                            draw_icon(ui.painter(), box_rect, AppIcon::Eye, RustCareTheme::ACCENT_CYAN, 1.5);
-                            ui.add_space(6.0);
-                            let (status, col) = if self.scan_completed && self.threats_found > 0 {
-                                ("14 rastros", RustCareTheme::ACCENT_AMBER)
-                            } else {
-                                ("Seguro", RustCareTheme::ACCENT_EMERALD)
-                            };
-                            ui.label(
-                                RichText::new(status)
-                                    .size(15.0)
-                                    .strong()
-                                    .color(col),
-                            );
-                        });
-                        ui.add_space(4.0);
-                        let link_rect = Rect::from_min_size(ui.cursor().min, Vec2::new(60.0, 16.0));
-                        let link_resp = ui.interact(link_rect, ui.id().with("link_analizar"), Sense::click());
-                        ui.painter().text(
-                            link_rect.min,
-                            Align2::LEFT_TOP,
-                            "Analizar",
-                            FontId::proportional(11.5),
-                            RustCareTheme::TEXT_MUTED,
-                        );
-                        if link_resp.clicked() {
-                            start_scan_clicked = true;
-                        }
-                    });
-                });
-
-                // TARJETA 3: IMPULSO RAM
-                RustCareTheme::card_frame().show(ui, |ui| {
-                    ui.set_width(card_w - 32.0);
-                    ui.set_height(card_h - 32.0);
-                    ui.vertical(|ui| {
-                        ui.label(
-                            RichText::new("IMPULSO RAM")
-                                .size(11.5)
-                                .strong()
-                                .color(RustCareTheme::TEXT_MUTED),
-                        );
-                        ui.add_space(4.0);
-                        ui.horizontal(|ui| {
-                            let (box_rect, _) = ui.allocate_exact_size(Vec2::splat(32.0), Sense::hover());
-                            ui.painter().rect_filled(box_rect, CornerRadius::same(6), Color32::from_rgba_unmultiplied(14, 165, 233, 20));
-                            ui.painter().rect_stroke(box_rect, CornerRadius::same(6), Stroke::new(1.0, Color32::from_rgba_unmultiplied(14, 165, 233, 40)), StrokeKind::Inside);
-                            draw_icon(ui.painter(), box_rect, AppIcon::RamChip, RustCareTheme::ACCENT_CYAN, 1.5);
-                            ui.add_space(6.0);
-                            ui.label(
-                                RichText::new("Optimizado")
-                                    .size(15.0)
+                                    .size(17.0)
                                     .strong()
                                     .color(RustCareTheme::TEXT_PRIMARY),
                             );
                         });
-                        ui.add_space(4.0);
-                        ui.label(
-                            RichText::new("2.05 GB libres")
-                                .size(11.0)
-                                .color(RustCareTheme::TEXT_MUTED),
-                        );
                     });
                 });
 
-                // TARJETA 4: ESCUDO ACTIVO
-                RustCareTheme::card_frame().show(ui, |ui| {
+                // TARJETA 2: ESCUDO PRIVACIDAD (Acento Azure)
+                let c2_accent = Color32::from_rgb(56, 189, 248);
+                RustCareTheme::glass_card_frame().show(ui, |ui| {
                     ui.set_width(card_w - 32.0);
                     ui.set_height(card_h - 32.0);
+                    let card_rect = ui.max_rect();
+                    ui.painter().line_segment(
+                        [egui::pos2(card_rect.min.x + 8.0, card_rect.min.y + 1.0), egui::pos2(card_rect.max.x - 8.0, card_rect.min.y + 1.0)],
+                        Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(56, 189, 248, 70)),
+                    );
+
                     ui.vertical(|ui| {
                         ui.label(
-                            RichText::new("ESCUDO ACTIVO")
-                                .size(11.5)
+                            RichText::new("ESCUDO PRIVACIDAD")
+                                .size(11.0)
                                 .strong()
                                 .color(RustCareTheme::TEXT_MUTED),
                         );
                         ui.add_space(4.0);
                         ui.horizontal(|ui| {
-                            let (box_rect, _) = ui.allocate_exact_size(Vec2::splat(32.0), Sense::hover());
-                            ui.painter().rect_filled(box_rect, CornerRadius::same(6), Color32::from_rgba_unmultiplied(14, 165, 233, 20));
-                            ui.painter().rect_stroke(box_rect, CornerRadius::same(6), Stroke::new(1.0, Color32::from_rgba_unmultiplied(14, 165, 233, 40)), StrokeKind::Inside);
-                            draw_icon(ui.painter(), box_rect, AppIcon::ShieldCheck, RustCareTheme::ACCENT_EMERALD, 1.5);
+                            let (box_rect, _) = ui.allocate_exact_size(Vec2::splat(36.0), Sense::hover());
+                            ui.painter().rect_filled(box_rect, CornerRadius::same(10), Color32::from_rgba_unmultiplied(56, 189, 248, 28));
+                            ui.painter().rect_stroke(box_rect, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(56, 189, 248, 110)), StrokeKind::Inside);
+                            draw_icon(ui.painter(), box_rect, AppIcon::Eye, c2_accent, 1.6);
                             ui.add_space(6.0);
+                            let status = if self.scan_completed && self.threats_found > 0 {
+                                "14 rastros"
+                            } else {
+                                "Seguro"
+                            };
                             ui.label(
-                                RichText::new("Protegido")
-                                    .size(15.0)
+                                RichText::new(status)
+                                    .size(17.0)
                                     .strong()
-                                    .color(RustCareTheme::ACCENT_EMERALD),
+                                    .color(RustCareTheme::TEXT_PRIMARY),
                             );
                         });
-                        ui.add_space(4.0);
+                    });
+                });
+
+                // TARJETA 3: RAM TURBO (Acento Teal)
+                let c3_accent = Color32::from_rgb(45, 212, 191);
+                RustCareTheme::glass_card_frame().show(ui, |ui| {
+                    ui.set_width(card_w - 32.0);
+                    ui.set_height(card_h - 32.0);
+                    let card_rect = ui.max_rect();
+                    ui.painter().line_segment(
+                        [egui::pos2(card_rect.min.x + 8.0, card_rect.min.y + 1.0), egui::pos2(card_rect.max.x - 8.0, card_rect.min.y + 1.0)],
+                        Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(45, 212, 191, 70)),
+                    );
+
+                    ui.vertical(|ui| {
                         ui.label(
-                            RichText::new("Protección en tiempo real")
+                            RichText::new("RAM TURBO")
                                 .size(11.0)
+                                .strong()
                                 .color(RustCareTheme::TEXT_MUTED),
                         );
+                        ui.add_space(4.0);
+                        ui.horizontal(|ui| {
+                            let (box_rect, _) = ui.allocate_exact_size(Vec2::splat(36.0), Sense::hover());
+                            ui.painter().rect_filled(box_rect, CornerRadius::same(10), Color32::from_rgba_unmultiplied(45, 212, 191, 28));
+                            ui.painter().rect_stroke(box_rect, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(45, 212, 191, 110)), StrokeKind::Inside);
+                            draw_icon(ui.painter(), box_rect, AppIcon::RamChip, c3_accent, 1.6);
+                            ui.add_space(6.0);
+                            ui.label(
+                                RichText::new("92% Libre")
+                                    .size(17.0)
+                                    .strong()
+                                    .color(RustCareTheme::TEXT_PRIMARY),
+                            );
+                        });
+                    });
+                });
+
+                // TARJETA 4: SALUD DEL SISTEMA IA (Acento Cian)
+                let c4_accent = Color32::from_rgb(0, 229, 168);
+                RustCareTheme::glass_card_frame().show(ui, |ui| {
+                    ui.set_width(card_w - 32.0);
+                    ui.set_height(card_h - 32.0);
+                    let card_rect = ui.max_rect();
+                    ui.painter().line_segment(
+                        [egui::pos2(card_rect.min.x + 8.0, card_rect.min.y + 1.0), egui::pos2(card_rect.max.x - 8.0, card_rect.min.y + 1.0)],
+                        Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(0, 229, 168, 70)),
+                    );
+
+                    ui.vertical(|ui| {
+                        ui.label(
+                            RichText::new("SALUD DEL SISTEMA IA")
+                                .size(11.0)
+                                .strong()
+                                .color(RustCareTheme::TEXT_MUTED),
+                        );
+                        ui.add_space(4.0);
+                        ui.horizontal(|ui| {
+                            let (box_rect, _) = ui.allocate_exact_size(Vec2::splat(36.0), Sense::hover());
+                            ui.painter().rect_filled(box_rect, CornerRadius::same(10), Color32::from_rgba_unmultiplied(0, 229, 168, 28));
+                            ui.painter().rect_stroke(box_rect, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(0, 229, 168, 110)), StrokeKind::Inside);
+                            draw_icon(ui.painter(), box_rect, AppIcon::Brain, c4_accent, 1.6);
+                            ui.add_space(6.0);
+                            let score_text = if self.scan_completed {
+                                format!("{}% Bueno", self.health_score)
+                            } else {
+                                "Excelente".to_string()
+                            };
+                            ui.label(
+                                RichText::new(score_text)
+                                    .size(17.0)
+                                    .strong()
+                                    .color(RustCareTheme::ACCENT_CYAN),
+                            );
+                        });
                     });
                 });
             });

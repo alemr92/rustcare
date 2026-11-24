@@ -7,6 +7,15 @@ use rustcare_core::cleaner::{CleanerEngine, FullCleanResult, FullScanResult};
 use rustcare_core::rules::CleanerConfig;
 use rustcare_core::security::is_elevated;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CleanerFilterTab {
+    All,
+    SystemJunk,
+    BrowserVacuum,
+    WinSxsDism,
+    EmptyFoldersShortcuts,
+}
+
 pub struct CleanerView {
     pub config: CleanerConfig,
     pub selected_targets: std::collections::HashSet<String>,
@@ -15,6 +24,7 @@ pub struct CleanerView {
     pub is_scanning: bool,
     pub is_cleaning: bool,
     pub show_explanations: bool,
+    pub current_tab: CleanerFilterTab,
 }
 
 impl CleanerView {
@@ -22,7 +32,6 @@ impl CleanerView {
         let mut selected = std::collections::HashSet::new();
         for group in &config.groups {
             for target in &group.targets {
-                // Por defecto, marcamos solo los seguros y recomendados (desmarcando opcionales como shaders)
                 let is_safe = target.safety_level == "safe" || target.safety_level == "recommended";
                 let can_run = !target.requires_admin || is_elevated();
                 if is_safe && can_run {
@@ -39,6 +48,7 @@ impl CleanerView {
             is_scanning: false,
             is_cleaning: false,
             show_explanations: true,
+            current_tab: CleanerFilterTab::All,
         }
     }
 
@@ -64,12 +74,12 @@ impl CleanerView {
                     }
                 }
 
-                if neon_button(ui, "Escanear", Some(100.0)).clicked() {
+                if neon_button(ui, "Escaneo Paralelo", Some(135.0)).clicked() {
                     let targets: Vec<String> = self.selected_targets.iter().cloned().collect();
                     on_scan(targets);
                 }
 
-                if ghost_button(ui, "Marcar Todo", Some(100.0)).clicked() {
+                if ghost_button(ui, "Marcar Todo", Some(95.0)).clicked() {
                     for group in &self.config.groups {
                         for target in &group.targets {
                             if !target.requires_admin || is_elevated() {
@@ -79,7 +89,7 @@ impl CleanerView {
                     }
                 }
 
-                if ghost_button(ui, "Solo Seguros", Some(105.0)).clicked() {
+                if ghost_button(ui, "Solo Seguros", Some(95.0)).clicked() {
                     self.selected_targets.clear();
                     for group in &self.config.groups {
                         for target in &group.targets {
@@ -92,18 +102,31 @@ impl CleanerView {
                     }
                 }
 
-                if ghost_button(ui, "Desmarcar", Some(90.0)).clicked() {
+                if ghost_button(ui, "Desmarcar", Some(85.0)).clicked() {
                     self.selected_targets.clear();
                 }
             });
         });
 
         ui.add_space(4.0);
+        // Barra de Subpestañas Inteligentes de Limpieza
         ui.horizontal(|ui| {
-            ui.label(
-                RichText::new("Audita Windows, Shaders de GPU (NVIDIA/AMD), tiendas de juegos (Steam/Epic), streaming (Spotify/Discord) y entornos dev.")
-                    .color(RustCareTheme::TEXT_MUTED),
-            );
+            let tabs = [
+                (CleanerFilterTab::All, "Todo en Paralelo"),
+                (CleanerFilterTab::SystemJunk, "Basura del Sistema"),
+                (CleanerFilterTab::BrowserVacuum, "Navegadores (Vacuum)"),
+                (CleanerFilterTab::WinSxsDism, "WinSxS / DISM"),
+                (CleanerFilterTab::EmptyFoldersShortcuts, "Carpetas & Accesos Rotos"),
+            ];
+
+            for (tab, label) in tabs {
+                let is_sel = self.current_tab == tab;
+                let btn_lbl = if is_sel { format!("[{}]", label) } else { label.to_string() };
+                if ghost_button(ui, &btn_lbl, None).clicked() {
+                    self.current_tab = tab;
+                }
+            }
+
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let toggle_txt = if self.show_explanations { "Ocultar Guía" } else { "Mostrar Guía" };
                 if ghost_button(ui, toggle_txt, Some(110.0)).clicked() {
@@ -157,6 +180,29 @@ impl CleanerView {
 
         ScrollArea::vertical().show(ui, |ui| {
             for group in &self.config.groups {
+                let show_group = match self.current_tab {
+                    CleanerFilterTab::All => true,
+                    CleanerFilterTab::SystemJunk => {
+                        let n = group.name.to_lowercase();
+                        n.contains("sistema") || n.contains("windows") || n.contains("temp") || n.contains("shader") || n.contains("caché") || n.contains("cache")
+                    }
+                    CleanerFilterTab::BrowserVacuum => {
+                        let n = group.name.to_lowercase();
+                        n.contains("navegador") || n.contains("browser") || n.contains("chrome") || n.contains("edge") || n.contains("sqlite")
+                    }
+                    CleanerFilterTab::WinSxsDism => {
+                        let n = group.name.to_lowercase();
+                        n.contains("winsxs") || n.contains("dism") || n.contains("actualiz") || n.contains("paquete")
+                    }
+                    CleanerFilterTab::EmptyFoldersShortcuts => {
+                        let n = group.name.to_lowercase();
+                        n.contains("carpeta") || n.contains("acceso") || n.contains("directo") || n.contains("huérfan") || n.contains("vaci")
+                    }
+                };
+                if !show_group {
+                    continue;
+                }
+
                 ui.add_space(10.0);
                 ui.label(
                     RichText::new(&group.name)

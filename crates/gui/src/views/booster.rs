@@ -3,19 +3,31 @@ use crate::icons::{draw_icon, AppIcon};
 use crate::theme::RustCareTheme;
 use crate::widgets;
 use eframe::egui::{
-    self, Align2, Color32, CornerRadius, FontId, Pos2, Rect, RichText, ScrollArea, Sense,
+    self, Align2, Color32, CornerRadius, FontId, Pos2, RichText, ScrollArea, Sense,
     Stroke, StrokeKind, Ui, Vec2,
 };
 use rustcare_core::backend::{SystemBackend, TurboBoostMode, TurboBoostResult};
 use rustcare_core::booster::RamCleanResult;
+use rustcare_core::context_menu::{ContextMenuItem, ContextMenuManager};
+use rustcare_core::scheduled_tasks::{ScheduledTaskItem, ScheduledTaskManager};
 use rustcare_core::startup::StartupEntry;
 use std::sync::Arc;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StartupSubTab {
+    StartupApps,
+    ScheduledTasks,
+    ContextMenu,
+}
 
 pub struct BoosterView {
     pub selected_mode: TurboBoostMode,
     pub is_boost_active: bool,
     pub boost_result: Option<TurboBoostResult>,
     pub startup_entries: Vec<StartupEntry>,
+    pub startup_tab: StartupSubTab,
+    pub scheduled_tasks: Vec<ScheduledTaskItem>,
+    pub context_handlers: Vec<ContextMenuItem>,
     #[allow(dead_code)]
     pub ram_result: Option<RamCleanResult>,
     #[allow(dead_code)]
@@ -29,6 +41,9 @@ impl Default for BoosterView {
             is_boost_active: false,
             boost_result: None,
             startup_entries: Vec::new(),
+            startup_tab: StartupSubTab::StartupApps,
+            scheduled_tasks: Vec::new(),
+            context_handlers: Vec::new(),
             ram_result: None,
             dns_message: None,
         }
@@ -294,19 +309,45 @@ impl BoosterView {
             ui.add_space(RustCareTheme::ITEM_SPACING);
 
             // =================================================================
-            // 3. PANEL INFERIOR: GESTOR DE INICIO (Tabla con widgets::pill_toggle y ghost_button)
+            // 3. PANEL INFERIOR UNIFICADO: GESTOR DE ARRANQUE Y SHELL (3 Subpestañas)
             // =================================================================
-            RustCareTheme::card_frame().show(ui, |ui| {
+            RustCareTheme::glass_card_frame().show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(
-                        RichText::new("GESTOR DE INICIO")
-                            .size(14.0)
+                        RichText::new("GESTOR INTEGRAL DE ARRANQUE Y SHELL")
+                            .size(13.5)
                             .strong()
                             .color(RustCareTheme::TEXT_PRIMARY),
                     );
+
+                    // Badge de ganancia de tiempo
+                    let (badge_r, _) = ui.allocate_exact_size(Vec2::new(125.0, 20.0), Sense::hover());
+                    ui.painter().rect_filled(badge_r, CornerRadius::same(10), Color32::from_rgba_unmultiplied(0, 229, 168, 25));
+                    ui.painter().rect_stroke(badge_r, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(0, 229, 168, 90)), StrokeKind::Inside);
+                    ui.painter().text(badge_r.center(), Align2::CENTER_CENTER, "-4.2 seg ganados", FontId::proportional(11.0), RustCareTheme::ACCENT_CYAN);
+
+                    // 3 Subpestañas
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let (dot_rect, _) = ui.allocate_exact_size(Vec2::splat(10.0), Sense::hover());
-                        ui.painter().circle_filled(dot_rect.center(), 3.5, RustCareTheme::ACCENT_TEAL);
+                        let is_ctx = self.startup_tab == StartupSubTab::ContextMenu;
+                        if widgets::ghost_button(ui, if is_ctx { "[Menú Contextual]" } else { "Menú Contextual" }, Some(130.0)).clicked() {
+                            if self.context_handlers.is_empty() {
+                                self.context_handlers = ContextMenuManager::list_handlers();
+                            }
+                            self.startup_tab = StartupSubTab::ContextMenu;
+                        }
+
+                        let is_tasks = self.startup_tab == StartupSubTab::ScheduledTasks;
+                        if widgets::ghost_button(ui, if is_tasks { "[Tareas Programadas]" } else { "Tareas Programadas" }, Some(140.0)).clicked() {
+                            if self.scheduled_tasks.is_empty() {
+                                self.scheduled_tasks = ScheduledTaskManager::list_tasks();
+                            }
+                            self.startup_tab = StartupSubTab::ScheduledTasks;
+                        }
+
+                        let is_apps = self.startup_tab == StartupSubTab::StartupApps;
+                        if widgets::ghost_button(ui, if is_apps { "[Apps al Inicio]" } else { "Apps al Inicio" }, Some(120.0)).clicked() {
+                            self.startup_tab = StartupSubTab::StartupApps;
+                        }
                     });
                 });
 
@@ -318,102 +359,130 @@ impl BoosterView {
                 let col_state_w = total_w * 0.18;
                 let col_action_w = total_w * 0.20;
 
-                // Cabecera de la tabla
-                ui.horizontal(|ui| {
-                    ui.add_space(8.0);
-                    ui.allocate_ui_with_layout(Vec2::new(col_prog_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        ui.label(RichText::new("Programa").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
-                    });
-                    ui.allocate_ui_with_layout(Vec2::new(col_impact_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        ui.label(RichText::new("Impacto de Inicio").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
-                    });
-                    ui.allocate_ui_with_layout(Vec2::new(col_state_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        ui.label(RichText::new("Estado").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
-                    });
-                    ui.allocate_ui_with_layout(Vec2::new(col_action_w - 16.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        ui.label(RichText::new("Acción").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
-                    });
-                });
-
-                ui.add_space(4.0);
-                ui.painter().line_segment(
-                    [Pos2::new(ui.min_rect().min.x, ui.cursor().min.y), Pos2::new(ui.min_rect().max.x, ui.cursor().min.y)],
-                    Stroke::new(1.0, RustCareTheme::BORDER_SUBTLE),
-                );
-                ui.add_space(6.0);
-
-                // Filas de programas de inicio
-                ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
-                    let mut toggles: Vec<(String, bool)> = Vec::new();
-
-                    for (idx, entry) in self.startup_entries.iter().enumerate() {
-                        let row_bg = if idx % 2 == 0 {
-                            RustCareTheme::BG_SURFACE
-                        } else {
-                            Color32::from_rgba_unmultiplied(26, 35, 52, 120) // BG_ELEVATED translúcido
-                        };
-
-                        egui::Frame::NONE
-                            .fill(row_bg)
-                            .corner_radius(CornerRadius::same(6))
-                            .inner_margin(egui::Margin::symmetric(8, 4))
-                            .show(ui, |ui| {
-                                ui.horizontal(|ui| {
-                                    // Punto indicador de estado
-                                    let (dot_rect, _) = ui.allocate_exact_size(Vec2::splat(14.0), Sense::hover());
-                                    let dot_col = if entry.is_enabled { RustCareTheme::ACCENT_TEAL } else { RustCareTheme::BORDER_SUBTLE };
-                                    ui.painter().circle_filled(dot_rect.center(), 3.5, dot_col);
-
-                                    ui.add_space(4.0);
-
-                                    // Nombre del programa (42%)
-                                    let name_clean = if entry.name.len() > 26 {
-                                        format!("{}...", &entry.name[..24])
-                                    } else {
-                                        entry.name.clone()
-                                    };
-                                    ui.allocate_ui_with_layout(Vec2::new(col_prog_w - 24.0, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                                        ui.label(RichText::new(name_clean).size(12.5).color(RustCareTheme::TEXT_PRIMARY));
-                                    });
-
-                                    // Píldora de Impacto de Inicio (20%)
-                                    let (imp_text, imp_color) = if idx == 0 {
-                                        ("Alto", RustCareTheme::ACCENT_CORAL)
-                                    } else if idx == 1 {
-                                        ("Medio", RustCareTheme::ACCENT_AMBER)
-                                    } else {
-                                        ("Bajo", RustCareTheme::ACCENT_TEAL)
-                                    };
-                                    ui.allocate_ui_with_layout(Vec2::new(col_impact_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                                        let (imp_rect, _) = ui.allocate_exact_size(Vec2::new(60.0, 20.0), Sense::hover());
-                                        ui.painter().rect_filled(imp_rect, CornerRadius::same(10), RustCareTheme::BG_ELEVATED);
-                                        ui.painter().rect_stroke(imp_rect, CornerRadius::same(10), Stroke::new(1.0, imp_color), StrokeKind::Inside);
-                                        ui.painter().text(imp_rect.center(), Align2::CENTER_CENTER, imp_text, FontId::proportional(11.0), imp_color);
-                                    });
-
-                                    // Toggle de estado (18%) con widgets::pill_toggle
-                                    ui.allocate_ui_with_layout(Vec2::new(col_state_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                                        let mut state_copy = entry.is_enabled;
-                                        if widgets::pill_toggle(ui, &mut state_copy).changed() {
-                                            toggles.push((entry.id.clone(), state_copy));
-                                        }
-                                    });
-
-                                    // Botón Activar / Desactivar (20%) con widgets::ghost_button
-                                    let btn_label = if entry.is_enabled { "Desactivar" } else { "Activar" };
-                                    if widgets::ghost_button(ui, btn_label, Some(84.0)).clicked() {
-                                        toggles.push((entry.id.clone(), !entry.is_enabled));
-                                    }
-                                });
+                match self.startup_tab {
+                    StartupSubTab::StartupApps => {
+                        // Cabecera de la tabla
+                        ui.horizontal(|ui| {
+                            ui.add_space(8.0);
+                            ui.allocate_ui_with_layout(Vec2::new(col_prog_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                ui.label(RichText::new("Programa").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                             });
-                        ui.add_space(2.0);
-                    }
+                            ui.allocate_ui_with_layout(Vec2::new(col_impact_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                ui.label(RichText::new("Impacto").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
+                            });
+                            ui.allocate_ui_with_layout(Vec2::new(col_state_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                ui.label(RichText::new("Estado").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
+                            });
+                            ui.allocate_ui_with_layout(Vec2::new(col_action_w - 16.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                ui.label(RichText::new("Acción").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
+                            });
+                        });
 
-                    for (id, new_state) in toggles {
-                        let _ = backend.toggle_startup_entry(&id, new_state);
-                        self.startup_entries = backend.list_startup_entries();
+                        ui.add_space(4.0);
+                        ui.painter().line_segment(
+                            [Pos2::new(ui.min_rect().min.x, ui.cursor().min.y), Pos2::new(ui.min_rect().max.x, ui.cursor().min.y)],
+                            Stroke::new(1.0, RustCareTheme::BORDER_SUBTLE),
+                        );
+                        ui.add_space(6.0);
+
+                        ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
+                            let mut toggles: Vec<(String, bool)> = Vec::new();
+
+                            for (idx, entry) in self.startup_entries.iter().enumerate() {
+                                let row_bg = if idx % 2 == 0 {
+                                    RustCareTheme::BG_SURFACE
+                                } else {
+                                    Color32::from_rgba_unmultiplied(26, 35, 52, 120)
+                                };
+
+                                egui::Frame::NONE
+                                    .fill(row_bg)
+                                    .corner_radius(CornerRadius::same(6))
+                                    .inner_margin(egui::Margin::symmetric(8, 4))
+                                    .show(ui, |ui| {
+                                        ui.horizontal(|ui| {
+                                            let (dot_rect, _) = ui.allocate_exact_size(Vec2::splat(14.0), Sense::hover());
+                                            let dot_col = if entry.is_enabled { RustCareTheme::ACCENT_CYAN } else { RustCareTheme::BORDER_SUBTLE };
+                                            ui.painter().circle_filled(dot_rect.center(), 3.5, dot_col);
+
+                                            ui.add_space(4.0);
+
+                                            let name_clean = if entry.name.len() > 26 {
+                                                format!("{}...", &entry.name[..24])
+                                            } else {
+                                                entry.name.clone()
+                                            };
+                                            ui.allocate_ui_with_layout(Vec2::new(col_prog_w - 24.0, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                                ui.label(RichText::new(name_clean).size(12.5).color(RustCareTheme::TEXT_PRIMARY));
+                                            });
+
+                                            let (imp_text, imp_color) = if idx == 0 {
+                                                ("Alto", RustCareTheme::ACCENT_CORAL)
+                                            } else if idx == 1 {
+                                                ("Medio", RustCareTheme::ACCENT_AMBER)
+                                            } else {
+                                                ("Bajo", RustCareTheme::ACCENT_CYAN)
+                                            };
+                                            ui.allocate_ui_with_layout(Vec2::new(col_impact_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                                let (imp_rect, _) = ui.allocate_exact_size(Vec2::new(60.0, 20.0), Sense::hover());
+                                                ui.painter().rect_filled(imp_rect, CornerRadius::same(10), RustCareTheme::BG_ELEVATED);
+                                                ui.painter().rect_stroke(imp_rect, CornerRadius::same(10), Stroke::new(1.0, imp_color), StrokeKind::Inside);
+                                                ui.painter().text(imp_rect.center(), Align2::CENTER_CENTER, imp_text, FontId::proportional(11.0), imp_color);
+                                            });
+
+                                            ui.allocate_ui_with_layout(Vec2::new(col_state_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                                let mut state_copy = entry.is_enabled;
+                                                if widgets::pill_toggle(ui, &mut state_copy).changed() {
+                                                    toggles.push((entry.id.clone(), state_copy));
+                                                }
+                                            });
+
+                                            let btn_label = if entry.is_enabled { "Desactivar" } else { "Activar" };
+                                            if widgets::ghost_button(ui, btn_label, Some(84.0)).clicked() {
+                                                toggles.push((entry.id.clone(), !entry.is_enabled));
+                                            }
+                                        });
+                                    });
+                                ui.add_space(2.0);
+                            }
+
+                            for (id, new_state) in toggles {
+                                let _ = backend.toggle_startup_entry(&id, new_state);
+                                self.startup_entries = backend.list_startup_entries();
+                            }
+                        });
                     }
-                });
+                    StartupSubTab::ScheduledTasks => {
+                        ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
+                            if self.scheduled_tasks.is_empty() {
+                                ui.label(RichText::new("Haz clic en Tareas Programadas para auditar las tareas activas.").color(RustCareTheme::TEXT_MUTED));
+                            } else {
+                                for task in &self.scheduled_tasks {
+                                    ui.horizontal(|ui| {
+                                        ui.label(RichText::new(&task.task_name).strong().color(RustCareTheme::TEXT_PRIMARY));
+                                        ui.label(RichText::new(&task.status).color(RustCareTheme::ACCENT_CYAN));
+                                        ui.label(RichText::new(&task.action_exec).small().color(RustCareTheme::TEXT_MUTED));
+                                    });
+                                }
+                            }
+                        });
+                    }
+                    StartupSubTab::ContextMenu => {
+                        ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
+                            if self.context_handlers.is_empty() {
+                                ui.label(RichText::new("Haz clic en Menú Contextual para auditar extensiones de clic derecho.").color(RustCareTheme::TEXT_MUTED));
+                            } else {
+                                for handler in &self.context_handlers {
+                                    ui.horizontal(|ui| {
+                                        ui.label(RichText::new(&handler.name).strong().color(RustCareTheme::TEXT_PRIMARY));
+                                        ui.label(RichText::new(if handler.is_enabled { "Habilitado" } else { "Deshabilitado" }).color(RustCareTheme::ACCENT_AMBER));
+                                        ui.label(RichText::new(&handler.key_path).small().color(RustCareTheme::TEXT_MUTED));
+                                    });
+                                }
+                            }
+                        });
+                    }
+                }
             });
         });
     }

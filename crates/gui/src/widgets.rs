@@ -8,7 +8,7 @@ use eframe::egui::{
 };
 use std::f32::consts::TAU;
 
-/// 1. Botón Radar Central de Cuidar (240x240px exactos)
+/// 1. Turbina Holográfica Multicapa 2027 (Núcleo Central de Cuidar)
 pub fn care_radar_button(
     ui: &mut Ui,
     title: &str,
@@ -17,120 +17,138 @@ pub fn care_radar_button(
     is_scanning: bool,
     health_score: Option<u8>,
 ) -> Response {
-    let size = Vec2::splat(240.0);
+    let size = Vec2::splat(260.0);
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     let painter = ui.painter();
     let center = rect.center();
     let time = ui.input(|i| i.time) as f32;
+    let is_hover = response.hovered();
 
-    // 1. Dos halos concéntricos refinados (azules / cian translúcidos)
+    let speed_mult = if is_scanning { 3.2 } else if is_hover { 1.6 } else { 0.45 };
+    let cw_angle = (time * speed_mult) % TAU;
+    let ccw_angle = (-time * speed_mult * 0.75) % TAU;
+
+    // 0. Halos Volumétricos Difusos
+    let pulse = (time * 2.2).sin() * 4.0;
     painter.circle_filled(
         center,
-        114.0,
-        Color32::from_rgba_unmultiplied(14, 165, 233, 14), // alpha suave
+        124.0 + pulse,
+        Color32::from_rgba_unmultiplied(0, 229, 168, if is_hover { 18 } else { 10 }),
     );
     painter.circle_filled(
         center,
-        98.0,
-        Color32::from_rgba_unmultiplied(14, 165, 233, 26),
+        106.0 + pulse * 0.5,
+        Color32::from_rgba_unmultiplied(37, 99, 235, 18),
+    );
+    painter.circle_filled(
+        center,
+        92.0,
+        Color32::from_rgba_unmultiplied(0, 229, 168, 24),
     );
 
-    // 2. Dial exterior (r = 104.0): 36 marcas radiales de 4px
-    let dial_r = 104.0;
-    for i in 0..36 {
-        let angle = (i as f32) * (TAU / 36.0);
-        let p1 = Pos2::new(center.x + (dial_r - 2.0) * angle.cos(), center.y + (dial_r - 2.0) * angle.sin());
-        let p2 = Pos2::new(center.x + (dial_r + 2.0) * angle.cos(), center.y + (dial_r + 2.0) * angle.sin());
-        painter.line_segment([p1, p2], Stroke::new(1.0, RustCareTheme::BORDER_SUBTLE));
-    }
-
-    // 3. Anillo segmentado rotatorio (r = 94.0, grosor 3.5px): 4 arcos de 65° con huecos de 25°
-    let rot_speed = if is_scanning { 2.4 } else { 0.35 };
-    let base_angle = (time * rot_speed) % TAU;
-    let arc_span = 65.0_f32.to_radians();
-    let gap_span = 25.0_f32.to_radians();
-    let ring_r = 94.0;
-
-    for i in 0..4 {
-        let a_start = base_angle + (i as f32) * (arc_span + gap_span);
-        let color = if i % 2 == 0 {
-            RustCareTheme::ACCENT_TEAL
+    // 1. Capa 1: Dial exterior técnico de 48 marcas (r = 120.0)
+    let dial_r = 120.0;
+    for i in 0..48 {
+        let angle = (i as f32) * (TAU / 48.0);
+        let is_major = i % 4 == 0;
+        let len = if is_major { 5.5 } else { 2.5 };
+        let col = if is_major {
+            Color32::from_rgba_unmultiplied(0, 229, 168, 140)
         } else {
-            RustCareTheme::ACCENT_CYAN
+            Color32::from_rgba_unmultiplied(34, 46, 66, 180)
         };
-        let steps = 14;
-        let mut prev = Pos2::new(center.x + ring_r * a_start.cos(), center.y + ring_r * a_start.sin());
-        for s in 1..=steps {
-            let frac = s as f32 / steps as f32;
-            let a = a_start + frac * arc_span;
-            let next = Pos2::new(center.x + ring_r * a.cos(), center.y + ring_r * a.sin());
-            painter.line_segment([prev, next], Stroke::new(3.5, color));
-            prev = next;
-        }
+        let p1 = Pos2::new(center.x + (dial_r - len) * angle.cos(), center.y + (dial_r - len) * angle.sin());
+        let p2 = Pos2::new(center.x + dial_r * angle.cos(), center.y + dial_r * angle.sin());
+        painter.line_segment([p1, p2], Stroke::new(if is_major { 1.5 } else { 1.0 }, col));
     }
 
-    // 4. Pista de progreso (r = 84.0, 4.5px) + arco activo
-    let prog_r = 84.0;
-    painter.circle_stroke(center, prog_r, Stroke::new(4.5, RustCareTheme::BORDER_SUBTLE));
+    // 2. Capa 2: Estela de partículas y puntos horarios (r = 110.0)
+    let particle_r = 110.0;
+    for i in 0..28 {
+        let frac = i as f32 / 28.0;
+        let angle = cw_angle + frac * TAU;
+        let alpha = ((frac * std::f32::consts::PI).sin() * 220.0).clamp(10.0, 240.0) as u8;
+        let dot_pos = Pos2::new(center.x + particle_r * angle.cos(), center.y + particle_r * angle.sin());
+        painter.circle_filled(
+            dot_pos,
+            if i % 2 == 0 { 1.8 } else { 1.2 },
+            Color32::from_rgba_unmultiplied(0, 229, 168, alpha),
+        );
+    }
+
+    // 3. Capa 3: Corona Mecánica / Dientes de Engranaje Holográfico Antihorario (r = 98.0)
+    let gear_r = 98.0;
+    let teeth = 20;
+    for i in 0..teeth {
+        let a = ccw_angle + (i as f32) * (TAU / teeth as f32);
+        let p_in = Pos2::new(center.x + (gear_r - 4.0) * a.cos(), center.y + (gear_r - 4.0) * a.sin());
+        let p_out = Pos2::new(center.x + (gear_r + 3.0) * a.cos(), center.y + (gear_r + 3.0) * a.sin());
+        painter.line_segment([p_in, p_out], Stroke::new(2.0, Color32::from_rgba_unmultiplied(56, 189, 248, 120)));
+    }
+    painter.circle_stroke(center, gear_r - 4.0, Stroke::new(1.2, Color32::from_rgba_unmultiplied(34, 46, 66, 200)));
+
+    // 4. Capa 4: Arco de flujo de energía exterior y progreso activo (r = 86.0)
+    let flow_r = 86.0;
+    painter.circle_stroke(center, flow_r, Stroke::new(4.0, Color32::from_rgba_unmultiplied(26, 35, 52, 160)));
     if progress > 0.001 {
         let active_span = (progress.clamp(0.0, 1.0) * TAU).min(TAU);
-        let start_a = -0.25 * TAU; // Arriba (12 en punto)
-        let steps = (active_span * 24.0).max(4.0) as usize;
-        let mut prev = Pos2::new(center.x + prog_r * start_a.cos(), center.y + prog_r * start_a.sin());
+        let start_a = -0.25 * TAU;
+        let steps = (active_span * 28.0).max(4.0) as usize;
+        let mut prev = Pos2::new(center.x + flow_r * start_a.cos(), center.y + flow_r * start_a.sin());
         for s in 1..=steps {
             let frac = s as f32 / steps as f32;
             let a = start_a + frac * active_span;
-            let next = Pos2::new(center.x + prog_r * a.cos(), center.y + prog_r * a.sin());
-            painter.line_segment([prev, next], Stroke::new(4.5, RustCareTheme::ACCENT_TEAL));
+            let next = Pos2::new(center.x + flow_r * a.cos(), center.y + flow_r * a.sin());
+            painter.line_segment([prev, next], Stroke::new(4.5, Color32::from_rgb(0, 229, 168)));
             prev = next;
         }
+    } else {
+        // 3 arcos de flujo en movimiento
+        for i in 0..3 {
+            let a_start = cw_angle + (i as f32) * (TAU / 3.0);
+            let arc_len = 0.6;
+            let mut prev = Pos2::new(center.x + flow_r * a_start.cos(), center.y + flow_r * a_start.sin());
+            for s in 1..=8 {
+                let frac = s as f32 / 8.0;
+                let a = a_start + frac * arc_len;
+                let next = Pos2::new(center.x + flow_r * a.cos(), center.y + flow_r * a.sin());
+                let alpha = (frac * 240.0) as u8;
+                painter.line_segment([prev, next], Stroke::new(3.5, Color32::from_rgba_unmultiplied(0, 229, 168, alpha)));
+                prev = next;
+            }
+        }
     }
 
-    // 5. Barrido radar interno: sector circular de 45° dentro de r = 76.0
-    let core_r = 76.0;
-    let sweep_start = (time * rot_speed) % TAU;
-    let sweep_span = 45.0_f32.to_radians();
-    let sweep_steps = 12;
-    let mut poly_pts = vec![center];
-    for s in 0..=sweep_steps {
-        let frac = s as f32 / sweep_steps as f32;
-        let a = sweep_start + frac * sweep_span;
-        poly_pts.push(Pos2::new(center.x + (core_r - 2.0) * a.cos(), center.y + (core_r - 2.0) * a.sin()));
-    }
-    if poly_pts.len() >= 3 {
-        painter.add(Shape::convex_polygon(
-            poly_pts,
-            Color32::from_rgba_unmultiplied(14, 165, 233, 24),
-            Stroke::NONE,
-        ));
-    }
-
-    // 6. Núcleo central (r = 76.0, relleno suave, borde 1.5px)
-    let core_stroke_color = if let Some(score) = health_score {
+    // 5. Núcleo central de cristal espacial con respiración senoidal
+    let core_pulse = (time * 1.8).sin() * 1.5;
+    let core_r = 74.0 + core_pulse;
+    let core_color = if let Some(score) = health_score {
         if score < 50 {
-            RustCareTheme::ACCENT_CORAL
+            Color32::from_rgb(244, 63, 94)
         } else if score < 80 {
-            RustCareTheme::ACCENT_AMBER
+            Color32::from_rgb(245, 158, 11)
         } else {
-            RustCareTheme::ACCENT_EMERALD
+            Color32::from_rgb(0, 229, 168)
         }
     } else if is_scanning {
-        RustCareTheme::ACCENT_CYAN
+        Color32::from_rgb(56, 189, 248)
     } else {
-        RustCareTheme::ACCENT_TEAL
+        Color32::from_rgb(0, 229, 168)
     };
 
-    painter.circle_filled(center, core_r, Color32::from_rgb(13, 18, 28));
-    painter.circle_stroke(center, core_r, Stroke::new(1.8, core_stroke_color));
+    // Relleno profundo de cristal obsidiana
+    painter.circle_filled(center, core_r, Color32::from_rgb(10, 15, 24));
+    painter.circle_stroke(center, core_r, Stroke::new(2.0, core_color));
+    painter.circle_stroke(center, core_r - 4.0, Stroke::new(1.0, Color32::from_rgba_unmultiplied(37, 99, 235, 140)));
 
-    // 7. Texto / Puntuación
+    // 6. Texto o Marcador de Salud
     if let Some(score) = health_score {
         let score_color = if score < 50 {
             RustCareTheme::ACCENT_CORAL
         } else if score < 80 {
             RustCareTheme::ACCENT_AMBER
         } else {
-            RustCareTheme::ACCENT_EMERALD
+            Color32::from_rgb(0, 229, 168)
         };
         painter.text(
             Pos2::new(center.x, center.y - 18.0),
@@ -146,18 +164,18 @@ pub fn care_radar_button(
             FontId::proportional(13.0),
             RustCareTheme::TEXT_MUTED,
         );
-        let pill_rect = Rect::from_center_size(Pos2::new(center.x, center.y + 26.0), Vec2::new(96.0, 22.0));
+        let pill_rect = Rect::from_center_size(Pos2::new(center.x, center.y + 26.0), Vec2::new(104.0, 24.0));
         let pill_text = if score < 80 { "REPARAR TODO" } else { "ÓPTIMO" };
-        painter.rect_filled(pill_rect, CornerRadius::same(11), Color32::from_rgba_unmultiplied(14, 165, 233, 35));
-        painter.rect_stroke(pill_rect, CornerRadius::same(11), Stroke::new(1.0, RustCareTheme::ACCENT_TEAL), StrokeKind::Inside);
-        painter.text(pill_rect.center(), Align2::CENTER_CENTER, pill_text, FontId::proportional(11.0), RustCareTheme::TEXT_PRIMARY);
+        painter.rect_filled(pill_rect, CornerRadius::same(12), Color32::from_rgba_unmultiplied(0, 229, 168, 35));
+        painter.rect_stroke(pill_rect, CornerRadius::same(12), Stroke::new(1.2, Color32::from_rgb(0, 229, 168)), StrokeKind::Inside);
+        painter.text(pill_rect.center(), Align2::CENTER_CENTER, pill_text, FontId::proportional(11.5), Color32::WHITE);
     } else {
         painter.text(
             Pos2::new(center.x, center.y - 6.0),
             Align2::CENTER_CENTER,
             title,
-            FontId::proportional(22.0),
-            RustCareTheme::TEXT_PRIMARY,
+            FontId::proportional(23.0),
+            Color32::WHITE,
         );
         if !subtitle.is_empty() {
             painter.text(
@@ -165,12 +183,12 @@ pub fn care_radar_button(
                 Align2::CENTER_CENTER,
                 subtitle,
                 FontId::proportional(11.5),
-                RustCareTheme::ACCENT_CYAN,
+                Color32::from_rgb(0, 229, 168),
             );
         }
     }
 
-    if is_scanning {
+    if is_scanning || is_hover {
         ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
     }
 
@@ -358,7 +376,7 @@ pub fn danger_button(ui: &mut Ui, text: &str, width: Option<f32>) -> Response {
     response
 }
 
-/// 7. Tarjeta con Gráfica Sparkline (Fila superior de Monitor)
+/// 7. Tarjeta con Sensor Líquido y Ondas Dinámicas (Bento Sensor Card 2027)
 pub fn sparkline_card(
     ui: &mut Ui,
     title: &str,
@@ -373,29 +391,18 @@ pub fn sparkline_card(
 ) {
     let (rect, response) = ui.allocate_exact_size(Vec2::new(width, height), Sense::hover());
     let painter = ui.painter();
+    let time = ui.input(|i| i.time) as f32;
 
-    // Fondo y borde
-    painter.rect_filled(rect, CornerRadius::same(RustCareTheme::RADIUS_CARD as u8), RustCareTheme::BG_SURFACE);
-    painter.rect_stroke(
-        rect,
-        CornerRadius::same(RustCareTheme::RADIUS_CARD as u8),
-        Stroke::new(1.0, RustCareTheme::BORDER_SUBTLE),
-        StrokeKind::Inside,
-    );
+    // Fondo Bento Glass con profundidad y rim light
+    RustCareTheme::draw_glass_card(painter, rect, response.hovered(), Some(accent));
 
-    // Línea superior sutil de 2px en accent al hover
-    if response.hovered() {
-        let top_line = Rect::from_min_size(rect.min, Vec2::new(rect.width(), 2.0));
-        painter.rect_filled(top_line, CornerRadius::same(1), accent);
-    }
-
-    // Fila 1: title a la izquierda | hw_subtitle a la derecha
+    // Fila 1: Título a la izquierda | Subtítulo hardware a la derecha
     painter.text(
         Pos2::new(rect.min.x + 14.0, rect.min.y + 18.0),
         Align2::LEFT_CENTER,
         title,
         FontId::proportional(15.0),
-        RustCareTheme::TEXT_PRIMARY,
+        Color32::WHITE,
     );
     painter.text(
         Pos2::new(rect.max.x - 14.0, rect.min.y + 18.0),
@@ -405,51 +412,61 @@ pub fn sparkline_card(
         RustCareTheme::TEXT_MUTED,
     );
 
-    // Fila 2: big_value (34px Bold accent)
+    // Fila 2: Valor Gigante (34px Bold con alto contraste)
     painter.text(
-        Pos2::new(rect.min.x + 14.0, rect.min.y + 50.0),
+        Pos2::new(rect.min.x + 14.0, rect.min.y + 48.0),
         Align2::LEFT_CENTER,
         big_value,
         FontId::proportional(34.0),
-        accent,
+        Color32::WHITE,
     );
 
-    // Fila 3: Sparkline (height: 64px)
-    let spark_rect = Rect::from_min_max(
-        Pos2::new(rect.min.x + 14.0, rect.min.y + 74.0),
-        Pos2::new(rect.max.x - 14.0, rect.max.y - 32.0),
+    // Fila 3: Área de Ondas Líquidas Dinámicas (height: 54px)
+    let wave_rect = Rect::from_min_max(
+        Pos2::new(rect.min.x + 14.0, rect.min.y + 68.0),
+        Pos2::new(rect.max.x - 14.0, rect.max.y - 28.0),
     );
 
-    if !history.is_empty() && spark_rect.width() > 10.0 {
-        let count = history.len();
-        let step = spark_rect.width() / (count as f32 - 1.0).max(1.0);
-        let max_val = history.iter().cloned().fold(100.0_f32, f32::max).max(10.0);
+    if wave_rect.width() > 20.0 {
+        let steps = 40;
+        let step_x = wave_rect.width() / (steps as f32);
+        let base_val = if !history.is_empty() {
+            *history.last().unwrap_or(&25.0)
+        } else {
+            30.0
+        };
+        let norm_h = (base_val / 100.0).clamp(0.15, 0.85) * wave_rect.height();
 
-        let mut points: Vec<Pos2> = Vec::with_capacity(count);
-        for (i, &val) in history.iter().enumerate() {
-            let x = spark_rect.min.x + (i as f32) * step;
-            let norm = (val / max_val).clamp(0.0, 1.0);
-            let y = spark_rect.max.y - norm * spark_rect.height();
+        let mut points: Vec<Pos2> = Vec::with_capacity(steps + 1);
+        let freq = if title.contains("NVMe") || title.contains("Disco") { 0.18 } else { 0.08 };
+        let speed = if title.contains("NVMe") { 3.5 } else { 1.8 };
+
+        for i in 0..=steps {
+            let x = wave_rect.min.x + (i as f32) * step_x;
+            let rel_x = i as f32;
+            let wave1 = ((rel_x * freq + time * speed).sin()) * 5.5;
+            let wave2 = ((rel_x * (freq * 1.8) - time * (speed * 0.7)).sin()) * 2.5;
+            let y = (wave_rect.max.y - norm_h + wave1 + wave2).clamp(wave_rect.min.y + 2.0, wave_rect.max.y - 2.0);
             points.push(Pos2::new(x, y));
         }
 
-        // Relleno hacia la base con accent translúcido suave
+        // Polígono relleno translúcido hacia la base
         let mut poly = points.clone();
-        poly.push(Pos2::new(spark_rect.max.x, spark_rect.max.y));
-        poly.push(Pos2::new(spark_rect.min.x, spark_rect.max.y));
+        poly.push(Pos2::new(wave_rect.max.x, wave_rect.max.y));
+        poly.push(Pos2::new(wave_rect.min.x, wave_rect.max.y));
         painter.add(Shape::convex_polygon(
             poly,
-            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 25),
+            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), if response.hovered() { 40 } else { 24 }),
             Stroke::NONE,
         ));
 
-        // Línea superior de 1.8px
+        // Curva superior brillante de 2.2px
         for w in points.windows(2) {
-            painter.line_segment([w[0], w[1]], Stroke::new(1.8, accent));
+            painter.line_segment([w[0], w[1]], Stroke::new(2.2, accent));
         }
     }
 
-    // Fila 4: Pico a la izquierda | current_text a la derecha
+    // Fila 4: Pico a la izquierda | Métricas activas a la derecha
     painter.text(
         Pos2::new(rect.min.x + 14.0, rect.max.y - 14.0),
         Align2::LEFT_CENTER,
@@ -464,6 +481,10 @@ pub fn sparkline_card(
         FontId::proportional(11.0),
         accent,
     );
+
+    if response.hovered() {
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
+    }
 }
 
 /// 8. Tarjeta de Herramienta para Toolbox
@@ -473,30 +494,35 @@ pub fn tool_card(
     desc: &str,
     metric: &str,
     icon: AppIcon,
+    accent: Color32,
     action_label: &str,
     width: f32,
     height: f32,
 ) -> Response {
-    let (rect, _) = ui.allocate_exact_size(Vec2::new(width, height), Sense::hover());
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(width, height), Sense::hover());
     let painter = ui.painter();
 
-    // Fondo tarjeta
-    painter.rect_filled(rect, CornerRadius::same(RustCareTheme::RADIUS_CARD as u8), RustCareTheme::BG_SURFACE);
+    // Fondo tarjeta con profundidad de cristal y borde reactivo
+    RustCareTheme::draw_glass_card(painter, rect, response.hovered(), Some(accent));
+
+    // Icono 44x44 a la izquierda en placa elevada con iluminación suave
+    let ic_box = Rect::from_min_size(Pos2::new(rect.min.x + 14.0, rect.min.y + 14.0), Vec2::splat(44.0));
+    painter.rect_filled(ic_box, CornerRadius::same(10), Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 26));
     painter.rect_stroke(
-        rect,
-        CornerRadius::same(RustCareTheme::RADIUS_CARD as u8),
-        Stroke::new(1.0, RustCareTheme::BORDER_SUBTLE),
+        ic_box,
+        CornerRadius::same(10),
+        Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 85)),
         StrokeKind::Inside,
     );
-
-    // Icono 42x42 a la izquierda con fondo suave
-    let ic_box = Rect::from_min_size(Pos2::new(rect.min.x + 14.0, rect.min.y + 14.0), Vec2::splat(42.0));
-    painter.rect_filled(ic_box, CornerRadius::same(8), Color32::from_rgba_unmultiplied(14, 165, 233, 20));
-    painter.rect_stroke(ic_box, CornerRadius::same(8), Stroke::new(1.0, Color32::from_rgba_unmultiplied(14, 165, 233, 40)), StrokeKind::Inside);
-    draw_icon(painter, ic_box, icon, RustCareTheme::ACCENT_CYAN, 1.5);
+    // Luz superior en la placa del icono
+    painter.line_segment(
+        [Pos2::new(ic_box.min.x + 4.0, ic_box.min.y + 1.0), Pos2::new(ic_box.max.x - 4.0, ic_box.min.y + 1.0)],
+        Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(255, 255, 255, 35)),
+    );
+    draw_icon(painter, ic_box, icon, accent, 1.6);
 
     // Textos a la derecha del icono
-    let text_x = rect.min.x + 66.0;
+    let text_x = rect.min.x + 68.0;
     painter.text(
         Pos2::new(text_x, rect.min.y + 22.0),
         Align2::LEFT_CENTER,
@@ -515,8 +541,8 @@ pub fn tool_card(
         Pos2::new(text_x, rect.min.y + 54.0),
         Align2::LEFT_CENTER,
         metric,
-        FontId::proportional(11.5),
-        RustCareTheme::ACCENT_CYAN,
+        FontId::proportional(12.0),
+        accent,
     );
 
     // Botón centrado en la parte inferior
@@ -526,15 +552,15 @@ pub fn tool_card(
     let btn_resp = ui.interact(btn_rect, id, Sense::click());
 
     let (btn_fill, btn_stroke) = if btn_resp.is_pointer_button_down_on() {
-        (Color32::from_rgb(20, 28, 42), RustCareTheme::ACCENT_TEAL)
+        (Color32::from_rgb(20, 28, 42), accent)
     } else if btn_resp.hovered() {
-        (RustCareTheme::BG_HOVER, RustCareTheme::ACCENT_CYAN)
+        (RustCareTheme::BG_HOVER, accent)
     } else {
         (RustCareTheme::BG_ELEVATED, RustCareTheme::BORDER_SUBTLE)
     };
 
     painter.rect_filled(btn_rect, CornerRadius::same(6), btn_fill);
-    painter.rect_stroke(btn_rect, CornerRadius::same(6), Stroke::new(1.0, btn_stroke), StrokeKind::Inside);
+    painter.rect_stroke(btn_rect, CornerRadius::same(6), Stroke::new(1.0_f32, btn_stroke), StrokeKind::Inside);
     painter.text(
         btn_rect.center(),
         Align2::CENTER_CENTER,

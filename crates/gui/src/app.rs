@@ -249,33 +249,39 @@ impl eframe::App for RustCareApp {
             .show(ctx, |ui| {
                 ui.add_space(10.0);
 
-                // Función auxiliar de ítem de navegación determinista
-                let nav_item = |ui: &mut Ui, label: &str, active: bool, icon: AppIcon| -> bool {
+                // Función auxiliar de ítem de navegación con placa de icono tridimensional y distinción cromática
+                let nav_item = |ui: &mut Ui, label: &str, active: bool, icon: AppIcon, accent: Color32| -> bool {
                     let desired_size = Vec2::new(210.0, 44.0);
                     let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
                     let p = ui.painter();
 
-                    let (bg_col, text_col, icon_col) = if active {
+                    let (bg_col, text_col, icon_stroke, badge_fill, badge_stroke) = if active {
                         (
-                            Color32::from_rgba_unmultiplied(14, 165, 233, 20),
+                            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 22),
                             RustCareTheme::TEXT_PRIMARY,
-                            RustCareTheme::ACCENT_CYAN,
+                            accent,
+                            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 38),
+                            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 110),
                         )
                     } else if response.hovered() {
                         (
-                            Color32::from_rgba_unmultiplied(26, 35, 52, 160),
+                            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 14),
                             RustCareTheme::TEXT_PRIMARY,
-                            RustCareTheme::ACCENT_CYAN,
+                            accent,
+                            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 24),
+                            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 60),
                         )
                     } else {
                         (
                             Color32::TRANSPARENT,
                             RustCareTheme::TEXT_MUTED,
-                            RustCareTheme::TEXT_MUTED,
+                            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 180),
+                            Color32::from_rgba_unmultiplied(26, 35, 52, 140),
+                            RustCareTheme::BORDER_SUBTLE,
                         )
                     };
 
-                    p.rect_filled(rect, CornerRadius::ZERO, bg_col);
+                    p.rect_filled(rect, CornerRadius::same(6), bg_col);
 
                     // Si está activo: barra vertical brillante de 3.5px x 28.0px pegada al borde derecho
                     if active {
@@ -283,41 +289,43 @@ impl eframe::App for RustCareApp {
                             Pos2::new(rect.max.x - 3.5, rect.center().y - 14.0),
                             Vec2::new(3.5, 28.0),
                         );
-                        p.rect_filled(bar_rect, CornerRadius::same(2), RustCareTheme::ACCENT_TEAL);
+                        p.rect_filled(bar_rect, CornerRadius::same(2), accent);
                     }
 
-                    // Icono vectorial 18x18 a la izquierda
-                    let icon_rect = Rect::from_center_size(Pos2::new(rect.min.x + 28.0, rect.center().y), Vec2::splat(18.0));
-                    draw_icon(p, icon_rect, icon, icon_col, 1.5);
+                    // Placa elevada del icono (26x26px) con borde e iluminación
+                    let ic_badge = Rect::from_center_size(Pos2::new(rect.min.x + 24.0, rect.center().y), Vec2::splat(26.0));
+                    p.rect_filled(ic_badge, CornerRadius::same(7), badge_fill);
+                    p.rect_stroke(ic_badge, CornerRadius::same(7), Stroke::new(1.0_f32, badge_stroke), StrokeKind::Inside);
+                    draw_icon(p, ic_badge, icon, icon_stroke, 1.5);
 
-                    // Texto 14px
+                    // Texto
                     p.text(
                         Pos2::new(rect.min.x + 46.0, rect.center().y),
                         Align2::LEFT_CENTER,
                         label,
-                        FontId::proportional(14.0),
+                        FontId::proportional(13.5),
                         text_col,
                     );
 
                     response.clicked()
                 };
 
-                if nav_item(ui, "Cuidar", self.current_section == NavSection::Care, AppIcon::Home) {
+                if nav_item(ui, "Cuidar", self.current_section == NavSection::Care, AppIcon::Home, Color32::from_rgb(14, 165, 233)) {
                     self.current_section = NavSection::Care;
                 }
-                if nav_item(ui, "Acelerar", self.current_section == NavSection::Booster, AppIcon::Bolt) {
+                if nav_item(ui, "Acelerar", self.current_section == NavSection::Booster, AppIcon::Bolt, Color32::from_rgb(245, 158, 11)) {
                     self.current_section = NavSection::Booster;
                 }
-                if nav_item(ui, "Limpieza", self.current_section == NavSection::Cleaner, AppIcon::Broom) {
+                if nav_item(ui, "Limpieza", self.current_section == NavSection::Cleaner, AppIcon::Broom, Color32::from_rgb(129, 140, 248)) {
                     self.current_section = NavSection::Cleaner;
                 }
-                if nav_item(ui, "Escudo", self.current_section == NavSection::Shield, AppIcon::ShieldCheck) {
+                if nav_item(ui, "Escudo", self.current_section == NavSection::Shield, AppIcon::ShieldCheck, Color32::from_rgb(16, 185, 129)) {
                     self.current_section = NavSection::Shield;
                 }
-                if nav_item(ui, "Herramientas", self.current_section == NavSection::Toolbox, AppIcon::Tools) {
+                if nav_item(ui, "Herramientas", self.current_section == NavSection::Toolbox, AppIcon::Tools, Color32::from_rgb(56, 189, 248)) {
                     self.current_section = NavSection::Toolbox;
                 }
-                if nav_item(ui, "Monitor", self.current_section == NavSection::Monitor, AppIcon::Pulse) {
+                if nav_item(ui, "Monitor", self.current_section == NavSection::Monitor, AppIcon::Pulse, Color32::from_rgb(244, 63, 94)) {
                     self.current_section = NavSection::Monitor;
                 }
 
@@ -330,7 +338,7 @@ impl eframe::App for RustCareApp {
                 );
                 ui.add_space(8.0);
 
-                if nav_item(ui, "Ajustes", self.current_section == NavSection::Settings, AppIcon::Gear) {
+                if nav_item(ui, "Ajustes", self.current_section == NavSection::Settings, AppIcon::Gear, Color32::from_rgb(148, 163, 184)) {
                     self.current_section = NavSection::Settings;
                 }
 
@@ -401,6 +409,9 @@ impl eframe::App for RustCareApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE.fill(RustCareTheme::BG_VOID).inner_margin(egui::Margin::same(18)))
             .show(ctx, |ui| {
+                let time = ui.input(|i| i.time) as f32;
+                RustCareTheme::draw_ambient_mesh_glow(ui.painter(), ui.max_rect(), time);
+
                 match self.current_section {
                     NavSection::Care => {
                         let tx = self.sender.clone();
