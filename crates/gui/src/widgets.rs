@@ -62,33 +62,41 @@ pub fn care_radar_button(
         painter.line_segment([p1, p2], Stroke::new(if is_major { 1.5 } else { 1.0 }, col));
     }
 
-    // 2. Capa 2: Estela de partículas y puntos horarios (r = 110.0)
-    let particle_r = 110.0;
-    for i in 0..28 {
-        let frac = i as f32 / 28.0;
-        let angle = cw_angle + frac * TAU;
-        let alpha = ((frac * std::f32::consts::PI).sin() * 220.0).clamp(10.0, 240.0) as u8;
-        let dot_pos = Pos2::new(center.x + particle_r * angle.cos(), center.y + particle_r * angle.sin());
-        painter.circle_filled(
-            dot_pos,
-            if i % 2 == 0 { 1.8 } else { 1.2 },
-            Color32::from_rgba_unmultiplied(0, 229, 168, alpha),
-        );
+    // 2. Capa 2: Vórtice Galáctico de Partículas Neón y Espirales Holográficas (r = 96.0 .. 132.0)
+    for arm in 0..3 {
+        let arm_offset = (arm as f32) * (TAU / 3.0);
+        for i in 0..36 {
+            let frac = i as f32 / 36.0;
+            let spiral_r = 96.0 + frac * 34.0;
+            let angle = cw_angle + arm_offset + frac * (TAU * 0.75);
+            let alpha = ((frac * std::f32::consts::PI).sin() * 220.0).clamp(15.0, 240.0) as u8;
+            let dot_pos = Pos2::new(center.x + spiral_r * angle.cos(), center.y + spiral_r * angle.sin());
+            let col = if i % 3 == 0 {
+                Color32::from_rgba_unmultiplied(56, 189, 248, alpha)
+            } else if i % 3 == 1 {
+                Color32::from_rgba_unmultiplied(0, 229, 168, alpha)
+            } else {
+                Color32::from_rgba_unmultiplied(255, 255, 255, alpha.saturating_sub(40))
+            };
+            let sz = if i % 4 == 0 { 1.8 } else if i % 2 == 0 { 1.2 } else { 0.8 };
+            painter.circle_filled(dot_pos, sz, col);
+        }
     }
 
-    // 3. Capa 3: Corona Mecánica / Dientes de Engranaje Holográfico Antihorario (r = 98.0)
-    let gear_r = 98.0;
-    let teeth = 20;
+    // 3. Capa 3: Corona Mecánica / Dientes de Engranaje Holográfico Antihorario (r = 90.0)
+    let gear_r = 90.0;
+    let teeth = 24;
     for i in 0..teeth {
         let a = ccw_angle + (i as f32) * (TAU / teeth as f32);
-        let p_in = Pos2::new(center.x + (gear_r - 4.0) * a.cos(), center.y + (gear_r - 4.0) * a.sin());
-        let p_out = Pos2::new(center.x + (gear_r + 3.0) * a.cos(), center.y + (gear_r + 3.0) * a.sin());
-        painter.line_segment([p_in, p_out], Stroke::new(2.0, Color32::from_rgba_unmultiplied(56, 189, 248, 120)));
+        let p_in = Pos2::new(center.x + (gear_r - 5.0) * a.cos(), center.y + (gear_r - 5.0) * a.sin());
+        let p_out = Pos2::new(center.x + (gear_r + 4.0) * a.cos(), center.y + (gear_r + 4.0) * a.sin());
+        painter.line_segment([p_in, p_out], Stroke::new(3.2, Color32::from_rgba_unmultiplied(56, 189, 248, 160)));
     }
-    painter.circle_stroke(center, gear_r - 4.0, Stroke::new(1.2, Color32::from_rgba_unmultiplied(34, 46, 66, 200)));
+    painter.circle_stroke(center, gear_r + 4.0, Stroke::new(1.0, Color32::from_rgba_unmultiplied(0, 229, 168, 180)));
+    painter.circle_stroke(center, gear_r - 5.0, Stroke::new(1.4, Color32::from_rgba_unmultiplied(37, 99, 235, 200)));
 
-    // 4. Capa 4: Arco de flujo de energía exterior y progreso activo (r = 86.0)
-    let flow_r = 86.0;
+    // 4. Capa 4: Arco de flujo de energía exterior y progreso activo (r = 82.0)
+    let flow_r = 82.0;
     painter.circle_stroke(center, flow_r, Stroke::new(4.0, Color32::from_rgba_unmultiplied(26, 35, 52, 160)));
     if progress > 0.001 {
         let active_span = (progress.clamp(0.0, 1.0) * TAU).min(TAU);
@@ -170,19 +178,20 @@ pub fn care_radar_button(
         painter.rect_stroke(pill_rect, CornerRadius::same(12), Stroke::new(1.2, Color32::from_rgb(0, 229, 168)), StrokeKind::Inside);
         painter.text(pill_rect.center(), Align2::CENTER_CENTER, pill_text, FontId::proportional(11.5), Color32::WHITE);
     } else {
+        let text_y = if subtitle.is_empty() { center.y } else { center.y - 7.0 };
         painter.text(
-            Pos2::new(center.x, center.y - 6.0),
+            Pos2::new(center.x, text_y),
             Align2::CENTER_CENTER,
             title,
-            FontId::proportional(23.0),
+            FontId::proportional(22.0),
             Color32::WHITE,
         );
         if !subtitle.is_empty() {
             painter.text(
-                Pos2::new(center.x, center.y + 16.0),
+                Pos2::new(center.x, center.y + 14.0),
                 Align2::CENTER_CENTER,
                 subtitle,
-                FontId::proportional(11.5),
+                FontId::proportional(11.0),
                 Color32::from_rgb(0, 229, 168),
             );
         }

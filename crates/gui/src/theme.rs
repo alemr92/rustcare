@@ -1,7 +1,7 @@
 //! Tema visual determinante y elegante para RustCare
 //! Paleta moderna inspirada en interfaces premium (Obsidian Dark & Electric Azure/Emerald)
 use eframe::egui::{
-    self, Color32, CornerRadius, FontId, Margin, Rect, Stroke, StrokeKind, Ui, Vec2, Visuals,
+    self, Color32, CornerRadius, FontId, Margin, Pos2, Rect, Stroke, StrokeKind, Ui, Vec2, Visuals,
 };
 
 #[allow(dead_code)]
@@ -109,6 +109,31 @@ impl RustCareTheme {
                 egui::pos2(rect.max.x - Self::RADIUS_CARD, rect.min.y + 1.0),
             ],
             Stroke::new(1.0_f32, top_highlight),
+        );
+
+        // Proyector de luz inferior neón (Signature Underglow Bar 2027)
+        let glow_accent = accent.unwrap_or(Color32::from_rgb(0, 229, 168));
+        let glow_w = (rect.width() * 0.48).clamp(38.0, 110.0);
+        let glow_center_x = rect.center().x;
+        let glow_y = rect.max.y;
+
+        // Halo difuso exterior debajo de la tarjeta
+        painter.rect_filled(
+            Rect::from_center_size(Pos2::new(glow_center_x, glow_y + 1.0), Vec2::new(glow_w + 22.0, 7.0)),
+            CornerRadius::same(3),
+            Color32::from_rgba_unmultiplied(glow_accent.r(), glow_accent.g(), glow_accent.b(), if is_hovered { 70 } else { 42 }),
+        );
+        // Barra intensa de neón horizontal
+        painter.rect_filled(
+            Rect::from_center_size(Pos2::new(glow_center_x, glow_y - 0.5), Vec2::new(glow_w, 3.2)),
+            CornerRadius::same(2),
+            Color32::from_rgba_unmultiplied(glow_accent.r(), glow_accent.g(), glow_accent.b(), if is_hovered { 255 } else { 205 }),
+        );
+        // Núcleo blanco brillante en el centro del proyector
+        painter.rect_filled(
+            Rect::from_center_size(Pos2::new(glow_center_x, glow_y - 0.5), Vec2::new(glow_w * 0.45, 1.8)),
+            CornerRadius::same(1),
+            Color32::from_rgba_unmultiplied(255, 255, 255, if is_hovered { 220 } else { 160 }),
         );
     }
 

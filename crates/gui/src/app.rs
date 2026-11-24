@@ -162,60 +162,81 @@ impl eframe::App for RustCareApp {
                 ui.horizontal_centered(|ui| {
                     // Logo vectorial LogoShield (24x24) + RUSTCARE PRO
                     let (logo_rect, _) = ui.allocate_exact_size(Vec2::new(24.0, 24.0), egui::Sense::hover());
-                    draw_icon(ui.painter(), logo_rect, AppIcon::LogoShield, RustCareTheme::ACCENT_TEAL, 1.8);
+                    draw_icon(ui.painter(), logo_rect, AppIcon::LogoShield, RustCareTheme::ACCENT_CYAN, 1.8);
 
                     ui.add_space(8.0);
                     ui.label(
                         RichText::new("RUSTCARE PRO")
-                            .size(18.0)
+                            .size(17.5)
                             .strong()
-                            .color(RustCareTheme::ACCENT_TEAL),
+                            .color(Color32::WHITE),
                     );
 
-                    // Lado derecho de la Topbar
+                    // Lado derecho de la Topbar (Controles de ventana estilo 2027: — □ ✕)
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        // Botón de avatar de usuario con chevron
-                        let (avatar_rect, _) = ui.allocate_exact_size(Vec2::new(36.0, 28.0), egui::Sense::click());
+                        // Botón Cerrar (✕)
+                        let (close_rect, close_resp) = ui.allocate_exact_size(Vec2::new(32.0, 28.0), egui::Sense::click());
                         let p = ui.painter();
-                        p.rect_filled(avatar_rect, CornerRadius::same(14), RustCareTheme::BG_ELEVATED);
-                        p.rect_stroke(avatar_rect, CornerRadius::same(14), Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE), StrokeKind::Inside);
-                        let icon_rect = Rect::from_center_size(Pos2::new(avatar_rect.min.x + 14.0, avatar_rect.center().y), Vec2::splat(14.0));
-                        draw_icon(p, icon_rect, AppIcon::User, RustCareTheme::ACCENT_CYAN, 1.5);
-                        // Flecha abajo (chevron)
-                        let ch_x = avatar_rect.max.x - 9.0;
-                        let ch_y = avatar_rect.center().y;
-                        p.line_segment([Pos2::new(ch_x - 3.0, ch_y - 2.0), Pos2::new(ch_x, ch_y + 1.5)], Stroke::new(1.5_f32, RustCareTheme::TEXT_MUTED));
-                        p.line_segment([Pos2::new(ch_x, ch_y + 1.5), Pos2::new(ch_x + 3.0, ch_y - 2.0)], Stroke::new(1.5_f32, RustCareTheme::TEXT_MUTED));
+                        if close_resp.hovered() {
+                            p.rect_filled(close_rect, CornerRadius::same(6), Color32::from_rgb(220, 38, 38));
+                        }
+                        let cl_c = close_rect.center();
+                        let cl_col = if close_resp.hovered() { Color32::WHITE } else { RustCareTheme::TEXT_MUTED };
+                        p.line_segment([Pos2::new(cl_c.x - 4.5, cl_c.y - 4.5), Pos2::new(cl_c.x + 4.5, cl_c.y + 4.5)], Stroke::new(1.4, cl_col));
+                        p.line_segment([Pos2::new(cl_c.x + 4.5, cl_c.y - 4.5), Pos2::new(cl_c.x - 4.5, cl_c.y + 4.5)], Stroke::new(1.4, cl_col));
+                        if close_resp.clicked() {
+                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
 
-                        ui.add_space(10.0);
+                        // Botón Maximizar (□)
+                        let (max_rect, max_resp) = ui.allocate_exact_size(Vec2::new(32.0, 28.0), egui::Sense::click());
+                        let p = ui.painter();
+                        if max_resp.hovered() {
+                            p.rect_filled(max_rect, CornerRadius::same(6), RustCareTheme::BG_ELEVATED);
+                        }
+                        let mx_c = max_rect.center();
+                        let mx_col = if max_resp.hovered() { Color32::WHITE } else { RustCareTheme::TEXT_MUTED };
+                        p.rect_stroke(Rect::from_center_size(mx_c, Vec2::splat(9.0)), CornerRadius::ZERO, Stroke::new(1.2, mx_col), StrokeKind::Inside);
+                        if max_resp.clicked() {
+                            // Alternar maximizar
+                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Maximized(true));
+                        }
 
-                        // Píldora redondeada interactiva MODO SANDBOX / MODO WINDOWS REAL
+                        // Botón Minimizar (—)
+                        let (min_rect, min_resp) = ui.allocate_exact_size(Vec2::new(32.0, 28.0), egui::Sense::click());
+                        let p = ui.painter();
+                        if min_resp.hovered() {
+                            p.rect_filled(min_rect, CornerRadius::same(6), RustCareTheme::BG_ELEVATED);
+                        }
+                        let mn_c = min_rect.center();
+                        let mn_col = if min_resp.hovered() { Color32::WHITE } else { RustCareTheme::TEXT_MUTED };
+                        p.line_segment([Pos2::new(mn_c.x - 4.5, mn_c.y), Pos2::new(mn_c.x + 4.5, mn_c.y)], Stroke::new(1.4, mn_col));
+                        if min_resp.clicked() {
+                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Minimized(true));
+                        }
+
+                        ui.add_space(8.0);
+
+                        // Píldora discreta MODO SANDBOX / WINDOWS REAL
                         let is_sb = self.backend.is_sandbox();
                         let (pill_border, pill_bg, pill_text, pill_w) = if is_sb {
-                            (RustCareTheme::ACCENT_AMBER, Color32::from_rgba_unmultiplied(245, 158, 11, 25), "MODO SANDBOX", 145.0)
+                            (RustCareTheme::ACCENT_AMBER, Color32::from_rgba_unmultiplied(245, 158, 11, 20), "MODO SANDBOX", 125.0)
                         } else {
-                            (RustCareTheme::ACCENT_CORAL, Color32::from_rgba_unmultiplied(244, 63, 94, 25), "MODO WINDOWS REAL", 175.0)
+                            (RustCareTheme::ACCENT_CORAL, Color32::from_rgba_unmultiplied(244, 63, 94, 20), "MODO REAL", 105.0)
                         };
 
-                        let pill_size = Vec2::new(pill_w, 30.0);
+                        let pill_size = Vec2::new(pill_w, 24.0);
                         let (pill_rect, pill_resp) = ui.allocate_exact_size(pill_size, egui::Sense::click());
                         let p = ui.painter();
-
-                        p.rect_filled(pill_rect, CornerRadius::same(15), pill_bg);
-                        p.rect_stroke(pill_rect, CornerRadius::same(15), Stroke::new(1.0_f32, pill_border), StrokeKind::Inside);
-
-                        // Texto de la píldora
+                        p.rect_filled(pill_rect, CornerRadius::same(12), pill_bg);
+                        p.rect_stroke(pill_rect, CornerRadius::same(12), Stroke::new(1.0_f32, pill_border), StrokeKind::Inside);
                         p.text(
-                            Pos2::new(pill_rect.min.x + 14.0, pill_rect.center().y),
-                            Align2::LEFT_CENTER,
+                            pill_rect.center(),
+                            Align2::CENTER_CENTER,
                             pill_text,
-                            FontId::proportional(12.0),
+                            FontId::proportional(11.0),
                             pill_border,
                         );
-
-                        // Mini escudo vectorial dentro de la píldora
-                        let s_rect = Rect::from_center_size(Pos2::new(pill_rect.max.x - 20.0, pill_rect.center().y), Vec2::splat(14.0));
-                        draw_icon(p, s_rect, AppIcon::ShieldCheck, pill_border, 1.5);
 
                         if pill_resp.clicked() {
                             if is_sb {
@@ -225,12 +246,6 @@ impl eframe::App for RustCareApp {
                             }
                             self.booster_view.startup_entries = self.backend.list_startup_entries();
                         }
-
-                        pill_resp.on_hover_text(if is_sb {
-                            "Modo aislado activo. Clic para alternar a Windows Real."
-                        } else {
-                            "Modo real activo. Clic para alternar a Sandbox aislado."
-                        });
                     });
                 });
             });
@@ -281,13 +296,25 @@ impl eframe::App for RustCareApp {
                         )
                     };
 
-                    p.rect_filled(rect, CornerRadius::same(6), bg_col);
+                    p.rect_filled(rect, CornerRadius::same(8), bg_col);
 
-                    // Si está activo: barra vertical brillante de 3.5px x 28.0px pegada al borde derecho
+                    // Si está activo: contenedor con borde sutil y barra vertical neón brillante en borde derecho
                     if active {
+                        p.rect_stroke(
+                            rect,
+                            CornerRadius::same(8),
+                            Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 90)),
+                            StrokeKind::Inside,
+                        );
                         let bar_rect = Rect::from_min_size(
-                            Pos2::new(rect.max.x - 3.5, rect.center().y - 14.0),
-                            Vec2::new(3.5, 28.0),
+                            Pos2::new(rect.max.x - 3.5, rect.min.y + 6.0),
+                            Vec2::new(3.5, rect.height() - 12.0),
+                        );
+                        // Halo difuso de la barra
+                        p.rect_filled(
+                            Rect::from_center_size(bar_rect.center(), Vec2::new(7.0, bar_rect.height() + 4.0)),
+                            CornerRadius::same(3),
+                            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 65),
                         );
                         p.rect_filled(bar_rect, CornerRadius::same(2), accent);
                     }
@@ -310,19 +337,20 @@ impl eframe::App for RustCareApp {
                     response.clicked()
                 };
 
-                if nav_item(ui, "Cuidar", self.current_section == NavSection::Care, AppIcon::Home, Color32::from_rgb(14, 165, 233)) {
+                let cyan = Color32::from_rgb(0, 229, 168);
+                if nav_item(ui, "Inicio", self.current_section == NavSection::Care, AppIcon::Home, cyan) {
                     self.current_section = NavSection::Care;
                 }
-                if nav_item(ui, "Acelerar", self.current_section == NavSection::Booster, AppIcon::Bolt, Color32::from_rgb(245, 158, 11)) {
-                    self.current_section = NavSection::Booster;
-                }
-                if nav_item(ui, "Limpieza", self.current_section == NavSection::Cleaner, AppIcon::Broom, Color32::from_rgb(129, 140, 248)) {
+                if nav_item(ui, "Limpieza", self.current_section == NavSection::Cleaner, AppIcon::Broom, Color32::from_rgb(56, 189, 248)) {
                     self.current_section = NavSection::Cleaner;
                 }
-                if nav_item(ui, "Escudo", self.current_section == NavSection::Shield, AppIcon::ShieldCheck, Color32::from_rgb(16, 185, 129)) {
+                if nav_item(ui, "Seguridad", self.current_section == NavSection::Shield, AppIcon::ShieldCheck, Color32::from_rgb(16, 185, 129)) {
                     self.current_section = NavSection::Shield;
                 }
-                if nav_item(ui, "Herramientas", self.current_section == NavSection::Toolbox, AppIcon::Tools, Color32::from_rgb(56, 189, 248)) {
+                if nav_item(ui, "Rendimiento", self.current_section == NavSection::Booster, AppIcon::Gauge, Color32::from_rgb(245, 158, 11)) {
+                    self.current_section = NavSection::Booster;
+                }
+                if nav_item(ui, "Herramientas", self.current_section == NavSection::Toolbox, AppIcon::Tools, Color32::from_rgb(129, 140, 248)) {
                     self.current_section = NavSection::Toolbox;
                 }
                 if nav_item(ui, "Monitor", self.current_section == NavSection::Monitor, AppIcon::Pulse, Color32::from_rgb(244, 63, 94)) {

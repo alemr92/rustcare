@@ -3,7 +3,7 @@ use crate::icons::{draw_icon, AppIcon};
 use crate::theme::RustCareTheme;
 use crate::widgets;
 use eframe::egui::{
-    Color32, CornerRadius, RichText, Sense, Stroke, StrokeKind, Ui, Vec2,
+    Align2, Color32, CornerRadius, FontId, Pos2, Rect, RichText, Sense, Stroke, StrokeKind, Ui, Vec2,
 };
 use rustcare_core::cleaner::CleanerEngine;
 
@@ -93,7 +93,7 @@ impl CareView {
             ui.add_space(16.0);
 
             // =================================================================
-            // 2. BOTÓN CIRCULAR RADAR (240x240px con widgets::care_radar_button)
+            // 2. BOTÓN CIRCULAR RADAR (260x260px) + SCI-FI HUD BACKGROUND
             // =================================================================
             let mut start_scan_clicked = false;
             let mut start_clean_clicked = false;
@@ -107,8 +107,13 @@ impl CareView {
             } else if self.clean_completed {
                 ("ÓPTIMO".to_string(), "Sistema optimizado".to_string(), Some(self.health_score))
             } else {
-                ("ANALIZAR".to_string(), "Escaneo Inteligente".to_string(), None)
+                ("ANALIZAR".to_string(), String::new(), None)
             };
+
+            // Overlay Sci-Fi HUD en el fondo del reactor
+            let cursor_pos = ui.cursor().min;
+            let hud_center = Pos2::new(cursor_pos.x + ui.available_width() / 2.0, cursor_pos.y + 130.0);
+            Self::draw_scifi_hud_overlay(ui.painter(), hud_center);
 
             let radar_resp = widgets::care_radar_button(
                 ui,
@@ -130,7 +135,7 @@ impl CareView {
             ui.add_space(24.0);
 
             // =================================================================
-            // 3. FILA INFERIOR: 4 TARJETAS IGUALES EN GRID DE 4 COLUMNAS (height: 112px, gap: 14px)
+            // 3. FILA INFERIOR: 4 BENTO GLASS CARDS CON UNDERGLOW NEÓN 2027
             // =================================================================
             let avail_w = ui.available_width();
             let card_spacing = RustCareTheme::ITEM_SPACING;
@@ -140,161 +145,128 @@ impl CareView {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = card_spacing;
 
-                // TARJETA 1: ARCHIVOS BASURA (Acento Cian Neón)
+                // TARJETA 1: ARCHIVOS BASURA
                 let c1_accent = Color32::from_rgb(0, 229, 168);
-                RustCareTheme::glass_card_frame().show(ui, |ui| {
-                    ui.set_width(card_w - 32.0);
-                    ui.set_height(card_h - 32.0);
-                    let card_rect = ui.max_rect();
-                    ui.painter().line_segment(
-                        [egui::pos2(card_rect.min.x + 8.0, card_rect.min.y + 1.0), egui::pos2(card_rect.max.x - 8.0, card_rect.min.y + 1.0)],
-                        Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(0, 229, 168, 70)),
-                    );
+                let (c1_rect, c1_resp) = ui.allocate_exact_size(Vec2::new(card_w, card_h), Sense::click());
+                RustCareTheme::draw_glass_card(ui.painter(), c1_rect, c1_resp.hovered(), Some(c1_accent));
 
-                    ui.vertical(|ui| {
-                        ui.label(
-                            RichText::new("ARCHIVOS BASURA")
-                                .size(11.0)
-                                .strong()
-                                .color(RustCareTheme::TEXT_MUTED),
-                        );
-                        ui.add_space(4.0);
-                        ui.horizontal(|ui| {
-                            let (box_rect, _) = ui.allocate_exact_size(Vec2::splat(36.0), Sense::hover());
-                            ui.painter().rect_filled(box_rect, CornerRadius::same(10), Color32::from_rgba_unmultiplied(0, 229, 168, 28));
-                            ui.painter().rect_stroke(box_rect, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(0, 229, 168, 110)), StrokeKind::Inside);
-                            draw_icon(ui.painter(), box_rect, AppIcon::Trash, c1_accent, 1.6);
-                            ui.add_space(6.0);
+                let p1 = ui.painter();
+                p1.text(
+                    Pos2::new(c1_rect.min.x + 16.0, c1_rect.min.y + 16.0),
+                    Align2::LEFT_TOP,
+                    "ARCHIVOS BASURA",
+                    FontId::proportional(11.0),
+                    RustCareTheme::TEXT_MUTED,
+                );
+                let ic1_box = Rect::from_min_size(Pos2::new(c1_rect.min.x + 16.0, c1_rect.min.y + 44.0), Vec2::splat(44.0));
+                p1.rect_filled(ic1_box, CornerRadius::same(10), Color32::from_rgba_unmultiplied(0, 229, 168, 22));
+                p1.rect_stroke(ic1_box, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(0, 229, 168, 90)), StrokeKind::Inside);
+                draw_icon(p1, ic1_box, AppIcon::Trash, c1_accent, 1.6);
 
-                            let size_text = if self.scan_completed && self.total_bytes_found > 0 {
-                                CleanerEngine::format_bytes(self.total_bytes_found)
-                            } else {
-                                "0 GB".to_string()
-                            };
-                            ui.label(
-                                RichText::new(size_text)
-                                    .size(17.0)
-                                    .strong()
-                                    .color(RustCareTheme::TEXT_PRIMARY),
-                            );
-                        });
-                    });
-                });
+                let size_text = if self.scan_completed && self.total_bytes_found > 0 {
+                    CleanerEngine::format_bytes(self.total_bytes_found)
+                } else {
+                    "0 GB".to_string()
+                };
+                p1.text(
+                    Pos2::new(c1_rect.min.x + 72.0, c1_rect.min.y + 64.0),
+                    Align2::LEFT_CENTER,
+                    size_text,
+                    FontId::proportional(19.0),
+                    Color32::WHITE,
+                );
 
-                // TARJETA 2: ESCUDO PRIVACIDAD (Acento Azure)
+                if c1_resp.clicked() {
+                    start_scan_clicked = true;
+                }
+
+                // TARJETA 2: ESCUDO PRIVACIDAD
                 let c2_accent = Color32::from_rgb(56, 189, 248);
-                RustCareTheme::glass_card_frame().show(ui, |ui| {
-                    ui.set_width(card_w - 32.0);
-                    ui.set_height(card_h - 32.0);
-                    let card_rect = ui.max_rect();
-                    ui.painter().line_segment(
-                        [egui::pos2(card_rect.min.x + 8.0, card_rect.min.y + 1.0), egui::pos2(card_rect.max.x - 8.0, card_rect.min.y + 1.0)],
-                        Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(56, 189, 248, 70)),
-                    );
+                let (c2_rect, c2_resp) = ui.allocate_exact_size(Vec2::new(card_w, card_h), Sense::click());
+                RustCareTheme::draw_glass_card(ui.painter(), c2_rect, c2_resp.hovered(), Some(c2_accent));
 
-                    ui.vertical(|ui| {
-                        ui.label(
-                            RichText::new("ESCUDO PRIVACIDAD")
-                                .size(11.0)
-                                .strong()
-                                .color(RustCareTheme::TEXT_MUTED),
-                        );
-                        ui.add_space(4.0);
-                        ui.horizontal(|ui| {
-                            let (box_rect, _) = ui.allocate_exact_size(Vec2::splat(36.0), Sense::hover());
-                            ui.painter().rect_filled(box_rect, CornerRadius::same(10), Color32::from_rgba_unmultiplied(56, 189, 248, 28));
-                            ui.painter().rect_stroke(box_rect, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(56, 189, 248, 110)), StrokeKind::Inside);
-                            draw_icon(ui.painter(), box_rect, AppIcon::Eye, c2_accent, 1.6);
-                            ui.add_space(6.0);
-                            let status = if self.scan_completed && self.threats_found > 0 {
-                                "14 rastros"
-                            } else {
-                                "Seguro"
-                            };
-                            ui.label(
-                                RichText::new(status)
-                                    .size(17.0)
-                                    .strong()
-                                    .color(RustCareTheme::TEXT_PRIMARY),
-                            );
-                        });
-                    });
-                });
+                let p2 = ui.painter();
+                p2.text(
+                    Pos2::new(c2_rect.min.x + 16.0, c2_rect.min.y + 16.0),
+                    Align2::LEFT_TOP,
+                    "ESCUDO PRIVACIDAD",
+                    FontId::proportional(11.0),
+                    RustCareTheme::TEXT_MUTED,
+                );
+                let ic2_box = Rect::from_min_size(Pos2::new(c2_rect.min.x + 16.0, c2_rect.min.y + 44.0), Vec2::splat(44.0));
+                p2.rect_filled(ic2_box, CornerRadius::same(10), Color32::from_rgba_unmultiplied(56, 189, 248, 22));
+                p2.rect_stroke(ic2_box, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(56, 189, 248, 90)), StrokeKind::Inside);
+                draw_icon(p2, ic2_box, AppIcon::Eye, c2_accent, 1.6);
 
-                // TARJETA 3: RAM TURBO (Acento Teal)
+                let priv_status = if self.scan_completed && self.threats_found > 0 {
+                    "14 rastros"
+                } else {
+                    "Seguro"
+                };
+                p2.text(
+                    Pos2::new(c2_rect.min.x + 72.0, c2_rect.min.y + 64.0),
+                    Align2::LEFT_CENTER,
+                    priv_status,
+                    FontId::proportional(19.0),
+                    Color32::WHITE,
+                );
+
+                // TARJETA 3: RAM TURBO
                 let c3_accent = Color32::from_rgb(45, 212, 191);
-                RustCareTheme::glass_card_frame().show(ui, |ui| {
-                    ui.set_width(card_w - 32.0);
-                    ui.set_height(card_h - 32.0);
-                    let card_rect = ui.max_rect();
-                    ui.painter().line_segment(
-                        [egui::pos2(card_rect.min.x + 8.0, card_rect.min.y + 1.0), egui::pos2(card_rect.max.x - 8.0, card_rect.min.y + 1.0)],
-                        Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(45, 212, 191, 70)),
-                    );
+                let (c3_rect, c3_resp) = ui.allocate_exact_size(Vec2::new(card_w, card_h), Sense::click());
+                RustCareTheme::draw_glass_card(ui.painter(), c3_rect, c3_resp.hovered(), Some(c3_accent));
 
-                    ui.vertical(|ui| {
-                        ui.label(
-                            RichText::new("RAM TURBO")
-                                .size(11.0)
-                                .strong()
-                                .color(RustCareTheme::TEXT_MUTED),
-                        );
-                        ui.add_space(4.0);
-                        ui.horizontal(|ui| {
-                            let (box_rect, _) = ui.allocate_exact_size(Vec2::splat(36.0), Sense::hover());
-                            ui.painter().rect_filled(box_rect, CornerRadius::same(10), Color32::from_rgba_unmultiplied(45, 212, 191, 28));
-                            ui.painter().rect_stroke(box_rect, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(45, 212, 191, 110)), StrokeKind::Inside);
-                            draw_icon(ui.painter(), box_rect, AppIcon::RamChip, c3_accent, 1.6);
-                            ui.add_space(6.0);
-                            ui.label(
-                                RichText::new("92% Libre")
-                                    .size(17.0)
-                                    .strong()
-                                    .color(RustCareTheme::TEXT_PRIMARY),
-                            );
-                        });
-                    });
-                });
+                let p3 = ui.painter();
+                p3.text(
+                    Pos2::new(c3_rect.min.x + 16.0, c3_rect.min.y + 16.0),
+                    Align2::LEFT_TOP,
+                    "RAM TURBO",
+                    FontId::proportional(11.0),
+                    RustCareTheme::TEXT_MUTED,
+                );
+                let ic3_box = Rect::from_min_size(Pos2::new(c3_rect.min.x + 16.0, c3_rect.min.y + 44.0), Vec2::splat(44.0));
+                p3.rect_filled(ic3_box, CornerRadius::same(10), Color32::from_rgba_unmultiplied(45, 212, 191, 22));
+                p3.rect_stroke(ic3_box, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(45, 212, 191, 90)), StrokeKind::Inside);
+                draw_icon(p3, ic3_box, AppIcon::RamChip, c3_accent, 1.6);
 
-                // TARJETA 4: SALUD DEL SISTEMA IA (Acento Cian)
+                p3.text(
+                    Pos2::new(c3_rect.min.x + 72.0, c3_rect.min.y + 64.0),
+                    Align2::LEFT_CENTER,
+                    "92% Libre",
+                    FontId::proportional(19.0),
+                    Color32::WHITE,
+                );
+
+                // TARJETA 4: SALUD DEL SISTEMA IA
                 let c4_accent = Color32::from_rgb(0, 229, 168);
-                RustCareTheme::glass_card_frame().show(ui, |ui| {
-                    ui.set_width(card_w - 32.0);
-                    ui.set_height(card_h - 32.0);
-                    let card_rect = ui.max_rect();
-                    ui.painter().line_segment(
-                        [egui::pos2(card_rect.min.x + 8.0, card_rect.min.y + 1.0), egui::pos2(card_rect.max.x - 8.0, card_rect.min.y + 1.0)],
-                        Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(0, 229, 168, 70)),
-                    );
+                let (c4_rect, c4_resp) = ui.allocate_exact_size(Vec2::new(card_w, card_h), Sense::click());
+                RustCareTheme::draw_glass_card(ui.painter(), c4_rect, c4_resp.hovered(), Some(c4_accent));
 
-                    ui.vertical(|ui| {
-                        ui.label(
-                            RichText::new("SALUD DEL SISTEMA IA")
-                                .size(11.0)
-                                .strong()
-                                .color(RustCareTheme::TEXT_MUTED),
-                        );
-                        ui.add_space(4.0);
-                        ui.horizontal(|ui| {
-                            let (box_rect, _) = ui.allocate_exact_size(Vec2::splat(36.0), Sense::hover());
-                            ui.painter().rect_filled(box_rect, CornerRadius::same(10), Color32::from_rgba_unmultiplied(0, 229, 168, 28));
-                            ui.painter().rect_stroke(box_rect, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(0, 229, 168, 110)), StrokeKind::Inside);
-                            draw_icon(ui.painter(), box_rect, AppIcon::Brain, c4_accent, 1.6);
-                            ui.add_space(6.0);
-                            let score_text = if self.scan_completed {
-                                format!("{}% Bueno", self.health_score)
-                            } else {
-                                "Excelente".to_string()
-                            };
-                            ui.label(
-                                RichText::new(score_text)
-                                    .size(17.0)
-                                    .strong()
-                                    .color(RustCareTheme::ACCENT_CYAN),
-                            );
-                        });
-                    });
-                });
+                let p4 = ui.painter();
+                p4.text(
+                    Pos2::new(c4_rect.min.x + 16.0, c4_rect.min.y + 16.0),
+                    Align2::LEFT_TOP,
+                    "SALUD DEL SISTEMA IA",
+                    FontId::proportional(11.0),
+                    RustCareTheme::TEXT_MUTED,
+                );
+                let ic4_box = Rect::from_min_size(Pos2::new(c4_rect.min.x + 16.0, c4_rect.min.y + 44.0), Vec2::splat(44.0));
+                p4.rect_filled(ic4_box, CornerRadius::same(10), Color32::from_rgba_unmultiplied(0, 229, 168, 22));
+                p4.rect_stroke(ic4_box, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(0, 229, 168, 90)), StrokeKind::Inside);
+                draw_icon(p4, ic4_box, AppIcon::Brain, c4_accent, 1.6);
+
+                let health_str = if self.scan_completed {
+                    format!("{}% Bueno", self.health_score)
+                } else {
+                    "Excelente".to_string()
+                };
+                p4.text(
+                    Pos2::new(c4_rect.min.x + 72.0, c4_rect.min.y + 64.0),
+                    Align2::LEFT_CENTER,
+                    health_str,
+                    FontId::proportional(19.0),
+                    RustCareTheme::ACCENT_CYAN,
+                );
             });
 
             if start_scan_clicked {
@@ -311,5 +283,93 @@ impl CareView {
                 on_start_clean();
             }
         });
+    }
+
+    fn draw_scifi_hud_overlay(painter: &eframe::egui::Painter, center: Pos2) {
+        let hud_cyan = Color32::from_rgba_unmultiplied(56, 189, 248, 55);
+        let hud_cyan_bright = Color32::from_rgba_unmultiplied(56, 189, 248, 120);
+        let text_dim = Color32::from_rgba_unmultiplied(160, 185, 215, 115);
+
+        // 1. 4 Soportes de esquina HUD (Corner Brackets)
+        let sx = 225.0_f32;
+        let sy = 135.0_f32;
+        let blen = 22.0_f32;
+
+        // Top-Left
+        let tl = Pos2::new(center.x - sx, center.y - sy);
+        painter.line_segment([tl, Pos2::new(tl.x + blen, tl.y)], Stroke::new(1.0_f32, hud_cyan));
+        painter.line_segment([tl, Pos2::new(tl.x, tl.y + blen)], Stroke::new(1.0_f32, hud_cyan));
+        painter.line_segment([Pos2::new(tl.x - 4.0, tl.y), Pos2::new(tl.x + 4.0, tl.y)], Stroke::new(1.0_f32, hud_cyan_bright));
+        painter.line_segment([Pos2::new(tl.x, tl.y - 4.0), Pos2::new(tl.x, tl.y + 4.0)], Stroke::new(1.0_f32, hud_cyan_bright));
+
+        // Top-Right
+        let tr = Pos2::new(center.x + sx, center.y - sy);
+        painter.line_segment([tr, Pos2::new(tr.x - blen, tr.y)], Stroke::new(1.0_f32, hud_cyan));
+        painter.line_segment([tr, Pos2::new(tr.x, tr.y + blen)], Stroke::new(1.0_f32, hud_cyan));
+        painter.line_segment([Pos2::new(tr.x - 4.0, tr.y), Pos2::new(tr.x + 4.0, tr.y)], Stroke::new(1.0_f32, hud_cyan_bright));
+        painter.line_segment([Pos2::new(tr.x, tr.y - 4.0), Pos2::new(tr.x, tr.y + 4.0)], Stroke::new(1.0_f32, hud_cyan_bright));
+
+        // Bottom-Left
+        let bl = Pos2::new(center.x - sx, center.y + sy);
+        painter.line_segment([bl, Pos2::new(bl.x + blen, bl.y)], Stroke::new(1.0_f32, hud_cyan));
+        painter.line_segment([bl, Pos2::new(bl.x, bl.y - blen)], Stroke::new(1.0_f32, hud_cyan));
+        painter.line_segment([Pos2::new(bl.x - 4.0, bl.y), Pos2::new(bl.x + 4.0, bl.y)], Stroke::new(1.0_f32, hud_cyan_bright));
+        painter.line_segment([Pos2::new(bl.x, bl.y - 4.0), Pos2::new(bl.x, bl.y + 4.0)], Stroke::new(1.0_f32, hud_cyan_bright));
+
+        // Bottom-Right
+        let br = Pos2::new(center.x + sx, center.y + sy);
+        painter.line_segment([br, Pos2::new(br.x - blen, br.y)], Stroke::new(1.0_f32, hud_cyan));
+        painter.line_segment([br, Pos2::new(br.x, br.y - blen)], Stroke::new(1.0_f32, hud_cyan));
+        painter.line_segment([Pos2::new(br.x - 4.0, br.y), Pos2::new(br.x + 4.0, br.y)], Stroke::new(1.0_f32, hud_cyan_bright));
+        painter.line_segment([Pos2::new(br.x, br.y - 4.0), Pos2::new(br.x, br.y + 4.0)], Stroke::new(1.0_f32, hud_cyan_bright));
+
+        // 2. Anillo orbital HUD difuso exterior (r = 168.0)
+        let orb_r = 168.0_f32;
+        painter.circle_stroke(center, orb_r, Stroke::new(0.8_f32, Color32::from_rgba_unmultiplied(56, 189, 248, 22)));
+
+        // 3. Reglas verticales de telemetría y muescas (Escala izquierda y derecha)
+        let scale_lx = center.x - 172.0_f32;
+        let scale_rx = center.x + 172.0_f32;
+        for i in -4..=4 {
+            let ny = center.y + (i as f32) * 16.0_f32;
+            let nw = if i == 0 { 10.0_f32 } else if i % 2 == 0 { 6.0_f32 } else { 3.5_f32 };
+            painter.line_segment([Pos2::new(scale_lx, ny), Pos2::new(scale_lx + nw, ny)], Stroke::new(0.9_f32, hud_cyan));
+            painter.line_segment([Pos2::new(scale_rx - nw, ny), Pos2::new(scale_rx, ny)], Stroke::new(0.9_f32, hud_cyan));
+        }
+
+        // 4. Telemetría izquierda (exacta a 2027_care.png)
+        let font_nano = FontId::monospace(8.5);
+        painter.text(Pos2::new(center.x - 198.0, center.y - 88.0), Align2::LEFT_CENTER, "33.6000", font_nano.clone(), text_dim);
+        painter.text(Pos2::new(center.x - 222.0, center.y - 8.0), Align2::LEFT_CENTER, "360000", font_nano.clone(), text_dim);
+        painter.text(Pos2::new(center.x - 204.0, center.y + 68.0), Align2::LEFT_CENTER, "0.025", font_nano.clone(), text_dim);
+        painter.text(Pos2::new(center.x - 198.0, center.y + 82.0), Align2::LEFT_CENTER, "-491500", font_nano.clone(), text_dim);
+
+        // Caja de barras holográfica izquierda
+        let box_l = Rect::from_min_size(Pos2::new(center.x - 224.0, center.y + 20.0), Vec2::new(26.0, 18.0));
+        painter.rect_stroke(box_l, CornerRadius::ZERO, Stroke::new(0.8_f32, hud_cyan), StrokeKind::Inside);
+        for b in 0..3 {
+            let bar_y = box_l.min.y + 3.0 + (b as f32) * 4.5;
+            painter.rect_filled(
+                Rect::from_min_size(Pos2::new(box_l.min.x + 3.0, bar_y), Vec2::new(14.0 - (b as f32) * 3.0, 2.5)),
+                CornerRadius::ZERO,
+                Color32::from_rgba_unmultiplied(0, 229, 168, 140),
+            );
+        }
+
+        // 5. Telemetría derecha (exacta a 2027_care.png)
+        painter.text(Pos2::new(center.x + 168.0, center.y - 96.0), Align2::LEFT_CENTER, "3.60000", font_nano.clone(), text_dim);
+        painter.text(Pos2::new(center.x + 178.0, center.y - 84.0), Align2::LEFT_CENTER, "70000", font_nano.clone(), text_dim);
+        painter.text(Pos2::new(center.x + 188.0, center.y - 72.0), Align2::LEFT_CENTER, "15000", font_nano.clone(), text_dim);
+        painter.text(Pos2::new(center.x + 218.0, center.y - 24.0), Align2::LEFT_CENTER, "+30000", font_nano.clone(), text_dim);
+        painter.text(Pos2::new(center.x + 226.0, center.y + 18.0), Align2::LEFT_CENTER, "52000", font_nano.clone(), text_dim);
+        painter.text(Pos2::new(center.x + 178.0, center.y + 76.0), Align2::LEFT_CENTER, "0.020", font_nano.clone(), text_dim);
+        painter.text(Pos2::new(center.x + 178.0, center.y + 88.0), Align2::LEFT_CENTER, "0.300", font_nano, text_dim);
+
+        // Segmento holográfico curvo derecho
+        for a_deg in (15..=45).step_by(5) {
+            let rad = (a_deg as f32).to_radians();
+            let p_arc = Pos2::new(center.x + 154.0 * rad.cos(), center.y + 154.0 * rad.sin());
+            painter.circle_filled(p_arc, 1.2_f32, Color32::from_rgba_unmultiplied(0, 229, 168, 110));
+        }
     }
 }

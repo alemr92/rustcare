@@ -196,67 +196,123 @@ pub fn draw_icon(painter: &Painter, rect: Rect, icon: AppIcon, color: Color32, s
         }
 
         AppIcon::Trash => {
-            let top = rect.min.y + 3.0;
-            let bot = rect.max.y - 2.5;
-            let left = rect.min.x + 4.0;
-            let right = rect.max.x - 4.0;
+            let top = rect.min.y + 4.0;
+            let bot = rect.max.y - 4.0;
+            let left = rect.min.x + 5.0;
+            let right = rect.max.x - 7.0;
 
-            // Asa y tapa
-            painter.line_segment([Pos2::new(c.x - 2.5, top), Pos2::new(c.x + 2.5, top)], stroke);
-            painter.line_segment([Pos2::new(left - 1.5, top + 2.0), Pos2::new(right + 1.5, top + 2.0)], stroke);
+            // Halo volumétrico difuso de fondo
+            painter.circle_filled(c, (w.min(h) * 0.45).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 25));
 
-            // Cuerpo trapezoidal
-            painter.line_segment([Pos2::new(left, top + 2.0), Pos2::new(left + 1.5, bot)], stroke);
-            painter.line_segment([Pos2::new(right, top + 2.0), Pos2::new(right - 1.5, bot)], stroke);
-            painter.line_segment([Pos2::new(left + 1.5, bot), Pos2::new(right - 1.5, bot)], stroke);
+            // Asa y tapa del cubo
+            painter.line_segment([Pos2::new(c.x - 3.0, top - 2.0), Pos2::new(c.x + 3.0, top - 2.0)], stroke);
+            painter.line_segment([Pos2::new(left - 2.0, top), Pos2::new(right + 2.0, top)], stroke);
 
-            // 2 líneas verticales internas
-            painter.line_segment([Pos2::new(c.x - 2.0, top + 4.5), Pos2::new(c.x - 1.5, bot - 2.0)], stroke);
-            painter.line_segment([Pos2::new(c.x + 2.0, top + 4.5), Pos2::new(c.x + 1.5, bot - 2.0)], stroke);
+            // Cuerpo trapezoidal del cubo
+            let p_body = [
+                Pos2::new(left, top),
+                Pos2::new(right, top),
+                Pos2::new(right - 2.0, bot),
+                Pos2::new(left + 2.0, bot),
+            ];
+            painter.line_segment([p_body[0], p_body[3]], stroke);
+            painter.line_segment([p_body[1], p_body[2]], stroke);
+            painter.line_segment([p_body[2], p_body[3]], stroke);
+
+            // Líneas de ranura vertical
+            painter.line_segment([Pos2::new(c.x - 2.5, top + 3.0), Pos2::new(c.x - 2.0, bot - 2.5)], stroke);
+            painter.line_segment([Pos2::new(c.x + 0.5, top + 3.0), Pos2::new(c.x + 0.5, bot - 2.5)], stroke);
+
+            // Engranaje técnico luminoso en esquina inferior derecha (Firma 2027)
+            let g_c = Pos2::new(rect.max.x - 6.0, rect.max.y - 6.0);
+            let g_r = 5.0;
+            painter.circle_stroke(g_c, g_r, Stroke::new(1.2, Color32::from_rgb(56, 189, 248)));
+            painter.circle_filled(g_c, 1.8, Color32::from_rgb(0, 229, 168));
+            for i in 0..6 {
+                let a = (i as f32) * (TAU / 6.0);
+                let p1 = Pos2::new(g_c.x + (g_r - 1.0) * a.cos(), g_c.y + (g_r - 1.0) * a.sin());
+                let p2 = Pos2::new(g_c.x + (g_r + 2.2) * a.cos(), g_c.y + (g_r + 2.2) * a.sin());
+                painter.line_segment([p1, p2], Stroke::new(1.2, Color32::from_rgb(56, 189, 248)));
+            }
         }
 
         AppIcon::Eye => {
-            let left = Pos2::new(rect.min.x + 2.0, c.y);
-            let right = Pos2::new(rect.max.x - 2.0, c.y);
-            let top = Pos2::new(c.x, rect.min.y + 4.0);
-            let bot = Pos2::new(c.x, rect.max.y - 4.0);
+            // Escudo con ojo holográfico (Escudo Privacidad 2027)
+            let top = rect.min.y + 2.5;
+            let bot = rect.max.y - 2.5;
+            let left = rect.min.x + 3.5;
+            let right = rect.max.x - 3.5;
 
-            // Arcos de almendra
-            painter.line_segment([left, top], stroke);
-            painter.line_segment([top, right], stroke);
-            painter.line_segment([right, bot], stroke);
-            painter.line_segment([bot, left], stroke);
+            // Halo difuso
+            painter.circle_filled(c, (w.min(h) * 0.44).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 25));
 
-            // Pupila
-            painter.circle_stroke(c, 3.2, stroke);
-            painter.circle_filled(c, 1.4, color);
+            // Silueta del Escudo exterior
+            let s_pts = [
+                Pos2::new(left, top),
+                Pos2::new(right, top),
+                Pos2::new(right, c.y + 1.0),
+                Pos2::new(c.x, bot),
+                Pos2::new(left, c.y + 1.0),
+                Pos2::new(left, top),
+            ];
+            for win in s_pts.windows(2) {
+                painter.line_segment([win[0], win[1]], stroke);
+            }
+
+            // Ojo holográfico interior
+            let eye_c = Pos2::new(c.x, c.y - 1.0);
+            let e_l = Pos2::new(eye_c.x - 5.5, eye_c.y);
+            let e_r = Pos2::new(eye_c.x + 5.5, eye_c.y);
+            let e_t = Pos2::new(eye_c.x, eye_c.y - 3.5);
+            let e_b = Pos2::new(eye_c.x, eye_c.y + 3.5);
+
+            painter.line_segment([e_l, e_t], Stroke::new(1.2, color));
+            painter.line_segment([e_t, e_r], Stroke::new(1.2, color));
+            painter.line_segment([e_r, e_b], Stroke::new(1.2, color));
+            painter.line_segment([e_b, e_l], Stroke::new(1.2, color));
+
+            painter.circle_filled(eye_c, 1.8, Color32::from_rgb(0, 229, 168));
         }
 
         AppIcon::RamChip => {
-            let left = rect.min.x + 4.5;
-            let right = rect.max.x - 4.5;
-            let top = rect.min.y + 4.0;
-            let bot = rect.max.y - 4.0;
+            // Procesador / Chip RAM con pines y trazas de circuito luminosas
+            let left = rect.min.x + 5.5;
+            let right = rect.max.x - 5.5;
+            let top = rect.min.y + 5.5;
+            let bot = rect.max.y - 5.5;
 
-            // Cuerpo chip
+            painter.circle_filled(c, (w.min(h) * 0.42).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 25));
+
+            // Cuerpo del microchip con bisel
+            painter.rect_filled(
+                Rect::from_min_max(Pos2::new(left, top), Pos2::new(right, bot)),
+                eframe::egui::CornerRadius::same(3),
+                Color32::from_rgba_unmultiplied(0, 229, 168, 30),
+            );
             painter.rect_stroke(
                 Rect::from_min_max(Pos2::new(left, top), Pos2::new(right, bot)),
-                eframe::egui::CornerRadius::same(2),
+                eframe::egui::CornerRadius::same(3),
                 stroke,
                 eframe::egui::StrokeKind::Inside,
             );
 
-            // 4 pines superiores y 4 pines inferiores
+            // Pines de circuito
             let count = 4;
             let step = (right - left) / (count as f32 + 1.0);
             for i in 1..=count {
                 let x = left + step * (i as f32);
-                painter.line_segment([Pos2::new(x, rect.min.y + 1.5), Pos2::new(x, top)], stroke);
-                painter.line_segment([Pos2::new(x, bot), Pos2::new(x, rect.max.y - 1.5)], stroke);
+                painter.line_segment([Pos2::new(x, rect.min.y + 2.0), Pos2::new(x, top)], Stroke::new(1.2, Color32::from_rgb(56, 189, 248)));
+                painter.line_segment([Pos2::new(x, bot), Pos2::new(x, rect.max.y - 2.0)], Stroke::new(1.2, Color32::from_rgb(56, 189, 248)));
+            }
+            let step_y = (bot - top) / (count as f32 + 1.0);
+            for i in 1..=count {
+                let y = top + step_y * (i as f32);
+                painter.line_segment([Pos2::new(rect.min.x + 2.0, y), Pos2::new(left, y)], Stroke::new(1.2, Color32::from_rgb(56, 189, 248)));
+                painter.line_segment([Pos2::new(right, y), Pos2::new(rect.max.x - 2.0, y)], Stroke::new(1.2, Color32::from_rgb(56, 189, 248)));
             }
 
-            // Marca interna
-            painter.circle_filled(Pos2::new(left + 3.0, top + 3.0), 1.0, color);
+            // Núcleo central luminoso
+            painter.circle_filled(c, 2.2, Color32::from_rgb(0, 229, 168));
         }
 
         AppIcon::Briefcase => {
@@ -448,27 +504,45 @@ pub fn draw_icon(painter: &Painter, rect: Rect, icon: AppIcon, color: Color32, s
         }
 
         AppIcon::Brain => {
-            // Cerebro estilizado con circuitos neuronales
+            // Cerebro IA 2027 con halo volumétrico y onda de pulso neuronal
             let r_lobe = (w.min(h) * 0.36).max(5.0);
             let left_cx = c.x - r_lobe * 0.38;
             let right_cx = c.x + r_lobe * 0.38;
+
+            // Halo difuso
+            painter.circle_filled(c, (w.min(h) * 0.44).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 25));
 
             // Lóbulo superior izquierdo y derecho
             painter.circle_stroke(Pos2::new(left_cx, c.y - r_lobe * 0.35), r_lobe * 0.52, Stroke::new(stroke_width, color));
             painter.circle_stroke(Pos2::new(right_cx, c.y - r_lobe * 0.35), r_lobe * 0.52, Stroke::new(stroke_width, color));
 
             // Lóbulo inferior izquierdo y derecho
-            painter.circle_stroke(Pos2::new(left_cx + 1.0, c.y + r_lobe * 0.38), r_lobe * 0.44, Stroke::new(stroke_width, color));
-            painter.circle_stroke(Pos2::new(right_cx - 1.0, c.y + r_lobe * 0.38), r_lobe * 0.44, Stroke::new(stroke_width, color));
+            painter.circle_stroke(Pos2::new(left_cx + 1.0, c.y + r_lobe * 0.28), r_lobe * 0.44, Stroke::new(stroke_width, color));
+            painter.circle_stroke(Pos2::new(right_cx - 1.0, c.y + r_lobe * 0.28), r_lobe * 0.44, Stroke::new(stroke_width, color));
 
             // Hendidura central
-            painter.line_segment([Pos2::new(c.x, c.y - r_lobe * 0.85), Pos2::new(c.x, c.y + r_lobe * 0.82)], stroke);
+            painter.line_segment([Pos2::new(c.x, c.y - r_lobe * 0.85), Pos2::new(c.x, c.y + r_lobe * 0.65)], stroke);
 
-            // Nodos y sinapsis neuronales
-            painter.circle_filled(Pos2::new(left_cx, c.y), 1.6, color);
-            painter.circle_filled(Pos2::new(right_cx, c.y), 1.6, color);
-            painter.line_segment([Pos2::new(left_cx, c.y), Pos2::new(c.x, c.y)], Stroke::new(1.0, color));
-            painter.line_segment([Pos2::new(right_cx, c.y), Pos2::new(c.x, c.y)], Stroke::new(1.0, color));
+            // Nodos y sinapsis neuronales luminosas
+            painter.circle_filled(Pos2::new(left_cx, c.y - 1.0), 1.8, Color32::from_rgb(0, 229, 168));
+            painter.circle_filled(Pos2::new(right_cx, c.y - 1.0), 1.8, Color32::from_rgb(0, 229, 168));
+            painter.line_segment([Pos2::new(left_cx, c.y - 1.0), Pos2::new(c.x, c.y - 1.0)], Stroke::new(1.2, color));
+            painter.line_segment([Pos2::new(right_cx, c.y - 1.0), Pos2::new(c.x, c.y - 1.0)], Stroke::new(1.2, color));
+
+            // Onda de electrocardiograma / pulso vital en la parte inferior
+            let py = c.y + r_lobe * 0.85;
+            let ecg = [
+                Pos2::new(c.x - r_lobe * 0.8, py),
+                Pos2::new(c.x - r_lobe * 0.3, py),
+                Pos2::new(c.x - r_lobe * 0.15, py - 3.5),
+                Pos2::new(c.x, py + 3.0),
+                Pos2::new(c.x + r_lobe * 0.15, py - 2.0),
+                Pos2::new(c.x + r_lobe * 0.3, py),
+                Pos2::new(c.x + r_lobe * 0.8, py),
+            ];
+            for w in ecg.windows(2) {
+                painter.line_segment([w[0], w[1]], Stroke::new(1.2, Color32::from_rgb(0, 229, 168)));
+            }
         }
 
         AppIcon::Folder => {
