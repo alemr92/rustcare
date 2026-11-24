@@ -1,6 +1,7 @@
 //! Vista de Centro de Configuración & Opciones PRO
 //! Reproducción 1:1 de las opciones de Advanced SystemCare (IObit) con árbol de navegación
 use crate::theme::RustCareTheme;
+use crate::widgets::{checkbox_item, danger_button, ghost_button, neon_button};
 use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Margin, Rect, RichText, ScrollArea, Slider, Stroke, Ui, Vec2};
 use rustcare_core::automation::AutomationEngine;
 use rustcare_core::config::{ConfigManager, UserPreferences};
@@ -83,7 +84,7 @@ impl SettingsView {
                         ui,
                         msg,
                         RustCareTheme::ACCENT_TEAL,
-                        Color32::from_rgba_premultiplied(0, 229, 168, 25),
+                        Color32::from_rgba_unmultiplied(14, 165, 233, 25),
                     );
                 }
             });
@@ -122,7 +123,7 @@ impl SettingsView {
         };
         ui.painter().rect_filled(rect, CornerRadius::same(4), bg);
 
-        let arrow = if *expanded { "▾" } else { "▸" };
+        let arrow = if *expanded { "v" } else { ">" };
         let text = format!("{} {}", arrow, title);
         let font_id = FontId::proportional(13.5);
         let text_pos = egui::pos2(rect.min.x + 6.0, rect.center().y);
@@ -137,9 +138,9 @@ impl SettingsView {
     /// Árbol jerárquico de navegación izquierdo idéntico a Advanced SystemCare
     fn render_navigation_sidebar(&mut self, ui: &mut Ui) {
         egui::Frame::NONE
-            .fill(RustCareTheme::SIDEBAR_BG)
+            .fill(RustCareTheme::BG_SIDEBAR)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(6))
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
@@ -148,53 +149,120 @@ impl SettingsView {
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
                         // 1. Ajustes generales
-                        self.render_tree_item(
-                            ui,
-                            "Ajustes generales",
-                            SettingsSection::General,
-                            0,
-                        );
+                        self.render_tree_item(ui, "Ajustes generales", SettingsSection::General, 0);
 
                         // 2. Anti-Spyware
-                        self.render_tree_item(
-                            ui,
-                            "Anti-Spyware",
-                            SettingsSection::AntiSpyware,
-                            0,
-                        );
+                        self.render_tree_item(ui, "Anti-Spyware", SettingsSection::AntiSpyware, 0);
 
-                        // 3. Limpiar y optimizar (Desplegable con flecha)
-                        let mut expand_clean = self.expand_clean_optimize;
-                        self.render_category_header(ui, "Limpiar y optimizar", &mut expand_clean);
-                        self.expand_clean_optimize = expand_clean;
+                        // 3. Limpiar y optimizar (Desplegable)
+                        let mut exp_clean = self.expand_clean_optimize;
+                        self.render_category_header(ui, "Limpiar y optimizar", &mut exp_clean);
+                        self.expand_clean_optimize = exp_clean;
 
                         if self.expand_clean_optimize {
-                            self.render_tree_item(ui, "Eliminador de Spyware", SettingsSection::SpywareRemover, 16);
-                            self.render_tree_item(ui, "Limpiador de registro", SettingsSection::RegistryCleaner, 16);
-                            self.render_tree_item(ui, "Limpieza de privacidad", SettingsSection::PrivacyCleaner, 16);
-                            self.render_tree_item(ui, "Limpiador de archivos basura", SettingsSection::JunkFilesCleaner, 16);
-                            self.render_tree_item(ui, "Optimización del Sistema", SettingsSection::SystemOptimization, 16);
-                            self.render_tree_item(ui, "Acelerador de Internet", SettingsSection::InternetBooster, 16);
-                            self.render_tree_item(ui, "Refuerzo de seguridad", SettingsSection::SecurityReinforce, 16);
-                            self.render_tree_item(ui, "Soluciones de vulnerabilidades", SettingsSection::VulnerabilityFixes, 16);
-                            self.render_tree_item(ui, "Optimización de disco", SettingsSection::DiskOptimization, 16);
+                            self.render_tree_item(
+                                ui,
+                                "Eliminador de Spyware",
+                                SettingsSection::SpywareRemover,
+                                12,
+                            );
+                            self.render_tree_item(
+                                ui,
+                                "Limpiador de registro",
+                                SettingsSection::RegistryCleaner,
+                                12,
+                            );
+                            self.render_tree_item(
+                                ui,
+                                "Limpieza de privacidad",
+                                SettingsSection::PrivacyCleaner,
+                                12,
+                            );
+                            self.render_tree_item(
+                                ui,
+                                "Limpiador de archivos basura",
+                                SettingsSection::JunkFilesCleaner,
+                                12,
+                            );
+                            self.render_tree_item(
+                                ui,
+                                "Optimización del Sistema",
+                                SettingsSection::SystemOptimization,
+                                12,
+                            );
+                            self.render_tree_item(
+                                ui,
+                                "Acelerador de Internet",
+                                SettingsSection::InternetBooster,
+                                12,
+                            );
+                            self.render_tree_item(
+                                ui,
+                                "Refuerzo de seguridad",
+                                SettingsSection::SecurityReinforce,
+                                12,
+                            );
+                            self.render_tree_item(
+                                ui,
+                                "Soluciones de vulnerabilidades",
+                                SettingsSection::VulnerabilityFixes,
+                                12,
+                            );
+                            self.render_tree_item(
+                                ui,
+                                "Optimización de disco",
+                                SettingsSection::DiskOptimization,
+                                12,
+                            );
                         }
 
-                        // 4. Servicio automático (Desplegable con flecha)
-                        let mut expand_auto = self.expand_auto_service;
-                        self.render_category_header(ui, "Servicio automático", &mut expand_auto);
-                        self.expand_auto_service = expand_auto;
+                        // 4. Servicio automático (Desplegable)
+                        let mut exp_auto = self.expand_auto_service;
+                        self.render_category_header(ui, "Servicio automático", &mut exp_auto);
+                        self.expand_auto_service = exp_auto;
 
                         if self.expand_auto_service {
-                            self.render_tree_item(ui, "Auto Cuidador", SettingsSection::AutoCare, 16);
-                            self.render_tree_item(ui, "Auto Limpiador", SettingsSection::AutoCleaner, 16);
-                            self.render_tree_item(ui, "Auto Actualizador", SettingsSection::AutoUpdater, 16);
-                            self.render_tree_item(ui, "Auto Limpiador de RAM", SettingsSection::AutoRamCleaner, 16);
-                            self.render_tree_item(ui, "Limpieza personalizada", SettingsSection::CustomCleaning, 16);
-                            self.render_tree_item(ui, "Lista de ignorados", SettingsSection::IgnoreList, 16);
-                            self.render_tree_item(ui, "Registros y copias de seguridad", SettingsSection::LogsAndBackups, 16);
-                            self.render_tree_item(ui, "Notificaciones", SettingsSection::Notifications, 16);
+                            self.render_tree_item(ui, "Auto Cuidador", SettingsSection::AutoCare, 12);
+                            self.render_tree_item(ui, "Auto Limpiador", SettingsSection::AutoCleaner, 12);
+                            self.render_tree_item(
+                                ui,
+                                "Auto Actualizador",
+                                SettingsSection::AutoUpdater,
+                                12,
+                            );
                         }
+
+                        // 5. Categorías inferiores
+                        self.render_tree_item(
+                            ui,
+                            "Auto Limpiador de RAM",
+                            SettingsSection::AutoRamCleaner,
+                            0,
+                        );
+                        self.render_tree_item(
+                            ui,
+                            "Limpieza personalizada",
+                            SettingsSection::CustomCleaning,
+                            0,
+                        );
+                        self.render_tree_item(
+                            ui,
+                            "Lista de ignorados",
+                            SettingsSection::IgnoreList,
+                            0,
+                        );
+                        self.render_tree_item(
+                            ui,
+                            "Registros y copias de seguridad",
+                            SettingsSection::LogsAndBackups,
+                            0,
+                        );
+                        self.render_tree_item(
+                            ui,
+                            "Notificaciones",
+                            SettingsSection::Notifications,
+                            0,
+                        );
                     });
             });
     }
@@ -253,25 +321,24 @@ impl SettingsView {
 
     /// Panel de Controles Derecho con Scroll y Barra Inferior de Acción
     fn render_right_content_panel(&mut self, ui: &mut Ui) {
-        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
-        let scroll_h = (ui.available_height() - 52.0).max(180.0);
+        let scroll_area_height = (ui.available_height() - 48.0).max(300.0);
 
         ScrollArea::vertical()
-            .id_salt("settings_right_panel_scroll")
+            .id_salt("settings_right_content_scroll")
+            .max_height(scroll_area_height)
             .auto_shrink([false, false])
-            .max_height(scroll_h)
             .show(ui, |ui| {
-                ui.set_width(ui.available_width() - 8.0);
+                ui.set_width(ui.available_width() - 12.0);
+
                 match self.selected_section {
                     SettingsSection::General => self.render_general_screen(ui),
+                    SettingsSection::AntiSpyware => self.render_antispyware_screen(ui),
+                    SettingsSection::SpywareRemover => self.render_antispyware_screen(ui),
                     SettingsSection::RegistryCleaner => self.render_registry_screen(ui),
                     SettingsSection::PrivacyCleaner => self.render_privacy_screen(ui),
                     SettingsSection::JunkFilesCleaner => self.render_junk_screen(ui),
                     SettingsSection::SystemOptimization => self.render_system_opt_screen(ui),
                     SettingsSection::InternetBooster => self.render_internet_booster_screen(ui),
-                    SettingsSection::AntiSpyware | SettingsSection::SpywareRemover => {
-                        self.render_antispyware_screen(ui)
-                    }
                     SettingsSection::SecurityReinforce => self.render_security_screen(ui),
                     SettingsSection::VulnerabilityFixes => self.render_vulnerability_screen(ui),
                     SettingsSection::DiskOptimization => self.render_disk_opt_screen(ui),
@@ -284,44 +351,26 @@ impl SettingsView {
                     SettingsSection::LogsAndBackups => self.render_backups_screen(ui),
                     SettingsSection::Notifications => self.render_notifications_screen(ui),
                 }
+
+                ui.add_space(20.0);
             });
 
-        ui.add_space(4.0);
         ui.separator();
         ui.add_space(4.0);
 
         // Barra de Botones Inferior de Acción (Restablecer, Aplicar, Guardar)
         ui.horizontal(|ui| {
-            if ui
-                .button(
-                    RichText::new("↺ Restablecer predeterminados")
-                        .color(RustCareTheme::TEXT_MUTED),
-                )
-                .clicked()
-            {
+            if ghost_button(ui, "Restablecer predeterminados", Some(200.0)).clicked() {
                 self.prefs = UserPreferences::default();
                 self.status_message = Some("Preferencias restablecidas a los valores originales.".into());
             }
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui
-                    .add_sized(
-                        [180.0, 32.0],
-                        egui::Button::new(
-                            RichText::new("💾 Guardar y Aplicar")
-                                .size(13.0)
-                                .strong()
-                                .color(Color32::WHITE),
-                        )
-                        .fill(RustCareTheme::SUCCESS_GREEN)
-                        .corner_radius(CornerRadius::same(6)),
-                    )
-                    .clicked()
-                {
+                if neon_button(ui, "Guardar y Aplicar", Some(160.0)).clicked() {
                     let _ = AutomationEngine::set_autostart(self.prefs.auto_start_with_system);
                     if let Ok(()) = ConfigManager::save(&self.prefs) {
                         self.status_message =
-                            Some("¡Configuración guardada y aplicada con éxito!".into());
+                            Some("Configuración guardada y aplicada con éxito.".into());
                     }
                 }
             });
@@ -340,41 +389,45 @@ impl SettingsView {
         );
         ui.add_space(10.0);
 
-        ui.checkbox(
+        checkbox_item(
+            ui,
             &mut self.prefs.minimize_to_tray_on_close,
             "Minimizar a Bandeja de Sistema al cerrar programa.",
         );
 
         ui.horizontal(|ui| {
             let mut tray_boot = self.prefs.autostart_tray_on_boot;
-            if ui
-                .checkbox(
-                    &mut tray_boot,
-                    "Cargar Bandeja de Advanced SystemCare al inicio de Windows",
-                )
-                .changed()
+            if checkbox_item(
+                ui,
+                &mut tray_boot,
+                "Cargar Bandeja de Advanced SystemCare al inicio de Windows",
+            )
+            .changed()
             {
                 self.prefs.autostart_tray_on_boot = tray_boot;
                 self.prefs.auto_start_with_system = tray_boot;
                 let _ = AutomationEngine::set_autostart(tray_boot);
             }
-            ui.label(RichText::new("ⓘ").color(RustCareTheme::ACCENT_CYAN));
+            ui.label(RichText::new("(i)").color(RustCareTheme::ACCENT_CYAN));
         });
 
         ui.horizontal(|ui| {
-            ui.checkbox(
+            checkbox_item(
+                ui,
                 &mut self.prefs.autostart_service_on_boot,
                 "Cargar Servicio Advanced SystemCare al inicio de Windows",
             );
-            ui.label(RichText::new("ⓘ").color(RustCareTheme::ACCENT_CYAN));
+            ui.label(RichText::new("(i)").color(RustCareTheme::ACCENT_CYAN));
         });
 
-        ui.checkbox(
+        checkbox_item(
+            ui,
             &mut self.prefs.skip_uac_warning,
             "Saltar advertencia Control de Cuenta de Usuario.",
         );
 
-        ui.checkbox(
+        checkbox_item(
+            ui,
             &mut self.prefs.enable_perf_monitor,
             "Habilitar Monitor de Rendimiento.",
         );
@@ -396,18 +449,18 @@ impl SettingsView {
 
         // Cuadro con borde para opciones del menú contextual
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(12))
             .show(ui, |ui| {
-                ui.checkbox(&mut self.prefs.ctx_recover_file, "Recuperar Archivo");
-                ui.checkbox(&mut self.prefs.ctx_destroy_file, "Destruir Archivo");
-                ui.checkbox(&mut self.prefs.ctx_fix_shortcut, "Reparar Acceso Directo");
-                ui.checkbox(&mut self.prefs.ctx_sweep_privacy, "Barrer Privacidad");
-                ui.checkbox(&mut self.prefs.ctx_repair_disk, "Reparar Disco");
-                ui.checkbox(&mut self.prefs.ctx_clean_disk, "Limpiar Disco");
-                ui.checkbox(&mut self.prefs.ctx_defrag_disk, "Desfragmentar Disco");
+                checkbox_item(ui, &mut self.prefs.ctx_recover_file, "Recuperar Archivo");
+                checkbox_item(ui, &mut self.prefs.ctx_destroy_file, "Destruir Archivo");
+                checkbox_item(ui, &mut self.prefs.ctx_fix_shortcut, "Reparar Acceso Directo");
+                checkbox_item(ui, &mut self.prefs.ctx_sweep_privacy, "Barrer Privacidad");
+                checkbox_item(ui, &mut self.prefs.ctx_repair_disk, "Reparar Disco");
+                checkbox_item(ui, &mut self.prefs.ctx_clean_disk, "Limpiar Disco");
+                checkbox_item(ui, &mut self.prefs.ctx_defrag_disk, "Desfragmentar Disco");
             });
     }
 
@@ -431,35 +484,35 @@ impl SettingsView {
 
         // Caja con lista de 13 elementos seleccionables
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(10))
             .show(ui, |ui| {
                 ScrollArea::vertical()
                     .id_salt("registry_items_scroll")
                     .max_height(230.0)
                     .show(ui, |ui| {
-                        ui.checkbox(&mut self.prefs.reg_activex, "ActiveX y Componente");
-                        ui.checkbox(&mut self.prefs.reg_integrity, "Integridad de Registro");
-                        ui.checkbox(&mut self.prefs.reg_app_paths, "Rutas de Aplicaciones");
-                        ui.checkbox(&mut self.prefs.reg_fonts, "Fuentes");
-                        ui.checkbox(&mut self.prefs.reg_help_files, "Archivos de Ayuda");
-                        ui.checkbox(&mut self.prefs.reg_history_lists, "Listas de Historiales");
-                        ui.checkbox(&mut self.prefs.reg_shared_files, "Archivos Compartidos");
-                        ui.checkbox(&mut self.prefs.reg_shortcuts, "Accesos Directos");
-                        ui.checkbox(&mut self.prefs.reg_software, "Software");
-                        ui.checkbox(&mut self.prefs.reg_sounds, "Sonidos");
-                        ui.checkbox(&mut self.prefs.reg_start_menu, "Menú de Inicio");
-                        ui.checkbox(&mut self.prefs.reg_startup_items, "Elementos de Inicio");
-                        ui.checkbox(&mut self.prefs.reg_mui_cache, "Caché MUI");
+                        checkbox_item(ui, &mut self.prefs.reg_activex, "ActiveX y Componente");
+                        checkbox_item(ui, &mut self.prefs.reg_integrity, "Integridad de Registro");
+                        checkbox_item(ui, &mut self.prefs.reg_app_paths, "Rutas de Aplicaciones");
+                        checkbox_item(ui, &mut self.prefs.reg_fonts, "Fuentes");
+                        checkbox_item(ui, &mut self.prefs.reg_help_files, "Archivos de Ayuda");
+                        checkbox_item(ui, &mut self.prefs.reg_history_lists, "Listas de Historiales");
+                        checkbox_item(ui, &mut self.prefs.reg_shared_files, "Archivos Compartidos");
+                        checkbox_item(ui, &mut self.prefs.reg_shortcuts, "Accesos Directos");
+                        checkbox_item(ui, &mut self.prefs.reg_software, "Software");
+                        checkbox_item(ui, &mut self.prefs.reg_sounds, "Sonidos");
+                        checkbox_item(ui, &mut self.prefs.reg_start_menu, "Menú de Inicio");
+                        checkbox_item(ui, &mut self.prefs.reg_startup_items, "Elementos de Inicio");
+                        checkbox_item(ui, &mut self.prefs.reg_mui_cache, "Caché MUI");
                     });
             });
 
         ui.add_space(10.0);
 
         ui.horizontal(|ui| {
-            ui.checkbox(&mut self.prefs.reg_deep_clean, "Limpieza Profunda");
+            checkbox_item(ui, &mut self.prefs.reg_deep_clean, "Limpieza Profunda");
             RustCareTheme::draw_badge(
                 ui,
                 "PRO",
@@ -495,9 +548,9 @@ impl SettingsView {
 
         // Cuadro con lista jerárquica de navegadores
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(10))
             .show(ui, |ui| {
                 ScrollArea::vertical()
@@ -506,50 +559,50 @@ impl SettingsView {
                     .show(ui, |ui| {
                         // Microsoft Edge
                         ui.collapsing(RichText::new("Edge").strong().color(Color32::WHITE), |ui| {
-                            ui.checkbox(&mut self.prefs.edge_cache, "Caché de Internet");
-                            ui.checkbox(&mut self.prefs.edge_cookies, "Cookie");
-                            ui.checkbox(&mut self.prefs.edge_history, "Historial");
-                            ui.checkbox(&mut self.prefs.edge_downloads, "Historial de Descargas");
-                            ui.checkbox(&mut self.prefs.edge_session, "Sesión");
-                            ui.checkbox(&mut self.prefs.edge_autofill_form, "Formulario de Autocompletado");
-                            ui.checkbox(&mut self.prefs.edge_autofill_passwords, "Contraseña de Autocompletado");
-                            ui.checkbox(&mut self.prefs.edge_metrics, "Archivos temporales de métrica");
-                            ui.checkbox(&mut self.prefs.edge_bookmarks_backup, "Copia de seguridad de los marcadores");
-                            ui.checkbox(&mut self.prefs.edge_compact_db, "Base de Datos Compacta");
-                            ui.checkbox(&mut self.prefs.edge_site_characteristics, "Site Characteristics Database");
+                            checkbox_item(ui, &mut self.prefs.edge_cache, "Caché de Internet");
+                            checkbox_item(ui, &mut self.prefs.edge_cookies, "Cookie");
+                            checkbox_item(ui, &mut self.prefs.edge_history, "Historial");
+                            checkbox_item(ui, &mut self.prefs.edge_downloads, "Historial de Descargas");
+                            checkbox_item(ui, &mut self.prefs.edge_session, "Sesión");
+                            checkbox_item(ui, &mut self.prefs.edge_autofill_form, "Formulario de Autocompletado");
+                            checkbox_item(ui, &mut self.prefs.edge_autofill_passwords, "Contraseña de Autocompletado");
+                            checkbox_item(ui, &mut self.prefs.edge_metrics, "Archivos temporales de métrica");
+                            checkbox_item(ui, &mut self.prefs.edge_bookmarks_backup, "Copia de seguridad de los marcadores");
+                            checkbox_item(ui, &mut self.prefs.edge_compact_db, "Base de Datos Compacta");
+                            checkbox_item(ui, &mut self.prefs.edge_site_characteristics, "Site Characteristics Database");
                         });
 
                         // Google Chrome
                         ui.collapsing(RichText::new("Google Chrome").strong().color(Color32::WHITE), |ui| {
-                            ui.checkbox(&mut self.prefs.chrome_cache, "Caché de Internet");
-                            ui.checkbox(&mut self.prefs.chrome_cookies, "Cookie");
-                            ui.checkbox(&mut self.prefs.chrome_history, "Historial");
-                            ui.checkbox(&mut self.prefs.chrome_downloads, "Historial de Descargas");
-                            ui.checkbox(&mut self.prefs.chrome_session, "Sesión");
-                            ui.checkbox(&mut self.prefs.chrome_autofill_form, "Formulario de Autocompletado");
-                            ui.checkbox(&mut self.prefs.chrome_autofill_passwords, "Contraseña de Autocompletado");
-                            ui.checkbox(&mut self.prefs.chrome_metrics, "Archivos temporales de métrica");
-                            ui.checkbox(&mut self.prefs.chrome_bookmarks_backup, "Copia de seguridad de marcadores");
-                            ui.checkbox(&mut self.prefs.chrome_compact_db, "Base de Datos Compacta");
+                            checkbox_item(ui, &mut self.prefs.chrome_cache, "Caché de Internet");
+                            checkbox_item(ui, &mut self.prefs.chrome_cookies, "Cookie");
+                            checkbox_item(ui, &mut self.prefs.chrome_history, "Historial");
+                            checkbox_item(ui, &mut self.prefs.chrome_downloads, "Historial de Descargas");
+                            checkbox_item(ui, &mut self.prefs.chrome_session, "Sesión");
+                            checkbox_item(ui, &mut self.prefs.chrome_autofill_form, "Formulario de Autocompletado");
+                            checkbox_item(ui, &mut self.prefs.chrome_autofill_passwords, "Contraseña de Autocompletado");
+                            checkbox_item(ui, &mut self.prefs.chrome_metrics, "Archivos temporales de métrica");
+                            checkbox_item(ui, &mut self.prefs.chrome_bookmarks_backup, "Copia de seguridad de marcadores");
+                            checkbox_item(ui, &mut self.prefs.chrome_compact_db, "Base de Datos Compacta");
                         });
 
                         // Mozilla Firefox
                         ui.collapsing(RichText::new("Mozilla Firefox").strong().color(Color32::WHITE), |ui| {
-                            ui.checkbox(&mut self.prefs.firefox_cache, "Caché de Internet");
-                            ui.checkbox(&mut self.prefs.firefox_cookies, "Cookie");
-                            ui.checkbox(&mut self.prefs.firefox_history, "Historial");
-                            ui.checkbox(&mut self.prefs.firefox_downloads, "Historial de Descargas");
-                            ui.checkbox(&mut self.prefs.firefox_session, "Sesión");
-                            ui.checkbox(&mut self.prefs.firefox_compact_db, "Base de Datos Compacta");
+                            checkbox_item(ui, &mut self.prefs.firefox_cache, "Caché de Internet");
+                            checkbox_item(ui, &mut self.prefs.firefox_cookies, "Cookie");
+                            checkbox_item(ui, &mut self.prefs.firefox_history, "Historial");
+                            checkbox_item(ui, &mut self.prefs.firefox_downloads, "Historial de Descargas");
+                            checkbox_item(ui, &mut self.prefs.firefox_session, "Sesión");
+                            checkbox_item(ui, &mut self.prefs.firefox_compact_db, "Base de Datos Compacta");
                         });
 
                         // Brave Browser
                         ui.collapsing(RichText::new("Brave Browser").strong().color(Color32::WHITE), |ui| {
-                            ui.checkbox(&mut self.prefs.brave_cache, "Caché de Internet");
-                            ui.checkbox(&mut self.prefs.brave_cookies, "Cookie");
-                            ui.checkbox(&mut self.prefs.brave_history, "Historial");
-                            ui.checkbox(&mut self.prefs.brave_downloads, "Historial de Descargas");
-                            ui.checkbox(&mut self.prefs.brave_compact_db, "Base de Datos Compacta (VACUUM)");
+                            checkbox_item(ui, &mut self.prefs.brave_cache, "Caché de Internet");
+                            checkbox_item(ui, &mut self.prefs.brave_cookies, "Cookie");
+                            checkbox_item(ui, &mut self.prefs.brave_history, "Historial");
+                            checkbox_item(ui, &mut self.prefs.brave_downloads, "Historial de Descargas");
+                            checkbox_item(ui, &mut self.prefs.brave_compact_db, "Base de Datos Compacta (VACUUM)");
                         });
                     });
             });
@@ -564,26 +617,28 @@ impl SettingsView {
 
         // Cuadro de cuentas de usuario
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(10))
             .show(ui, |ui| {
-                ui.checkbox(
+                checkbox_item(
+                    ui,
                     &mut self.prefs.privacy_clean_user_account,
                     &self.current_username,
                 );
             });
 
         ui.add_space(8.0);
-        ui.checkbox(
+        checkbox_item(
+            ui,
             &mut self.prefs.privacy_dod_wipe,
             "Habilitar Borrado Seguro de Archivo DOD 5220.22-M (Lento)",
         );
 
         ui.horizontal(|ui| {
             let mut keep = true;
-            ui.checkbox(&mut keep, "Mantener el último historial del navegador web");
+            checkbox_item(ui, &mut keep, "Mantener el último historial del navegador web");
             ui.add_space(6.0);
             egui::ComboBox::from_id_salt("combo_privacy_duration")
                 .selected_text(&self.prefs.privacy_keep_history_duration)
@@ -632,25 +687,25 @@ impl SettingsView {
 
         // Cuadro con lista de 10 elementos de basura
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(10))
             .show(ui, |ui| {
                 ScrollArea::vertical()
                     .id_salt("junk_items_scroll")
                     .max_height(210.0)
                     .show(ui, |ui| {
-                        ui.checkbox(&mut self.prefs.junk_recycle_bin, "Papelera de Reciclaje de Windows");
-                        ui.checkbox(&mut self.prefs.junk_windows_temp, "Archivos Temporales de Windows");
-                        ui.checkbox(&mut self.prefs.junk_ie_edge_temp, "Archivos Temporales de IE");
-                        ui.checkbox(&mut self.prefs.junk_directx_cache, "Caché DirectX Shader");
-                        ui.checkbox(&mut self.prefs.junk_clipboard, "Portapapeles");
-                        ui.checkbox(&mut self.prefs.junk_memory_dumps, "Volcados de Memoria");
-                        ui.checkbox(&mut self.prefs.junk_chkdsk_fragments, "Fragmentos de Archivos Chkdsk");
-                        ui.checkbox(&mut self.prefs.junk_windows_logs, "Archivos de registro de Windows");
-                        ui.checkbox(&mut self.prefs.junk_error_reporting, "Informe de Errores de Windows");
-                        ui.checkbox(&mut self.prefs.junk_dns_cache, "Caché DNS");
+                        checkbox_item(ui, &mut self.prefs.junk_recycle_bin, "Papelera de Reciclaje de Windows");
+                        checkbox_item(ui, &mut self.prefs.junk_windows_temp, "Archivos Temporales de Windows");
+                        checkbox_item(ui, &mut self.prefs.junk_ie_edge_temp, "Archivos Temporales de IE");
+                        checkbox_item(ui, &mut self.prefs.junk_directx_cache, "Caché DirectX Shader");
+                        checkbox_item(ui, &mut self.prefs.junk_clipboard, "Portapapeles");
+                        checkbox_item(ui, &mut self.prefs.junk_memory_dumps, "Volcados de Memoria");
+                        checkbox_item(ui, &mut self.prefs.junk_chkdsk_fragments, "Fragmentos de Archivos Chkdsk");
+                        checkbox_item(ui, &mut self.prefs.junk_windows_logs, "Archivos de registro de Windows");
+                        checkbox_item(ui, &mut self.prefs.junk_error_reporting, "Informe de Errores de Windows");
+                        checkbox_item(ui, &mut self.prefs.junk_dns_cache, "Caché DNS");
                     });
             });
 
@@ -664,26 +719,29 @@ impl SettingsView {
 
         // Cuadro de usuario
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(10))
             .show(ui, |ui| {
-                ui.checkbox(
+                checkbox_item(
+                    ui,
                     &mut self.prefs.junk_clean_user_account,
                     &self.current_username,
                 );
             });
 
         ui.add_space(8.0);
-        ui.checkbox(
+        checkbox_item(
+            ui,
             &mut self.prefs.junk_dod_wipe,
             "Borrado Seguro de Archivo DOD 5220.22-M (Lento)",
         );
 
         ui.horizontal(|ui| {
             let mut keep_temp = true;
-            ui.checkbox(
+            checkbox_item(
+                ui,
                 &mut keep_temp,
                 "Mantener los últimos archivos temporales y dumpeos de Windows",
             );
@@ -711,7 +769,8 @@ impl SettingsView {
 
         ui.horizontal(|ui| {
             let mut keep_recycle = true;
-            ui.checkbox(
+            checkbox_item(
+                ui,
                 &mut keep_recycle,
                 "Mantener los últimos archivos de la papelera de reciclaje",
             );
@@ -892,7 +951,8 @@ impl SettingsView {
         );
 
         ui.add_space(14.0);
-        ui.checkbox(
+        checkbox_item(
+            ui,
             &mut self.prefs.network_advanced_opt,
             "Habilitar Optimización de Red Avanzada",
         );
@@ -910,15 +970,15 @@ impl SettingsView {
         ui.label(RichText::new("Anti-Spyware & Eliminador de Amenazas").size(18.0).strong().color(Color32::WHITE));
         ui.add_space(10.0);
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(12))
             .show(ui, |ui| {
-                ui.checkbox(&mut self.prefs.spyware_realtime_shield, "Escudo de Protección en Tiempo Real (Spyware Shield)");
-                ui.checkbox(&mut self.prefs.spyware_heuristic_scan, "Análisis heurístico de procesos activos y binarios sospechosos");
+                checkbox_item(ui, &mut self.prefs.spyware_realtime_shield, "Escudo de Protección en Tiempo Real (Spyware Shield)");
+                checkbox_item(ui, &mut self.prefs.spyware_heuristic_scan, "Análisis heurístico de procesos activos y binarios sospechosos");
                 ui.separator();
-                ui.checkbox(&mut self.prefs.auto_update_definitions, "Actualizar automáticamente la base de firmas de amenazas");
+                checkbox_item(ui, &mut self.prefs.auto_update_definitions, "Actualizar automáticamente la base de firmas de amenazas");
             });
     }
 
@@ -926,14 +986,14 @@ impl SettingsView {
         ui.label(RichText::new("Refuerzo de seguridad de Windows").size(18.0).strong().color(Color32::WHITE));
         ui.add_space(10.0);
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(12))
             .show(ui, |ui| {
-                ui.checkbox(&mut self.prefs.security_reinforce_rdp, "Deshabilitar Escritorio Remoto (RDP) no solicitado");
-                ui.checkbox(&mut self.prefs.security_reinforce_smb, "Bloquear protocolo vulnerable SMBv1 en la red local");
-                ui.checkbox(&mut self.prefs.security_reinforce_uac, "Forzar validación estricta de Control de Cuentas de Usuario");
+                checkbox_item(ui, &mut self.prefs.security_reinforce_rdp, "Deshabilitar Escritorio Remoto (RDP) no solicitado");
+                checkbox_item(ui, &mut self.prefs.security_reinforce_smb, "Bloquear protocolo vulnerable SMBv1 en la red local");
+                checkbox_item(ui, &mut self.prefs.security_reinforce_uac, "Forzar validación estricta de Control de Cuentas de Usuario");
             });
     }
 
@@ -941,12 +1001,12 @@ impl SettingsView {
         ui.label(RichText::new("Soluciones de vulnerabilidades").size(18.0).strong().color(Color32::WHITE));
         ui.add_space(10.0);
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(12))
             .show(ui, |ui| {
-                ui.checkbox(&mut self.prefs.vuln_auto_scan_winget, "Auditar parches de seguridad de aplicaciones instaladas con WinGet");
+                checkbox_item(ui, &mut self.prefs.vuln_auto_scan_winget, "Auditar parches de seguridad de aplicaciones instaladas con WinGet");
                 ui.label(RichText::new("Detecta bibliotecas obsoletas y componentes desactualizados automáticamente.").small().color(RustCareTheme::TEXT_MUTED));
             });
     }
@@ -955,13 +1015,13 @@ impl SettingsView {
         ui.label(RichText::new("Optimización de disco").size(18.0).strong().color(Color32::WHITE));
         ui.add_space(10.0);
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(12))
             .show(ui, |ui| {
-                ui.checkbox(&mut self.prefs.disk_opt_enable_trim, "Habilitar comando TRIM periódico para unidades SSD");
-                ui.checkbox(&mut self.prefs.disk_opt_defrag_hdd, "Desfragmentación organizada para discos magnéticos (HDD)");
+                checkbox_item(ui, &mut self.prefs.disk_opt_enable_trim, "Habilitar comando TRIM periódico para unidades SSD");
+                checkbox_item(ui, &mut self.prefs.disk_opt_defrag_hdd, "Desfragmentación organizada para discos magnéticos (HDD)");
             });
     }
 
@@ -969,13 +1029,13 @@ impl SettingsView {
         ui.label(RichText::new("Auto Cuidador (Mantenimiento Desatendido)").size(18.0).strong().color(Color32::WHITE));
         ui.add_space(10.0);
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(12))
             .show(ui, |ui| {
-                ui.checkbox(&mut self.prefs.auto_care_idle_only, "Ejecutar mantenimiento automático únicamente cuando el equipo esté inactivo");
-                ui.checkbox(&mut self.prefs.auto_care_battery_pause, "Pausar tareas automáticas si el portátil está funcionando con batería");
+                checkbox_item(ui, &mut self.prefs.auto_care_idle_only, "Ejecutar mantenimiento automático únicamente cuando el equipo esté inactivo");
+                checkbox_item(ui, &mut self.prefs.auto_care_battery_pause, "Pausar tareas automáticas si el portátil está funcionando con batería");
             });
     }
 
@@ -983,13 +1043,13 @@ impl SettingsView {
         ui.label(RichText::new("Auto Limpiador").size(18.0).strong().color(Color32::WHITE));
         ui.add_space(10.0);
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(12))
             .show(ui, |ui| {
-                ui.checkbox(&mut self.prefs.auto_clean_on_browser_close, "Limpiar rastros de privacidad automáticamente al cerrar navegadores");
-                ui.checkbox(&mut self.prefs.auto_clean_on_shutdown, "Vaciar archivos temporales al apagar el equipo");
+                checkbox_item(ui, &mut self.prefs.auto_clean_on_browser_close, "Limpiar rastros de privacidad automáticamente al cerrar navegadores");
+                checkbox_item(ui, &mut self.prefs.auto_clean_on_shutdown, "Vaciar archivos temporales al apagar el equipo");
             });
     }
 
@@ -997,13 +1057,13 @@ impl SettingsView {
         ui.label(RichText::new("Auto Actualizador").size(18.0).strong().color(Color32::WHITE));
         ui.add_space(10.0);
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(12))
             .show(ui, |ui| {
-                ui.checkbox(&mut self.prefs.auto_update_definitions, "Actualizar bases de datos de software y firmas en segundo plano");
-                ui.checkbox(&mut self.prefs.auto_update_app, "Notificar y actualizar RustCare a nuevas versiones estables");
+                checkbox_item(ui, &mut self.prefs.auto_update_definitions, "Actualizar bases de datos de software y firmas en segundo plano");
+                checkbox_item(ui, &mut self.prefs.auto_update_app, "Notificar y actualizar RustCare a nuevas versiones estables");
             });
     }
 
@@ -1011,12 +1071,12 @@ impl SettingsView {
         ui.label(RichText::new("Auto Limpiador de RAM").size(18.0).strong().color(Color32::WHITE));
         ui.add_space(10.0);
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(12))
             .show(ui, |ui| {
-                ui.checkbox(&mut self.prefs.auto_ram_boost_enabled, "Habilitar vaciado inteligente de memoria de trabajo (EmptyWorkingSet)");
+                checkbox_item(ui, &mut self.prefs.auto_ram_boost_enabled, "Habilitar vaciado inteligente de memoria de trabajo (EmptyWorkingSet)");
                 if self.prefs.auto_ram_boost_enabled {
                     ui.add_space(6.0);
                     ui.horizontal(|ui| {
@@ -1032,9 +1092,9 @@ impl SettingsView {
         ui.add_space(10.0);
         ui.label(RichText::new("Ajusta los umbrales de advertencia de espacio residual:").color(RustCareTheme::TEXT_MUTED));
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(12))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -1051,15 +1111,15 @@ impl SettingsView {
         ui.add_space(8.0);
 
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(12))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Ruta a excluir:");
                     ui.text_edit_singleline(&mut self.new_exclusion_path);
-                    if ui.button("➕ Añadir").clicked() && !self.new_exclusion_path.trim().is_empty() {
+                    if neon_button(ui, "Añadir", Some(80.0)).clicked() && !self.new_exclusion_path.trim().is_empty() {
                         let path = self.new_exclusion_path.trim().to_string();
                         if !self.prefs.excluded_paths.contains(&path) {
                             self.prefs.excluded_paths.push(path);
@@ -1076,7 +1136,7 @@ impl SettingsView {
                     for (i, p) in self.prefs.excluded_paths.iter().enumerate() {
                         ui.horizontal(|ui| {
                             ui.label(format!("• {}", p));
-                            if ui.small_button("❌ Quitar").clicked() {
+                            if danger_button(ui, "Quitar", Some(70.0)).clicked() {
                                 to_remove = Some(i);
                             }
                         });
@@ -1092,13 +1152,13 @@ impl SettingsView {
         ui.label(RichText::new("Registros y copias de seguridad").size(18.0).strong().color(Color32::WHITE));
         ui.add_space(10.0);
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(12))
             .show(ui, |ui| {
-                ui.checkbox(&mut self.prefs.registry_auto_backup, "Crear copia de seguridad del registro (.reg) antes de cada reparación");
-                ui.label(RichText::new("Las copias se almacenan de forma segura y pueden restaurarse en cualquier momento desde el Centro de Rescate.").small().color(RustCareTheme::SUCCESS_GREEN));
+                checkbox_item(ui, &mut self.prefs.registry_auto_backup, "Crear copia de seguridad del registro (.reg) antes de cada reparación");
+                ui.label(RichText::new("Las copias se almacenan de forma segura y pueden restaurarse en cualquier momento desde el Centro de Rescate.").small().color(RustCareTheme::ACCENT_TEAL));
             });
     }
 
@@ -1106,18 +1166,18 @@ impl SettingsView {
         ui.label(RichText::new("Notificaciones del sistema").size(18.0).strong().color(Color32::WHITE));
         ui.add_space(10.0);
         egui::Frame::NONE
-            .fill(RustCareTheme::CARD_BG)
+            .fill(RustCareTheme::BG_SURFACE)
             .corner_radius(CornerRadius::same(6))
-            .stroke(Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER))
+            .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
             .inner_margin(Margin::same(12))
             .show(ui, |ui| {
-                ui.checkbox(&mut self.prefs.notifications_enabled, "Habilitar notificaciones en la bandeja del sistema");
+                checkbox_item(ui, &mut self.prefs.notifications_enabled, "Habilitar notificaciones en la bandeja del sistema");
                 if self.prefs.notifications_enabled {
-                    ui.checkbox(&mut self.prefs.notify_on_updates, "Notificar actualizaciones de software pendientes");
-                    ui.checkbox(&mut self.prefs.notify_on_drivers, "Notificar conflictos de controladores");
-                    ui.checkbox(&mut self.prefs.notify_on_high_junk, "Notificar cuando haya más de 1 GB de archivos basura");
+                    checkbox_item(ui, &mut self.prefs.notify_on_updates, "Notificar actualizaciones de software pendientes");
+                    checkbox_item(ui, &mut self.prefs.notify_on_drivers, "Notificar conflictos de controladores");
+                    checkbox_item(ui, &mut self.prefs.notify_on_high_junk, "Notificar cuando haya más de 1 GB de archivos basura");
                     ui.add_space(8.0);
-                    if ui.button("🔔 Enviar Notificación de Prueba").clicked() {
+                    if neon_button(ui, "Enviar Notificación de Prueba", Some(230.0)).clicked() {
                         let _ = AutomationEngine::send_notification("RustCare PRO", "Las notificaciones están configuradas correctamente.");
                         self.status_message = Some("Notificación de prueba enviada al sistema.".into());
                     }

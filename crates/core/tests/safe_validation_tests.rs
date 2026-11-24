@@ -41,6 +41,9 @@ fn test_safe_cleaner_dry_run_zero_risk() {
         patterns: vec!["*.tmp".into(), "*.log".into()],
         recursive: false,
         requires_admin: false,
+        safety_level: "safe".into(),
+        why_it_exists: "Archivos temporales de prueba".into(),
+        safe_to_delete_reason: "Prueba aislada".into(),
     };
 
     // 1. Dry Run Scan: solo inspecciona, NO borra
@@ -273,6 +276,9 @@ fn test_unprivileged_target_skip_without_crash() {
         patterns: vec!["*.log".into()],
         recursive: false,
         requires_admin: true,
+        safety_level: "safe".into(),
+        why_it_exists: "Archivos del sistema".into(),
+        safe_to_delete_reason: "Prueba aislada".into(),
     };
 
     let result = CleanerEngine::scan_target(&admin_target, "system_group");

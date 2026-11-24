@@ -1,6 +1,7 @@
 //! Vista de Herramientas Completas (Toolbox PRO) con Diagrama WizTree
-use crate::icons::VectorIcons;
+use crate::icons::AppIcon;
 use crate::theme::RustCareTheme;
+use crate::widgets::{danger_button, ghost_button, neon_button, tool_card};
 use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Margin, Pos2, ProgressBar, Rect, RichText, ScrollArea, Sense, Stroke, StrokeKind, Ui, Vec2};
 use rustcare_core::browser_vacuum::{BrowserVacuum, DatabaseCompactResult};
 use rustcare_core::cleaner::CleanerEngine;
@@ -190,13 +191,13 @@ impl ToolboxView {
             return;
         }
 
-        // Barra de Navegación Superior Estilo Glary / ASC Pro
+        // Barra de Navegación Superior
         ui.horizontal(|ui| {
-            if ui.button(RichText::new("⬅ Volver al Centro de Herramientas").strong()).clicked() {
+            if ghost_button(ui, "Volver al Centro de Herramientas", Some(250.0)).clicked() {
                 self.current_tab = ToolboxTab::Overview;
             }
             ui.add_space(8.0);
-            ui.label(RichText::new("🧰 Centro de Herramientas PRO > ").color(RustCareTheme::TEXT_MUTED));
+            ui.label(RichText::new("Centro de Herramientas PRO > ").color(RustCareTheme::TEXT_MUTED));
             let title = match self.current_tab {
                 ToolboxTab::Uninstaller => "Desinstalador Profundo de Software",
                 ToolboxTab::DriverBooster => "Driver Booster PRO (Controladores de Hardware)",
@@ -256,7 +257,7 @@ impl ToolboxView {
         let avail_w = ui.available_width();
 
         // =====================================================================
-        // 1. FILA SUPERIOR: 2 BLOQUES (68% IZQUIERDA / 32% DERECHA, height: 240px)
+        // 1. FILA SUPERIOR: 2 BLOQUES (67% IZQUIERDA / 33% DERECHA, height: 240px)
         // =====================================================================
         let top_h = 240.0;
         let left_w = (avail_w - RustCareTheme::ITEM_SPACING) * 0.67;
@@ -273,23 +274,16 @@ impl ToolboxView {
                 ui.horizontal(|ui| {
                     // Sub-panel izquierdo (155px): Árbol de carpetas
                     ui.allocate_ui_with_layout(Vec2::new(155.0, top_h - 32.0), egui::Layout::top_down(egui::Align::LEFT), |ui| {
-                        ui.label(RichText::new("📁 Disco (C:)").size(12.0).strong().color(RustCareTheme::TEXT_PRIMARY));
+                        ui.label(RichText::new("Disco (C:)").size(12.0).strong().color(RustCareTheme::TEXT_PRIMARY));
                         ui.add_space(2.0);
-                        ui.label(RichText::new("  📁 Archivos de programa").size(11.0).color(RustCareTheme::TEXT_MUTED));
-                        ui.label(RichText::new("  📁 Usuarios").size(11.0).color(RustCareTheme::TEXT_MUTED));
-                        ui.label(RichText::new("  📁 Sistema & Drivers").size(11.0).color(RustCareTheme::TEXT_MUTED));
-                        ui.label(RichText::new("  📁 Descargas & Vídeos").size(11.0).color(RustCareTheme::TEXT_MUTED));
-                        ui.label(RichText::new("  📁 Windows (WinSxS)").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                        ui.label(RichText::new("  Archivos de programa").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                        ui.label(RichText::new("  Usuarios").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                        ui.label(RichText::new("  Sistema & Drivers").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                        ui.label(RichText::new("  Descargas & Vídeos").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                        ui.label(RichText::new("  Windows (WinSxS)").size(11.0).color(RustCareTheme::TEXT_MUTED));
 
                         ui.add_space(18.0);
-                        if RustCareTheme::custom_button(
-                            ui,
-                            "Analizar Disco (C:)",
-                            RustCareTheme::ACCENT_TEAL,
-                            RustCareTheme::ACCENT_TEAL,
-                            Color32::from_rgba_premultiplied(0, 229, 168, 15),
-                            26.0,
-                        ).clicked() {
+                        if ghost_button(ui, "Analizar Disco (C:)", Some(150.0)).clicked() {
                             self.current_tab = ToolboxTab::DiskAnalyzer;
                         }
                     });
@@ -385,7 +379,7 @@ impl ToolboxView {
                     // Cabecera con icono circular de refresco
                     ui.horizontal(|ui| {
                         let (ref_rect, _) = ui.allocate_exact_size(Vec2::splat(18.0), Sense::hover());
-                        ui.painter().circle_stroke(ref_rect.center(), 6.5, Stroke::new(1.5_f32, RustCareTheme::ACCENT_TEAL));
+                        crate::icons::draw_icon(ui.painter(), ref_rect, AppIcon::Refresh, RustCareTheme::ACCENT_TEAL, 1.5);
                         ui.add_space(4.0);
                         ui.label(
                             RichText::new("ACTUALIZADOR DE SOFTWARE")
@@ -410,8 +404,8 @@ impl ToolboxView {
                             ui.label(RichText::new(app).size(11.5).color(RustCareTheme::TEXT_PRIMARY));
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                 let (p_rect, _) = ui.allocate_exact_size(Vec2::new(82.0, 18.0), Sense::hover());
-                                ui.painter().rect_filled(p_rect, CornerRadius::same(9), Color32::from_rgba_premultiplied(255, 176, 32, 25));
-                                ui.painter().rect_stroke(p_rect, CornerRadius::same(9), Stroke::new(1.0_f32, RustCareTheme::ACCENT_AMBER), StrokeKind::Inside);
+                                ui.painter().rect_filled(p_rect, CornerRadius::same(9), Color32::from_rgba_unmultiplied(245, 158, 11, 25));
+                                ui.painter().rect_stroke(p_rect, CornerRadius::same(9), Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(245, 158, 11, 150)), StrokeKind::Inside);
                                 ui.painter().text(p_rect.center(), Align2::CENTER_CENTER, "Desactualizado", FontId::proportional(9.5), RustCareTheme::ACCENT_AMBER);
                             });
                         });
@@ -421,14 +415,7 @@ impl ToolboxView {
                     ui.add_space(10.0);
 
                     // Botón ancho completo inferior Actualizar Todo
-                    if RustCareTheme::custom_button(
-                        ui,
-                        "Actualizar Todo",
-                        RustCareTheme::ACCENT_TEAL,
-                        RustCareTheme::ACCENT_TEAL,
-                        Color32::from_rgba_premultiplied(0, 229, 168, 15),
-                        28.0,
-                    ).clicked() {
+                    if neon_button(ui, "Actualizar Todo", Some(right_w - 32.0)).clicked() {
                         self.current_tab = ToolboxTab::Updater;
                     }
                 });
@@ -441,19 +428,19 @@ impl ToolboxView {
         // 2. CUADRÍCULA INFERIOR (GRID DE 4 COLUMNAS X 2 FILAS, 8 TARJETAS IGUALES)
         // =====================================================================
         let card_w = (avail_w - (RustCareTheme::ITEM_SPACING * 3.0)) / 4.0;
-        let card_h = 135.0;
+        let card_h = 138.0;
 
         let tool_cards = [
             // Fila 1
-            ("Desinstalador de Apps", "Elimina residuos y sobras", "24.5 GB", "Liberar Espacio", RustCareTheme::ACCENT_TEAL, ToolboxTab::Uninstaller),
-            ("Buscador de Duplicados", "Archivos clonados idénticos", "24.5 GB", "Liberar Espacio", RustCareTheme::ACCENT_CYAN, ToolboxTab::Duplicates),
-            ("Destructor de Archivos", "Sobrescritura segura DoD", "0 B", "Analizar", RustCareTheme::ACCENT_TEAL, ToolboxTab::FileShredder),
-            ("Reparación del Sistema", "Repara errores del sistema", "3.8 GB", "Limpiar Registro", RustCareTheme::ACCENT_CYAN, ToolboxTab::UiRepair),
+            ("Desinstalador de Apps", "Elimina residuos y sobras", "24.5 GB", AppIcon::Trash, "Liberar Espacio", ToolboxTab::Uninstaller),
+            ("Buscador de Duplicados", "Archivos clonados idénticos", "24.5 GB", AppIcon::SearchDoc, "Liberar Espacio", ToolboxTab::Duplicates),
+            ("Destructor de Archivos", "Sobrescritura segura DoD", "0 B", AppIcon::Shredder, "Analizar", ToolboxTab::FileShredder),
+            ("Reparación del Sistema", "Repara errores del sistema", "3.8 GB", AppIcon::Tools, "Limpiar Registro", ToolboxTab::UiRepair),
             // Fila 2
-            ("Gestor de Inicio", "Acelera el encendido", "9.1 MB", "Analizar", RustCareTheme::ACCENT_TEAL, ToolboxTab::ScheduledTasks),
-            ("Limpiador Navegadores", "Purga cachés y cookies", "9.2 MB", "Analizar", RustCareTheme::ACCENT_CYAN, ToolboxTab::BrowserVacuum),
-            ("Optimizador de RAM", "Vaciado de memoria activa", "512 MB", "Analizar", RustCareTheme::ACCENT_TEAL, ToolboxTab::DriverBooster),
-            ("Optimizar Disco / TRIM", "Desfragmentación y TRIM", "23.7 GB", "Analizar", RustCareTheme::ACCENT_AMBER, ToolboxTab::DiskOptimizer),
+            ("Gestor de Inicio", "Acelera el encendido", "9.1 MB", AppIcon::Gauge, "Analizar", ToolboxTab::ScheduledTasks),
+            ("Limpiador Navegadores", "Purga cachés y cookies", "9.2 MB", AppIcon::Broom, "Analizar", ToolboxTab::BrowserVacuum),
+            ("Optimizador de RAM", "Vaciado de memoria activa", "512 MB", AppIcon::RamChip, "Analizar", ToolboxTab::DriverBooster),
+            ("Optimizar Disco / TRIM", "Desfragmentación y TRIM", "23.7 GB", AppIcon::Bolt, "Analizar", ToolboxTab::DiskOptimizer),
         ];
 
         for row in 0..2 {
@@ -462,55 +449,11 @@ impl ToolboxView {
 
                 for col in 0..4 {
                     let idx = row * 4 + col;
-                    let (title, desc, size_info, btn_text, color, target_tab) = tool_cards[idx];
+                    let (title, desc, size_info, icon, action_lbl, target_tab) = tool_cards[idx];
 
-                    RustCareTheme::card_frame().show(ui, |ui| {
-                        ui.set_width(card_w - 32.0);
-                        ui.set_height(card_h - 32.0);
-
-                        ui.vertical(|ui| {
-                            ui.horizontal(|ui| {
-                                // Icono vectorial 34x34px
-                                let (ic_rect, _) = ui.allocate_exact_size(Vec2::splat(34.0), Sense::hover());
-                                match idx {
-                                    0 => VectorIcons::draw_trash(ui.painter(), ic_rect, color),
-                                    1 => VectorIcons::draw_duplicate(ui.painter(), ic_rect, color),
-                                    2 => VectorIcons::draw_shredder(ui.painter(), ic_rect, color),
-                                    3 => VectorIcons::draw_tools(ui.painter(), ic_rect, color),
-                                    4 => VectorIcons::draw_radar(ui.painter(), ic_rect, color),
-                                    5 => VectorIcons::draw_broom(ui.painter(), ic_rect, color),
-                                    6 => VectorIcons::draw_ram_chip(ui.painter(), ic_rect, color),
-                                    _ => VectorIcons::draw_lightning(ui.painter(), ic_rect, color),
-                                }
-
-                                ui.add_space(4.0);
-                                ui.vertical(|ui| {
-                                    ui.label(RichText::new(title).size(13.0).strong().color(RustCareTheme::TEXT_PRIMARY));
-                                    ui.label(RichText::new(desc).size(10.5).color(RustCareTheme::TEXT_MUTED));
-                                });
-                            });
-
-                            ui.add_space(4.0);
-                            ui.horizontal(|ui| {
-                                ui.label(RichText::new("Espacio:").size(10.5).color(RustCareTheme::TEXT_MUTED));
-                                ui.label(RichText::new(size_info).size(11.0).strong().color(color));
-                            });
-
-                            ui.add_space(6.0);
-                            ui.vertical_centered(|ui| {
-                                if RustCareTheme::custom_button(
-                                    ui,
-                                    btn_text,
-                                    RustCareTheme::BORDER_SUBTLE,
-                                    color,
-                                    RustCareTheme::BG_VOID,
-                                    24.0,
-                                ).clicked() {
-                                    self.current_tab = target_tab;
-                                }
-                            });
-                        });
-                    });
+                    if tool_card(ui, title, desc, size_info, icon, action_lbl, card_w, card_h).clicked() {
+                        self.current_tab = target_tab;
+                    }
                 }
             });
 
@@ -524,7 +467,7 @@ impl ToolboxView {
         ui.horizontal(|ui| {
             ui.label("Buscar aplicación:");
             ui.text_edit_singleline(&mut self.app_search);
-            if ui.button("🔄 Refrescar").clicked() {
+            if ghost_button(ui, "Refrescar", Some(100.0)).clicked() {
                 self.apps = UninstallerEngine::list_installed_apps();
             }
         });
@@ -533,7 +476,7 @@ impl ToolboxView {
         if !self.residuals.is_empty() {
             ui.label(RichText::new(format!("Carpetas residuales encontradas para '{}':", self.residual_app_name)).strong().color(RustCareTheme::WARNING_AMBER));
             for r in &self.residuals {
-                ui.label(format!("• {} ({})", r.path.display(), CleanerEngine::format_bytes(r.size_bytes)));
+                ui.label(format!("- {} ({})", r.path.display(), CleanerEngine::format_bytes(r.size_bytes)));
             }
             ui.add_space(8.0);
         }
@@ -546,7 +489,7 @@ impl ToolboxView {
 
         ScrollArea::vertical().show(ui, |ui| {
             egui::Frame::NONE
-                .fill(RustCareTheme::CARD_BG)
+                .fill(RustCareTheme::BG_SURFACE)
                 .corner_radius(8)
                 .inner_margin(10.0)
                 .show(ui, |ui| {
@@ -558,10 +501,10 @@ impl ToolboxView {
                             });
 
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if ui.button("Desinstalar").clicked() {
+                                if danger_button(ui, "Desinstalar", Some(90.0)).clicked() {
                                     let _ = UninstallerEngine::run_uninstaller(app);
                                 }
-                                if ui.button("🔍 Rastrear Residuos").clicked() {
+                                if ghost_button(ui, "Rastrear Residuos", Some(140.0)).clicked() {
                                     self.residuals = UninstallerEngine::scan_residuals(&app.name);
                                     self.residual_app_name = app.name.clone();
                                 }
@@ -574,7 +517,7 @@ impl ToolboxView {
     }
 
     fn render_drivers(&mut self, ui: &mut Ui) {
-        ui.heading(RichText::new("🚗 Driver Booster PRO - Auditoría & Respaldo de Controladores").size(18.0).color(RustCareTheme::ACCENT_CYAN).strong());
+        ui.heading(RichText::new("Driver Booster PRO - Auditoría & Respaldo de Controladores").size(18.0).color(RustCareTheme::ACCENT_CYAN).strong());
         ui.label(RichText::new("Inspección a bajo nivel de controladores de hardware (Kernel Class GUIDs) con exportación oficial vía pnputil.").color(RustCareTheme::TEXT_MUTED));
         ui.add_space(10.0);
 
@@ -587,17 +530,17 @@ impl ToolboxView {
 
             fn draw_kpi(ui: &mut Ui, title: &str, count: usize, color: Color32) {
                 let (rect, _) = ui.allocate_exact_size(Vec2::new(170.0, 56.0), Sense::hover());
-                ui.painter().rect_filled(rect, CornerRadius::same(8), RustCareTheme::CARD_BG);
-                ui.painter().rect_stroke(rect, CornerRadius::same(8), Stroke::new(1.0_f32, RustCareTheme::CARD_BORDER), StrokeKind::Inside);
+                ui.painter().rect_filled(rect, CornerRadius::same(8), RustCareTheme::BG_SURFACE);
+                ui.painter().rect_stroke(rect, CornerRadius::same(8), Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE), StrokeKind::Inside);
                 ui.painter().text(rect.min + Vec2::new(12.0, 8.0), Align2::LEFT_TOP, title, FontId::proportional(11.0), RustCareTheme::TEXT_MUTED);
                 ui.painter().text(rect.min + Vec2::new(12.0, 24.0), Align2::LEFT_TOP, count.to_string(), FontId::proportional(20.0), color);
             }
 
             draw_kpi(ui, "Total Controladores", total_drivers, RustCareTheme::ACCENT_CYAN);
             ui.add_space(8.0);
-            draw_kpi(ui, "Gráficos / GPU", gpu_drivers, RustCareTheme::ACCENT_PURPLE);
+            draw_kpi(ui, "Gráficos / GPU", gpu_drivers, RustCareTheme::ACCENT_INDIGO);
             ui.add_space(8.0);
-            draw_kpi(ui, "Adaptadores de Red", net_drivers, RustCareTheme::ACCENT_BLUE);
+            draw_kpi(ui, "Adaptadores de Red", net_drivers, RustCareTheme::ACCENT_TEAL);
             ui.add_space(8.0);
             draw_kpi(ui, "Audio & Multimedia", audio_drivers, RustCareTheme::SUCCESS_GREEN);
         });
@@ -606,14 +549,14 @@ impl ToolboxView {
         ui.horizontal(|ui| {
             ui.label("Filtrar controlador:");
             ui.text_edit_singleline(&mut self.driver_search);
-            if ui.button("🔄 Reanalizar Hardware").clicked() {
+            if ghost_button(ui, "Reanalizar Hardware", Some(160.0)).clicked() {
                 self.drivers = DriverManager::scan_installed_drivers();
             }
-            if ui.button("💾 Crear Copia de Respaldo Completa").clicked() {
+            if neon_button(ui, "Crear Copia de Respaldo Completa", Some(230.0)).clicked() {
                 match DriverManager::backup_drivers() {
                     Ok(res) => {
                         self.driver_backup_msg = Some(format!(
-                            "¡Copia de seguridad completada! {} controladores respaldados en: {}",
+                            "Copia de seguridad completada. {} controladores respaldados en: {}",
                             res.drivers_backed_up,
                             res.backup_path.display()
                         ));
@@ -633,7 +576,7 @@ impl ToolboxView {
                         ui,
                         msg,
                         RustCareTheme::SUCCESS_GREEN,
-                        Color32::from_rgba_premultiplied(16, 185, 129, 25),
+                        Color32::from_rgba_unmultiplied(16, 185, 129, 25),
                     );
                 });
             });
@@ -655,23 +598,23 @@ impl ToolboxView {
 
         ScrollArea::vertical().show(ui, |ui| {
             egui::Frame::NONE
-                .fill(RustCareTheme::CARD_BG)
+                .fill(RustCareTheme::BG_SURFACE)
                 .corner_radius(8)
                 .inner_margin(10.0)
                 .show(ui, |ui| {
                     for drv in filtered {
                         ui.horizontal(|ui| {
                             let (badge_text, badge_color) = if drv.class_name.to_lowercase().contains("pantalla") || drv.class_name.to_lowercase().contains("display") || drv.class_name.to_lowercase().contains("gpu") {
-                                ("GPU", RustCareTheme::ACCENT_PURPLE)
+                                ("GPU", RustCareTheme::ACCENT_INDIGO)
                             } else if drv.class_name.to_lowercase().contains("net") || drv.class_name.to_lowercase().contains("red") || drv.class_name.to_lowercase().contains("wifi") {
-                                ("Red", RustCareTheme::ACCENT_BLUE)
+                                ("Red", RustCareTheme::ACCENT_TEAL)
                             } else if drv.class_name.to_lowercase().contains("audio") || drv.class_name.to_lowercase().contains("sound") || drv.class_name.to_lowercase().contains("media") {
                                 ("Audio", RustCareTheme::SUCCESS_GREEN)
                             } else {
                                 ("Sistema", RustCareTheme::TEXT_DIM)
                             };
 
-                            RustCareTheme::draw_badge(ui, badge_text, badge_color, Color32::from_rgba_premultiplied(badge_color.r(), badge_color.g(), badge_color.b(), 25));
+                            RustCareTheme::draw_badge(ui, badge_text, badge_color, Color32::from_rgba_unmultiplied(badge_color.r(), badge_color.g(), badge_color.b(), 25));
                             ui.add_space(4.0);
 
                             ui.vertical(|ui| {
@@ -693,7 +636,7 @@ impl ToolboxView {
         ui.horizontal(|ui| {
             ui.label("Ruta a escanear:");
             ui.text_edit_singleline(&mut self.duplicate_path);
-            if ui.button("🔍 Buscar Duplicados").clicked() {
+            if neon_button(ui, "Buscar Duplicados", Some(160.0)).clicked() {
                 self.duplicate_result = Some(DuplicateFinder::scan_directory(&self.duplicate_path));
             }
         });
@@ -714,13 +657,13 @@ impl ToolboxView {
             ScrollArea::vertical().show(ui, |ui| {
                 for group in &res.groups {
                     egui::Frame::NONE
-                        .fill(RustCareTheme::CARD_BG)
+                        .fill(RustCareTheme::BG_SURFACE)
                         .corner_radius(8)
                         .inner_margin(10.0)
                         .show(ui, |ui| {
                             ui.label(RichText::new(format!("Tamaño: {} | Hash: {}", CleanerEngine::format_bytes(group.file_size), &group.blake3_hash[..12])).strong().color(RustCareTheme::ACCENT_CYAN));
                             for file in &group.files {
-                                ui.label(format!("• {}", file.display()));
+                                ui.label(format!("- {}", file.display()));
                             }
                         });
                     ui.add_space(6.0);
@@ -828,7 +771,7 @@ impl ToolboxView {
 
     fn render_disk_analyzer(&mut self, ui: &mut Ui) {
         ui.label(
-            RichText::new("📊 Analizador de Espacio en Disco WizTree (Treemap a 60 FPS)")
+            RichText::new("Analizador de Espacio en Disco WizTree (Treemap a 60 FPS)")
                 .size(18.0)
                 .strong()
                 .color(RustCareTheme::ACCENT_CYAN),
@@ -841,9 +784,9 @@ impl ToolboxView {
 
         // Selector visual de unidades detectadas (C:, D:, E:, etc.)
         ui.horizontal(|ui| {
-            ui.label(RichText::new("💽 UNIDADES DETECTADAS EN TU EQUIPO:").small().strong().color(RustCareTheme::TEXT_PRIMARY));
+            ui.label(RichText::new("UNIDADES DETECTADAS EN TU EQUIPO:").small().strong().color(RustCareTheme::TEXT_PRIMARY));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.small_button("🔄 Actualizar Unidades").clicked() {
+                if ghost_button(ui, "Actualizar Unidades", Some(150.0)).clicked() {
                     self.detected_drives = DiskAnalyzer::list_drives();
                 }
             });
@@ -860,13 +803,13 @@ impl ToolboxView {
                 let border_color = if is_selected {
                     RustCareTheme::ACCENT_CYAN
                 } else {
-                    RustCareTheme::CARD_BORDER
+                    RustCareTheme::BORDER_SUBTLE
                 };
 
                 let bg_color = if is_selected {
                     Color32::from_rgb(26, 36, 56)
                 } else {
-                    RustCareTheme::CARD_BG
+                    RustCareTheme::BG_SURFACE
                 };
 
                 egui::Frame::NONE
@@ -878,7 +821,8 @@ impl ToolboxView {
                         ui.set_width(215.0);
                         ui.vertical(|ui| {
                             ui.horizontal(|ui| {
-                                ui.label(RichText::new("💽").size(22.0));
+                                let (ic_rect, _) = ui.allocate_exact_size(Vec2::splat(22.0), Sense::hover());
+                                crate::icons::draw_icon(ui.painter(), ic_rect, AppIcon::Pulse, RustCareTheme::ACCENT_CYAN, 1.5);
                                 ui.vertical(|ui| {
                                     ui.label(RichText::new(&drive.name).strong().color(Color32::WHITE));
                                     ui.label(RichText::new(format!("Formato {}", drive.fs_type)).small().color(RustCareTheme::TEXT_DIM));
@@ -894,18 +838,18 @@ impl ToolboxView {
                                 ui.label(RichText::new(format!("{} libres / {}", free_str, total_str)).small().color(RustCareTheme::TEXT_MUTED));
 
                                 let bar_color = if ratio > 0.90 {
-                                    RustCareTheme::DANGER_RED
+                                    RustCareTheme::ACCENT_CORAL
                                 } else if ratio > 0.80 {
-                                    RustCareTheme::WARNING_AMBER
+                                    RustCareTheme::ACCENT_AMBER
                                 } else {
-                                    RustCareTheme::ACCENT_BLUE
+                                    RustCareTheme::ACCENT_TEAL
                                 };
                                 ui.add(ProgressBar::new(ratio).fill(bar_color).show_percentage());
                             }
 
                             ui.add_space(6.0);
-                            let btn_label = if is_selected && self.disk_result.is_some() { "✔ Analizado (Reanalizar)" } else { "🔍 Analizar Unidad" };
-                            if ui.add_sized([200.0, 26.0], egui::Button::new(RichText::new(btn_label).small().strong())).clicked() {
+                            let btn_label = if is_selected && self.disk_result.is_some() { "Reanalizar Unidad" } else { "Analizar Unidad" };
+                            if neon_button(ui, btn_label, Some(195.0)).clicked() {
                                 self.disk_path = drive.letter.clone();
                                 self.disk_result = Some(DiskAnalyzer::analyze_directory(&self.disk_path));
                             }
@@ -918,7 +862,7 @@ impl ToolboxView {
         ui.horizontal(|ui| {
             ui.label(RichText::new("Ruta actual o carpeta personalizada:").strong().color(Color32::WHITE));
             ui.text_edit_singleline(&mut self.disk_path);
-            if ui.button(RichText::new("📊 Analizar Ruta").strong()).clicked() {
+            if neon_button(ui, "Analizar Ruta", Some(130.0)).clicked() {
                 self.disk_result = Some(DiskAnalyzer::analyze_directory(&self.disk_path));
             }
         });
@@ -938,7 +882,7 @@ impl ToolboxView {
             ui.add_space(6.0);
 
             // DIAGRAMA TREEMAP VISUAL ESTILO WIZTREE
-            ui.label(RichText::new("🗺️ Mapa Visual de Distribución de Disco (WizTree Treemap):").strong());
+            ui.label(RichText::new("Mapa Visual de Distribución de Disco (WizTree Treemap):").strong());
             ui.add_space(4.0);
 
             let canvas_width = ui.available_width().max(400.0);
@@ -960,7 +904,7 @@ impl ToolboxView {
                     &mut hovered_item,
                 );
             } else {
-                painter.rect_filled(bounding_rect, CornerRadius::same(6), RustCareTheme::CARD_BG);
+                painter.rect_filled(bounding_rect, CornerRadius::same(6), RustCareTheme::BG_SURFACE);
                 painter.text(
                     bounding_rect.center(),
                     Align2::CENTER_CENTER,
@@ -973,7 +917,7 @@ impl ToolboxView {
             // Tooltip flotante interactivo al pasar el cursor sobre un bloque
             if let Some(item) = hovered_item {
                 response.show_tooltip_text(format!(
-                    "📄 {}\nTamaño: {}\nRuta: {}",
+                    "{}\nTamaño: {}\nRuta: {}",
                     item.name,
                     CleanerEngine::format_bytes(item.size_bytes),
                     item.path.display()
@@ -983,13 +927,13 @@ impl ToolboxView {
             // Leyenda de colores estilo WizTree
             ui.add_space(6.0);
             ui.horizontal(|ui| {
-                ui.label(RichText::new("🟣 Vídeos").color(Color32::from_rgb(168, 85, 247)).small());
-                ui.label(RichText::new("🔴 Comprimidos/ISO").color(Color32::from_rgb(239, 68, 68)).small());
-                ui.label(RichText::new("🟢 Ejecutables/DLL").color(Color32::from_rgb(34, 197, 94)).small());
-                ui.label(RichText::new("🔵 Documentos/DB").color(Color32::from_rgb(59, 130, 246)).small());
-                ui.label(RichText::new("🟡 Imágenes").color(Color32::from_rgb(245, 158, 11)).small());
-                ui.label(RichText::new("🌐 Código Dev").color(Color32::from_rgb(6, 182, 212)).small());
-                ui.label(RichText::new("⚪ Otros").color(Color32::from_rgb(100, 116, 139)).small());
+                ui.label(RichText::new("[Vídeos]").color(Color32::from_rgb(168, 85, 247)).small());
+                ui.label(RichText::new("[Comprimidos/ISO]").color(Color32::from_rgb(239, 68, 68)).small());
+                ui.label(RichText::new("[Ejecutables/DLL]").color(Color32::from_rgb(34, 197, 94)).small());
+                ui.label(RichText::new("[Documentos/DB]").color(Color32::from_rgb(59, 130, 246)).small());
+                ui.label(RichText::new("[Imágenes]").color(Color32::from_rgb(245, 158, 11)).small());
+                ui.label(RichText::new("[Código Dev]").color(Color32::from_rgb(6, 182, 212)).small());
+                ui.label(RichText::new("[Otros]").color(Color32::from_rgb(100, 116, 139)).small());
             });
 
             ui.add_space(10.0);
@@ -1000,7 +944,7 @@ impl ToolboxView {
             ui.label(RichText::new("Explorador de Carpetas Más Pesadas:").strong());
             ScrollArea::vertical().max_height(250.0).show(ui, |ui| {
                 egui::Frame::NONE
-                    .fill(RustCareTheme::CARD_BG)
+                    .fill(RustCareTheme::BG_SURFACE)
                     .corner_radius(8)
                     .inner_margin(10.0)
                     .show(ui, |ui| {
@@ -1012,7 +956,7 @@ impl ToolboxView {
                             };
 
                             ui.horizontal(|ui| {
-                                let icon = if item.is_directory { "📁" } else { "📄" };
+                                let icon = if item.is_directory { "[Dir]" } else { "[Doc]" };
                                 ui.label(format!("{} {}", icon, item.name));
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                     ui.label(RichText::new(CleanerEngine::format_bytes(item.size_bytes)).strong());
@@ -1032,7 +976,7 @@ impl ToolboxView {
             ui.text_edit_singleline(&mut self.large_files_path);
             ui.label("Tamaño Mínimo (MB):");
             ui.add(egui::DragValue::new(&mut self.large_files_min_mb).speed(10).range(10..=10000));
-            if ui.button("🔍 Escanear Archivos Gigantes").clicked() {
+            if neon_button(ui, "Escanear Archivos Gigantes", Some(200.0)).clicked() {
                 self.large_files = LargeFilesFinder::scan_directory(&self.large_files_path, self.large_files_min_mb * 1024 * 1024);
             }
         });
@@ -1044,7 +988,7 @@ impl ToolboxView {
 
             ScrollArea::vertical().show(ui, |ui| {
                 egui::Frame::NONE
-                    .fill(RustCareTheme::CARD_BG)
+                    .fill(RustCareTheme::BG_SURFACE)
                     .corner_radius(8)
                     .inner_margin(10.0)
                     .show(ui, |ui| {
@@ -1070,11 +1014,11 @@ impl ToolboxView {
         ui.horizontal(|ui| {
             ui.label("Ruta a explorar:");
             ui.text_edit_singleline(&mut self.empty_folders_path);
-            if ui.button("🔍 Buscar Carpetas Vacías").clicked() {
+            if neon_button(ui, "Buscar Carpetas Vacías", Some(180.0)).clicked() {
                 self.empty_folders = EmptyFoldersFinder::scan_directory(&self.empty_folders_path);
             }
             if !self.empty_folders.is_empty() {
-                if ui.button("🗑️ Eliminar Todas").clicked() {
+                if danger_button(ui, "Eliminar Todas", Some(130.0)).clicked() {
                     for f in &self.empty_folders {
                         let _ = EmptyFoldersFinder::delete_folder(f);
                     }
@@ -1088,12 +1032,12 @@ impl ToolboxView {
             ui.label(RichText::new(format!("Se encontraron {} carpetas vacías:", self.empty_folders.len())).strong().color(RustCareTheme::WARNING_AMBER));
             ScrollArea::vertical().show(ui, |ui| {
                 egui::Frame::NONE
-                    .fill(RustCareTheme::CARD_BG)
+                    .fill(RustCareTheme::BG_SURFACE)
                     .corner_radius(8)
                     .inner_margin(10.0)
                     .show(ui, |ui| {
                         for item in &self.empty_folders {
-                            ui.label(format!("📁 {}", item.path.display()));
+                            ui.label(format!("- {}", item.path.display()));
                         }
                     });
             });
@@ -1102,12 +1046,12 @@ impl ToolboxView {
 
     fn render_shortcuts(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            if ui.button("🔍 Escanear Accesos Directos Rotos").clicked() {
+            if neon_button(ui, "Escanear Accesos Directos Rotos", Some(240.0)).clicked() {
                 self.broken_shortcuts = ShortcutCleaner::scan_broken_shortcuts();
                 self.shortcuts_scanned = true;
             }
             if !self.broken_shortcuts.is_empty() {
-                if ui.button("🗑️ Eliminar Todos los Rotos").clicked() {
+                if danger_button(ui, "Eliminar Todos los Rotos", Some(180.0)).clicked() {
                     for item in &self.broken_shortcuts {
                         let _ = ShortcutCleaner::remove_broken_shortcut(item);
                     }
@@ -1119,14 +1063,14 @@ impl ToolboxView {
 
         if self.shortcuts_scanned {
             if self.broken_shortcuts.is_empty() {
-                ui.label(RichText::new("✅ No se detectaron accesos directos rotos en el Escritorio o Menú Inicio.").color(RustCareTheme::SUCCESS_GREEN));
+                ui.label(RichText::new("No se detectaron accesos directos rotos en el Escritorio o Menú Inicio.").color(RustCareTheme::SUCCESS_GREEN));
             } else {
                 ui.label(RichText::new(format!("Se encontraron {} accesos directos que apuntan a archivos inexistentes:", self.broken_shortcuts.len())).strong().color(RustCareTheme::WARNING_AMBER));
                 ui.add_space(6.0);
 
                 ScrollArea::vertical().show(ui, |ui| {
                     egui::Frame::NONE
-                        .fill(RustCareTheme::CARD_BG)
+                        .fill(RustCareTheme::BG_SURFACE)
                         .corner_radius(8)
                         .inner_margin(10.0)
                         .show(ui, |ui| {
@@ -1134,7 +1078,7 @@ impl ToolboxView {
                                 ui.horizontal(|ui| {
                                     ui.vertical(|ui| {
                                         ui.label(RichText::new(&item.file_name).strong());
-                                        ui.label(RichText::new(format!("Destino no encontrado: {}", item.target_path)).small().color(RustCareTheme::DANGER_RED));
+                                        ui.label(RichText::new(format!("Destino no encontrado: {}", item.target_path)).small().color(RustCareTheme::ACCENT_CORAL));
                                     });
                                 });
                                 ui.separator();
@@ -1151,10 +1095,10 @@ impl ToolboxView {
         ui.horizontal(|ui| {
             ui.label("Ruta del archivo a destruir:");
             ui.text_edit_singleline(&mut self.shred_target_path);
-            if ui.button("🔥 Destruir Archivo Irreversiblemente").clicked() {
+            if danger_button(ui, "Destruir Archivo Irreversiblemente", Some(260.0)).clicked() {
                 if std::path::Path::new(&self.shred_target_path).exists() {
                     match FileShredder::shred_file(&self.shred_target_path) {
-                        Ok(_) => self.shred_status_msg = Some("¡Archivo destruido con éxito! Imposible de recuperar.".to_string()),
+                        Ok(_) => self.shred_status_msg = Some("Archivo destruido con éxito. Imposible de recuperar.".to_string()),
                         Err(e) => self.shred_status_msg = Some(format!("Error: {}", e)),
                     }
                 } else {
@@ -1172,7 +1116,7 @@ impl ToolboxView {
     fn render_context_menu(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.label(RichText::new("Gestión de Elementos de Clic Derecho (Shell Extensions):").strong());
-            if ui.button("🔄 Refrescar").clicked() {
+            if ghost_button(ui, "Refrescar", Some(100.0)).clicked() {
                 self.context_handlers = ContextMenuManager::list_handlers();
             }
         });
@@ -1180,7 +1124,7 @@ impl ToolboxView {
 
         ScrollArea::vertical().show(ui, |ui| {
             egui::Frame::NONE
-                .fill(RustCareTheme::CARD_BG)
+                .fill(RustCareTheme::BG_SURFACE)
                 .corner_radius(8)
                 .inner_margin(10.0)
                 .show(ui, |ui| {
@@ -1194,7 +1138,7 @@ impl ToolboxView {
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                 if item.is_user_specific {
                                     let btn_txt = if item.is_enabled { "Deshabilitar" } else { "Habilitar" };
-                                    if ui.button(btn_txt).clicked() {
+                                    if ghost_button(ui, btn_txt, Some(100.0)).clicked() {
                                         let _ = ContextMenuManager::toggle_handler(item);
                                         self.context_handlers = ContextMenuManager::list_handlers();
                                     }
@@ -1211,7 +1155,7 @@ impl ToolboxView {
 
     fn render_updater(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            if ui.button("🔍 Comprobar Actualizaciones (WinGet)").clicked() {
+            if neon_button(ui, "Comprobar Actualizaciones (WinGet)", Some(260.0)).clicked() {
                 if let Ok(updates) = UpdaterEngine::check_updates() {
                     self.updates = updates;
                     self.winget_status_msg = Some(format!("Se encontraron {} actualizaciones.", self.updates.len()));
@@ -1229,7 +1173,7 @@ impl ToolboxView {
 
         ScrollArea::vertical().show(ui, |ui| {
             egui::Frame::NONE
-                .fill(RustCareTheme::CARD_BG)
+                .fill(RustCareTheme::BG_SURFACE)
                 .corner_radius(8)
                 .inner_margin(10.0)
                 .show(ui, |ui| {
@@ -1242,11 +1186,11 @@ impl ToolboxView {
                         ui.horizontal(|ui| {
                             ui.vertical(|ui| {
                                 ui.label(RichText::new(&update.name).strong());
-                                ui.label(RichText::new(format!("Actual: {} ➔ Nueva: {}", update.installed_version, update.available_version)).small().color(RustCareTheme::SUCCESS_GREEN));
+                                ui.label(RichText::new(format!("Actual: {} -> Nueva: {}", update.installed_version, update.available_version)).small().color(RustCareTheme::SUCCESS_GREEN));
                             });
 
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if ui.button("Actualizar").clicked() {
+                                if neon_button(ui, "Actualizar", Some(100.0)).clicked() {
                                     let _ = UpdaterEngine::update_package(&update.id);
                                 }
                             });
@@ -1260,14 +1204,14 @@ impl ToolboxView {
     fn render_rescue(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.label(RichText::new("Centro de Rescate y Restauración de Copias de Seguridad:").strong());
-            if ui.button("🔄 Actualizar Lista").clicked() {
+            if ghost_button(ui, "Actualizar Lista", Some(130.0)).clicked() {
                 self.backups = RescueCenter::list_backups();
             }
-            if ui.button("🛡️ Crear Punto de Restauración").clicked() {
+            if neon_button(ui, "Crear Punto de Restauración", Some(220.0)).clicked() {
                 match RescueCenter::create_restore_point("Punto de restauración manual de RustCare") {
                     Ok(info) => {
                         self.rescue_status_msg = Some(format!(
-                            "¡Punto de restauración '{}' creado con éxito! ({})",
+                            "Punto de restauración '{}' creado con éxito. ({})",
                             info.description,
                             if info.is_system_vss { "VSS Windows Activado" } else { "Modo Seguro Usuario" }
                         ));
@@ -1288,7 +1232,7 @@ impl ToolboxView {
 
         ScrollArea::vertical().show(ui, |ui| {
             egui::Frame::NONE
-                .fill(RustCareTheme::CARD_BG)
+                .fill(RustCareTheme::BG_SURFACE)
                 .corner_radius(8)
                 .inner_margin(10.0)
                 .show(ui, |ui| {
@@ -1305,9 +1249,9 @@ impl ToolboxView {
                             });
 
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if ui.button("🛟 Restaurar Backup").clicked() {
+                                if danger_button(ui, "Restaurar Backup", Some(140.0)).clicked() {
                                     match RescueCenter::restore_backup(backup) {
-                                        Ok(true) => self.rescue_status_msg = Some(format!("¡Copia {} restaurada con éxito!", backup.file_name)),
+                                        Ok(true) => self.rescue_status_msg = Some(format!("Copia {} restaurada con éxito.", backup.file_name)),
                                         _ => self.rescue_status_msg = Some("Error al importar el archivo .reg".to_string()),
                                     }
                                 }
@@ -1320,16 +1264,16 @@ impl ToolboxView {
     }
 
     fn render_network_booster(&mut self, ui: &mut Ui) {
-        ui.heading(RichText::new("🌐 Acelerador de Red e Internet TCP/IP").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.heading(RichText::new("Acelerador de Red e Internet TCP/IP").size(18.0).color(RustCareTheme::ACCENT_CYAN));
         ui.label("Optimiza la latencia de ping, throughput de descarga y parámetros del kernel de red (Window Auto-Tuning, ECN, RSS).");
         ui.add_space(8.0);
 
         ui.horizontal(|ui| {
-            if ui.button("⚡ Aplicar Optimización de Red").clicked() {
+            if neon_button(ui, "Aplicar Optimización de Red", Some(210.0)).clicked() {
                 match NetworkBooster::apply_optimizations() {
                     Ok(res) => {
                         self.network_msg = Some(format!(
-                            "¡Red optimizada con éxito! Respaldo guardado en: {}",
+                            "Red optimizada con éxito. Respaldo guardado en: {}",
                             res.backup_file.display()
                         ));
                     }
@@ -1339,7 +1283,7 @@ impl ToolboxView {
                 }
             }
 
-            if ui.button("🔄 Restaurar Valores Predeterminados de Red").clicked() {
+            if ghost_button(ui, "Restaurar Valores Predeterminados de Red", Some(270.0)).clicked() {
                 match NetworkBooster::restore_defaults() {
                     Ok(_) => self.network_msg = Some("Se restauraron los valores estándar del kernel TCP/IP de Windows.".to_string()),
                     Err(e) => self.network_msg = Some(format!("Error: {}", e)),
@@ -1356,12 +1300,12 @@ impl ToolboxView {
     }
 
     fn render_disk_optimizer(&mut self, ui: &mut Ui) {
-        ui.heading(RichText::new("⚡ Desfragmentador y TRIM de Discos SSD/NVMe").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.heading(RichText::new("Desfragmentador y TRIM de Discos SSD/NVMe").size(18.0).color(RustCareTheme::ACCENT_CYAN));
         ui.label("Optimiza celdas flash enviando comandos TRIM periódicos y audita el estado del sistema de archivos.");
         ui.add_space(8.0);
 
         ui.horizontal(|ui| {
-            if ui.button("🚀 Ejecutar TRIM en Unidad C:").clicked() {
+            if neon_button(ui, "Ejecutar TRIM en Unidad C:", Some(210.0)).clicked() {
                 let res = DiskOptimizer::trim_drive("C");
                 self.disk_trim_msg = Some(format!(
                     "TRIM ejecutado en {}: {}",
@@ -1370,7 +1314,7 @@ impl ToolboxView {
                 ));
             }
 
-            if ui.button("🩺 Chequeo de Integridad del Disco C:").clicked() {
+            if ghost_button(ui, "Chequeo de Integridad del Disco C:", Some(250.0)).clicked() {
                 let res = DiskOptimizer::check_filesystem_integrity("C");
                 self.disk_trim_msg = Some(format!(
                     "Estado del Sistema de Archivos {}: {}",
@@ -1389,15 +1333,15 @@ impl ToolboxView {
     }
 
     fn render_browser_vacuum(&mut self, ui: &mut Ui) {
-        ui.heading(RichText::new("🧭 Compactador SQLite de Navegadores (Browser VACUUM)").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.heading(RichText::new("Compactador SQLite de Navegadores (Browser VACUUM)").size(18.0).color(RustCareTheme::ACCENT_CYAN));
         ui.label("Elimina fragmentación en bases de datos de Chrome, Edge, Brave y Firefox sin borrar historial ni contraseñas.");
         ui.add_space(8.0);
 
-        if ui.button("🧹 Compactar y Desfragmentar Todas las Bases de Datos").clicked() {
+        if neon_button(ui, "Compactar y Desfragmentar Todas las Bases de Datos", Some(360.0)).clicked() {
             self.vacuum_results = BrowserVacuum::compact_all_browsers();
             let total_freed: u64 = self.vacuum_results.iter().map(|r| r.bytes_freed).sum();
             self.vacuum_msg = Some(format!(
-                "¡Compactadas {} bases de datos! Espacio recuperado: {}",
+                "Compactadas {} bases de datos. Espacio recuperado: {}",
                 self.vacuum_results.len(),
                 CleanerEngine::format_bytes(total_freed)
             ));
@@ -1427,11 +1371,11 @@ impl ToolboxView {
     }
 
     fn render_ui_repair(&mut self, ui: &mut Ui) {
-        ui.heading(RichText::new("🎨 Reparador de Caché de Iconos de Windows").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.heading(RichText::new("Reparador de Caché de Iconos de Windows").size(18.0).color(RustCareTheme::ACCENT_CYAN));
         ui.label("Repara iconos en blanco, corrupciones visuales en el escritorio y miniaturas reiniciando el explorador de forma limpia.");
         ui.add_space(8.0);
 
-        if ui.button("🖼️ Reconstruir Caché de Iconos y Miniaturas").clicked() {
+        if neon_button(ui, "Reconstruir Caché de Iconos y Miniaturas", Some(300.0)).clicked() {
             match UiRepair::rebuild_icon_cache() {
                 Ok(res) => {
                     self.ui_repair_msg = Some(format!(
@@ -1452,7 +1396,7 @@ impl ToolboxView {
     }
 
     fn render_system_info(&mut self, ui: &mut Ui) {
-        ui.heading(RichText::new("💻 Ficha de Especificaciones de Hardware y SO").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.heading(RichText::new("Ficha de Especificaciones de Hardware y SO").size(18.0).color(RustCareTheme::ACCENT_CYAN));
         ui.label("Resumen completo de CPU, Memoria RAM, Placas Gráficas, Discos y versión de Windows.");
         ui.add_space(8.0);
 
@@ -1461,11 +1405,11 @@ impl ToolboxView {
         }
 
         ui.horizontal(|ui| {
-            if ui.button("🔄 Actualizar Datos").clicked() {
+            if ghost_button(ui, "Actualizar Datos", Some(140.0)).clicked() {
                 self.system_report = Some(SystemInfoHub::get_report());
             }
 
-            if ui.button("📋 Copiar Reporte Completo").clicked() {
+            if ghost_button(ui, "Copiar Reporte Completo", Some(180.0)).clicked() {
                 let txt = SystemInfoHub::export_text_report();
                 ui.ctx().copy_text(txt);
             }
@@ -1485,13 +1429,13 @@ impl ToolboxView {
                     ui.separator();
                     ui.label(RichText::new("Unidades de Almacenamiento:").strong());
                     for d in &rep.storage_units {
-                        ui.label(format!("• {}", d));
+                        ui.label(format!("- {}", d));
                     }
                     if !rep.gpus.is_empty() {
                         ui.separator();
                         ui.label(RichText::new("Controladores Gráficos (GPU):").strong());
                         for g in &rep.gpus {
-                            ui.label(format!("• {}", g));
+                            ui.label(format!("- {}", g));
                         }
                     }
                 });
@@ -1500,19 +1444,19 @@ impl ToolboxView {
     }
 
     fn render_power_plan(&mut self, ui: &mut Ui) {
-        ui.heading(RichText::new("🔋 Selector de Planes de Energía").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.heading(RichText::new("Selector de Planes de Energía").size(18.0).color(RustCareTheme::ACCENT_CYAN));
         ui.label("Cambia el esquema de energía de Windows para ahorro de batería o máxima velocidad sin limitaciones.");
         ui.add_space(8.0);
 
         ui.horizontal(|ui| {
-            if ui.button("🔄 Refrescar Planes").clicked() {
+            if ghost_button(ui, "Refrescar Planes", Some(140.0)).clicked() {
                 self.power_schemes = PowerPlanOptimizer::list_schemes();
             }
 
-            if ui.button("🚀 Desbloquear 'Máximo Rendimiento' (Ultimate Performance)").clicked() {
+            if neon_button(ui, "Desbloquear Máximo Rendimiento", Some(250.0)).clicked() {
                 match PowerPlanOptimizer::unlock_ultimate_performance() {
                     Ok(guid) => {
-                        self.power_msg = Some(format!("¡Plan Máximo Rendimiento habilitado! (GUID: {})", guid));
+                        self.power_msg = Some(format!("Plan Máximo Rendimiento habilitado. (GUID: {})", guid));
                         self.power_schemes = PowerPlanOptimizer::list_schemes();
                     }
                     Err(e) => self.power_msg = Some(format!("Resultado: {}", e)),
@@ -1536,7 +1480,7 @@ impl ToolboxView {
                     ui.horizontal(|ui| {
                         ui.vertical(|ui| {
                             let label = if scheme.is_active {
-                                RichText::new(format!("⭐ {} (Activo)", scheme.name)).strong().color(RustCareTheme::ACCENT_CYAN)
+                                RichText::new(format!("[Activo] {}", scheme.name)).strong().color(RustCareTheme::ACCENT_CYAN)
                             } else {
                                 RichText::new(&scheme.name).strong()
                             };
@@ -1545,7 +1489,7 @@ impl ToolboxView {
                         });
 
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if !scheme.is_active && ui.button("Activar").clicked() {
+                            if !scheme.is_active && neon_button(ui, "Activar", Some(90.0)).clicked() {
                                 activate_guid_and_name = Some((scheme.guid.clone(), scheme.name.clone()));
                             }
                         });
@@ -1567,17 +1511,17 @@ impl ToolboxView {
     }
 
     fn render_dism_winsxs(&mut self, ui: &mut Ui) {
-        ui.heading(RichText::new("🧹 Limpieza Profunda del Almacén de Componentes (WinSxS / DISM)").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.heading(RichText::new("Limpieza Profunda del Almacén de Componentes (WinSxS / DISM)").size(18.0).color(RustCareTheme::ACCENT_CYAN));
         ui.label("Invoca la herramienta oficial de mantenimiento de Windows (Dism.exe) para purgar copias de seguridad de actualizaciones antiguas. Puede liberar entre 5 GB y 20 GB de disco.");
         ui.add_space(8.0);
 
         ui.horizontal(|ui| {
-            if ui.button("🚀 Ejecutar StartComponentCleanup").clicked() {
+            if neon_button(ui, "Ejecutar StartComponentCleanup", Some(240.0)).clicked() {
                 let res = DismEngine::start_component_cleanup(false);
                 self.dism_msg = Some(res.output_message);
             }
 
-            if ui.button("🛡️ Limpieza Definitiva con /ResetBase").clicked() {
+            if danger_button(ui, "Limpieza Definitiva con /ResetBase", Some(260.0)).clicked() {
                 let res = DismEngine::start_component_cleanup(true);
                 self.dism_msg = Some(res.output_message);
             }
@@ -1592,7 +1536,7 @@ impl ToolboxView {
     }
 
     fn render_hibernation(&mut self, ui: &mut Ui) {
-        ui.heading(RichText::new("💤 Gestor del Archivo de Hibernación (hiberfil.sys)").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.heading(RichText::new("Gestor del Archivo de Hibernación (hiberfil.sys)").size(18.0).color(RustCareTheme::ACCENT_CYAN));
         ui.label("Controla el archivo de hibernación de Windows. Si no usas hibernación en tu PC, desactivarlo libera inmediatamente tantos gigabytes en el SSD como gigas de memoria RAM tengas.");
         ui.add_space(8.0);
 
@@ -1611,17 +1555,17 @@ impl ToolboxView {
         }
 
         ui.horizontal(|ui| {
-            if ui.button("🗑️ Desactivar Hibernación (Liberar SSD)").clicked() {
+            if danger_button(ui, "Desactivar Hibernación (Liberar SSD)", Some(260.0)).clicked() {
                 match HibernationManager::disable_hibernation() {
                     Ok(true) => {
-                        self.hibernation_msg = Some("¡Hibernación desactivada! Archivo hiberfil.sys eliminado del SSD.".into());
+                        self.hibernation_msg = Some("Hibernación desactivada. Archivo hiberfil.sys eliminado del SSD.".into());
                         self.hibernation_status = Some(HibernationManager::get_status());
                     }
                     _ => self.hibernation_msg = Some("Error al desactivar (se requieren permisos de Administrador).".into()),
                 }
             }
 
-            if ui.button("⚡ Modo Reducido (Fast Startup con 50% de tamaño)").clicked() {
+            if ghost_button(ui, "Modo Reducido (Fast Startup con 50% de tamaño)", Some(330.0)).clicked() {
                 match HibernationManager::set_reduced_hibernation() {
                     Ok(true) => {
                         self.hibernation_msg = Some("Modo de hibernación reducida configurado con éxito.".into());
@@ -1631,7 +1575,7 @@ impl ToolboxView {
                 }
             }
 
-            if ui.button("🔄 Reactivar Hibernación").clicked() {
+            if neon_button(ui, "Reactivar Hibernación", Some(180.0)).clicked() {
                 match HibernationManager::enable_hibernation() {
                     Ok(true) => {
                         self.hibernation_msg = Some("Hibernación activada.".into());
@@ -1651,14 +1595,14 @@ impl ToolboxView {
     }
 
     fn render_hardware_troubleshooter(&mut self, ui: &mut Ui) {
-        ui.heading(RichText::new("⚠️ Diagnóstico de Hardware y Conflictos de Dispositivos").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.heading(RichText::new("Diagnóstico de Hardware y Conflictos de Dispositivos").size(18.0).color(RustCareTheme::ACCENT_CYAN));
         ui.label("Audita el Administrador de Dispositivos y detecta controladores con fallos (Código 10, 43, 28) con opción de reinicio del dispositivo PnP.");
         ui.add_space(8.0);
 
         ui.horizontal(|ui| {
             ui.label("Filtrar dispositivos:");
             ui.text_edit_singleline(&mut self.problem_search);
-            if ui.button("🔍 Escanear Dispositivos con Error").clicked() {
+            if neon_button(ui, "Escanear Dispositivos con Error", Some(230.0)).clicked() {
                 self.problem_devices = HardwareTroubleshooter::scan_problem_devices();
                 self.hardware_msg = Some(format!(
                     "Escaneo finalizado: {} dispositivos con advertencias encontrados.",
@@ -1684,7 +1628,7 @@ impl ToolboxView {
         ScrollArea::vertical().show(ui, |ui| {
             RustCareTheme::card_frame().show(ui, |ui| {
                 if filtered.is_empty() {
-                    ui.label("✅ No se detectaron dispositivos de hardware con código de error.");
+                    ui.label("No se detectaron dispositivos de hardware con código de error.");
                     return;
                 }
 
@@ -1696,10 +1640,10 @@ impl ToolboxView {
                         });
 
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button("🔄 Reiniciar Dispositivo").clicked() {
+                            if ghost_button(ui, "Reiniciar Dispositivo", Some(160.0)).clicked() {
                                 match HardwareTroubleshooter::restart_device(&dev.instance_id) {
                                     Ok(true) => self.hardware_msg = Some(format!("Dispositivo '{}' reiniciado con éxito.", dev.description)),
-                                    _ => self.hardware_msg = Some(format!("No se pudo reiniciar el dispositivo (requiere permisos de Administrador).")),
+                                    _ => self.hardware_msg = Some("No se pudo reiniciar el dispositivo (requiere permisos de Administrador).".to_string()),
                                 }
                             }
                         });
@@ -1711,14 +1655,14 @@ impl ToolboxView {
     }
 
     fn render_scheduled_tasks(&mut self, ui: &mut Ui) {
-        ui.heading(RichText::new("⏱️ Auditor de Tareas Programadas Huérfanas de Windows").size(18.0).color(RustCareTheme::ACCENT_CYAN));
+        ui.heading(RichText::new("Auditor de Tareas Programadas Huérfanas de Windows").size(18.0).color(RustCareTheme::ACCENT_CYAN));
         ui.label("Inspecciona el Programador de Tareas (Task Scheduler) e identifica tareas residuales dejadas por programas desinstalados cuyos ejecutables ya no existen.");
         ui.add_space(8.0);
 
         ui.horizontal(|ui| {
             ui.label("Buscar tarea:");
             ui.text_edit_singleline(&mut self.tasks_search);
-            if ui.button("🔄 Analizar Tareas").clicked() {
+            if ghost_button(ui, "Analizar Tareas", Some(140.0)).clicked() {
                 self.scheduled_tasks = ScheduledTaskManager::list_tasks();
                 let orphan_count = self.scheduled_tasks.iter().filter(|t| t.is_orphaned).count();
                 self.tasks_msg = Some(format!(
@@ -1756,7 +1700,7 @@ impl ToolboxView {
                     ui.horizontal(|ui| {
                         ui.vertical(|ui| {
                             let title = if task.is_orphaned {
-                                RichText::new(format!("⚠️ [Huérfana] {}", task.task_name)).strong().color(RustCareTheme::WARNING_AMBER)
+                                RichText::new(format!("[Huérfana] {}", task.task_name)).strong().color(RustCareTheme::WARNING_AMBER)
                             } else {
                                 RichText::new(&task.task_name).strong()
                             };
@@ -1765,7 +1709,7 @@ impl ToolboxView {
                         });
 
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if task.is_orphaned && ui.button("🗑️ Eliminar").clicked() {
+                            if task.is_orphaned && danger_button(ui, "Eliminar", Some(90.0)).clicked() {
                                 delete_task_name = Some(task.task_name.clone());
                             }
                         });

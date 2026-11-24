@@ -1,7 +1,11 @@
 //! Vista 2: Acelerar (Booster) - Basada en 02_turbo.png con fidelidad pixel-perfect
-use crate::icons::VectorIcons;
+use crate::icons::{draw_icon, AppIcon};
 use crate::theme::RustCareTheme;
-use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Pos2, RichText, ScrollArea, Sense, Stroke, StrokeKind, Ui, Vec2};
+use crate::widgets;
+use eframe::egui::{
+    self, Align2, Color32, CornerRadius, FontId, Pos2, Rect, RichText, ScrollArea, Sense,
+    Stroke, StrokeKind, Ui, Vec2,
+};
 use rustcare_core::backend::{SystemBackend, TurboBoostMode, TurboBoostResult};
 use rustcare_core::booster::RamCleanResult;
 use rustcare_core::startup::StartupEntry;
@@ -33,7 +37,6 @@ impl Default for BoosterView {
 
 impl BoosterView {
     pub fn render(&mut self, ui: &mut Ui, backend: &Arc<dyn SystemBackend>) {
-        // Cargar entradas de inicio si la lista está vacía
         if self.startup_entries.is_empty() {
             self.startup_entries = backend.list_startup_entries();
         }
@@ -41,7 +44,7 @@ impl BoosterView {
 
         ui.vertical(|ui| {
             // =================================================================
-            // 1. TARJETA HERO SUPERIOR (height: 120px, doble borde / glow #00E5A8 cuando ON)
+            // 1. TARJETA HERO SUPERIOR (height: 124px)
             // =================================================================
             let is_on = self.is_boost_active;
             let hero_border = if is_on {
@@ -53,12 +56,12 @@ impl BoosterView {
             egui::Frame::NONE
                 .fill(RustCareTheme::BG_SURFACE)
                 .corner_radius(CornerRadius::same(RustCareTheme::RADIUS_CARD as u8))
-                .stroke(Stroke::new(if is_on { 1.5_f32 } else { 1.0_f32 }, hero_border))
+                .stroke(Stroke::new(if is_on { 1.5 } else { 1.0 }, hero_border))
                 .inner_margin(egui::Margin::symmetric(24, 20))
                 .show(ui, |ui| {
-                    ui.set_height(80.0);
+                    ui.set_height(84.0);
                     ui.horizontal_centered(|ui| {
-                        // Izquierda: Título TURBO BOOST + ESTADO: ACTIVO / INACTIVO
+                        // Izquierda: Título TURBO BOOST + ESTADO
                         ui.vertical(|ui| {
                             ui.label(
                                 RichText::new("TURBO BOOST")
@@ -71,73 +74,24 @@ impl BoosterView {
                             let status_col = if is_on { RustCareTheme::ACCENT_TEAL } else { RustCareTheme::TEXT_MUTED };
                             ui.label(
                                 RichText::new(status_text)
-                                    .size(14.0)
+                                    .size(15.0)
                                     .strong()
                                     .color(status_col),
                             );
                         });
 
-                        // Derecha: INTERRUPTOR PÍLDORA GIGANTE (130px x 54px)
+                        // Derecha: INTERRUPTOR GIGANTE widgets::big_turbo_switch (136x56px)
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let switch_size = Vec2::new(130.0, 54.0);
-                            let (switch_rect, switch_resp) = ui.allocate_exact_size(switch_size, Sense::click());
-                            let p = ui.painter();
-
-                            let track_fill = if is_on {
-                                Color32::from_rgb(14, 38, 48) // Teal oscuro
-                            } else {
-                                RustCareTheme::BG_ELEVATED
-                            };
-                            let track_border = if is_on {
-                                RustCareTheme::ACCENT_TEAL
-                            } else {
-                                RustCareTheme::BORDER_SUBTLE
-                            };
-
-                            // Pista redondeada (radius: 27px)
-                            p.rect_filled(switch_rect, CornerRadius::same(27), track_fill);
-                            p.rect_stroke(switch_rect, CornerRadius::same(27), Stroke::new(2.0_f32, track_border), StrokeKind::Inside);
-
-                            // Círculo deslizante (r = 21px)
-                            let knob_r = 21.0;
-                            let knob_x = if is_on {
-                                switch_rect.max.x - knob_r - 6.0
-                            } else {
-                                switch_rect.min.x + knob_r + 6.0
-                            };
-                            let knob_center = Pos2::new(knob_x, switch_rect.center().y);
-
-                            let knob_color = if is_on {
-                                RustCareTheme::ACCENT_TEAL
-                            } else {
-                                Color32::from_rgb(45, 58, 78)
-                            };
-                            p.circle_filled(knob_center, knob_r, knob_color);
-
-                            // Texto ON / OFF
-                            let label_text = if is_on { "ON" } else { "OFF" };
-                            let label_x = if is_on {
-                                switch_rect.min.x + 36.0
-                            } else {
-                                switch_rect.max.x - 36.0
-                            };
-                            p.text(
-                                Pos2::new(label_x, switch_rect.center().y),
-                                Align2::CENTER_CENTER,
-                                label_text,
-                                FontId::proportional(20.0),
-                                if is_on { RustCareTheme::ACCENT_TEAL } else { RustCareTheme::TEXT_MUTED },
-                            );
-
-                            if switch_resp.clicked() {
-                                if self.is_boost_active {
-                                    let _ = backend.disable_turbo_boost();
-                                    self.boost_result = None;
+                            let mut switch_state = self.is_boost_active;
+                            if widgets::big_turbo_switch(ui, &mut switch_state).changed() {
+                                if switch_state {
+                                    self.boost_result = Some(backend.apply_turbo_boost(self.selected_mode));
+                                    self.is_boost_active = true;
                                 } else {
-                                    let res = backend.apply_turbo_boost(self.selected_mode);
-                                    self.boost_result = Some(res);
+                                    let _ = backend.disable_turbo_boost();
+                                    self.is_boost_active = false;
+                                    self.boost_result = None;
                                 }
-                                self.is_boost_active = backend.is_turbo_boost_active();
                             }
                         });
                     });
@@ -146,12 +100,12 @@ impl BoosterView {
             ui.add_space(RustCareTheme::ITEM_SPACING);
 
             // =================================================================
-            // 2. FILA MEDIA (3 TARJETAS IGUALES EN GRID DE 3 COLUMNAS, height: 150px)
+            // 2. TRES TARJETAS DE MODO (height: 156px, gap: 14px)
             // =================================================================
             let avail_w = ui.available_width();
             let card_spacing = RustCareTheme::ITEM_SPACING;
             let col_w = (avail_w - (card_spacing * 2.0)) / 3.0;
-            let col_h = 150.0;
+            let col_h = 156.0;
 
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = card_spacing;
@@ -162,17 +116,17 @@ impl BoosterView {
                 egui::Frame::NONE
                     .fill(RustCareTheme::BG_SURFACE)
                     .corner_radius(CornerRadius::same(RustCareTheme::RADIUS_CARD as u8))
-                    .stroke(Stroke::new(1.0_f32, border1))
+                    .stroke(Stroke::new(1.0, border1))
                     .inner_margin(egui::Margin::same(16))
                     .show(ui, |ui| {
                         ui.set_width(col_w - 32.0);
                         ui.set_height(col_h - 32.0);
                         ui.vertical(|ui| {
                             ui.horizontal(|ui| {
-                                // Icono cuadrado redondeado 42x42px
                                 let (ic_rect, _) = ui.allocate_exact_size(Vec2::splat(38.0), Sense::hover());
-                                ui.painter().rect_filled(ic_rect, CornerRadius::same(8), Color32::from_rgba_premultiplied(0, 229, 168, 30));
-                                VectorIcons::draw_briefcase(ui.painter(), ic_rect, RustCareTheme::ACCENT_TEAL);
+                                ui.painter().rect_filled(ic_rect, CornerRadius::same(8), Color32::from_rgba_unmultiplied(14, 165, 233, 20));
+                                ui.painter().rect_stroke(ic_rect, CornerRadius::same(8), Stroke::new(1.0, Color32::from_rgba_unmultiplied(14, 165, 233, 40)), StrokeKind::Inside);
+                                draw_icon(ui.painter(), ic_rect, AppIcon::Briefcase, RustCareTheme::ACCENT_CYAN, 1.5);
 
                                 ui.add_space(4.0);
                                 ui.vertical(|ui| {
@@ -183,13 +137,12 @@ impl BoosterView {
                                             .color(RustCareTheme::TEXT_PRIMARY),
                                     );
                                     ui.label(
-                                        RichText::new("54 Servicios detenidos")
+                                        RichText::new("4 Servicios detenidos")
                                             .size(11.0)
                                             .color(RustCareTheme::TEXT_MUTED),
                                     );
                                 });
 
-                                // Punto indicador esquina superior derecha
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                     let (dot_rect, _) = ui.allocate_exact_size(Vec2::splat(10.0), Sense::hover());
                                     ui.painter().circle_filled(dot_rect.center(), 3.5, if is_sel1 { RustCareTheme::ACCENT_TEAL } else { RustCareTheme::BORDER_SUBTLE });
@@ -198,7 +151,7 @@ impl BoosterView {
 
                             ui.add_space(6.0);
                             ui.label(
-                                RichText::new("820 MB liberados")
+                                RichText::new("180 MB liberados")
                                     .size(13.0)
                                     .strong()
                                     .color(RustCareTheme::ACCENT_CYAN),
@@ -206,27 +159,13 @@ impl BoosterView {
 
                             ui.add_space(10.0);
                             ui.horizontal(|ui| {
-                                if RustCareTheme::custom_button(
-                                    ui,
-                                    if is_sel1 { "Activo" } else { "Activar" },
-                                    if is_sel1 { RustCareTheme::ACCENT_TEAL } else { RustCareTheme::BORDER_SUBTLE },
-                                    if is_sel1 { RustCareTheme::ACCENT_TEAL } else { RustCareTheme::TEXT_MUTED },
-                                    Color32::TRANSPARENT,
-                                    26.0,
-                                ).clicked() {
+                                if widgets::ghost_button(ui, if is_sel1 { "Activo" } else { "Activar" }, Some(72.0)).clicked() {
                                     self.selected_mode = TurboBoostMode::Work;
                                     if self.is_boost_active {
                                         self.boost_result = Some(backend.apply_turbo_boost(self.selected_mode));
                                     }
                                 }
-                                if RustCareTheme::custom_button(
-                                    ui,
-                                    "Configurar",
-                                    RustCareTheme::BORDER_SUBTLE,
-                                    RustCareTheme::TEXT_MUTED,
-                                    Color32::TRANSPARENT,
-                                    26.0,
-                                ).clicked() {}
+                                if widgets::ghost_button(ui, "Configurar", Some(88.0)).clicked() {}
                             });
                         });
                     });
@@ -237,7 +176,7 @@ impl BoosterView {
                 egui::Frame::NONE
                     .fill(RustCareTheme::BG_SURFACE)
                     .corner_radius(CornerRadius::same(RustCareTheme::RADIUS_CARD as u8))
-                    .stroke(Stroke::new(1.0_f32, border2))
+                    .stroke(Stroke::new(1.0, border2))
                     .inner_margin(egui::Margin::same(16))
                     .show(ui, |ui| {
                         ui.set_width(col_w - 32.0);
@@ -245,8 +184,9 @@ impl BoosterView {
                         ui.vertical(|ui| {
                             ui.horizontal(|ui| {
                                 let (ic_rect, _) = ui.allocate_exact_size(Vec2::splat(38.0), Sense::hover());
-                                ui.painter().rect_filled(ic_rect, CornerRadius::same(8), Color32::from_rgba_premultiplied(0, 229, 168, 30));
-                                VectorIcons::draw_gamepad(ui.painter(), ic_rect, RustCareTheme::ACCENT_TEAL);
+                                ui.painter().rect_filled(ic_rect, CornerRadius::same(8), Color32::from_rgba_unmultiplied(14, 165, 233, 20));
+                                ui.painter().rect_stroke(ic_rect, CornerRadius::same(8), Stroke::new(1.0, Color32::from_rgba_unmultiplied(14, 165, 233, 40)), StrokeKind::Inside);
+                                draw_icon(ui.painter(), ic_rect, AppIcon::Gamepad, RustCareTheme::ACCENT_CYAN, 1.5);
 
                                 ui.add_space(4.0);
                                 ui.vertical(|ui| {
@@ -257,7 +197,7 @@ impl BoosterView {
                                             .color(RustCareTheme::TEXT_PRIMARY),
                                     );
                                     ui.label(
-                                        RichText::new("68 Servicios detenidos")
+                                        RichText::new("6 Servicios detenidos")
                                             .size(11.0)
                                             .color(RustCareTheme::TEXT_MUTED),
                                     );
@@ -271,7 +211,7 @@ impl BoosterView {
 
                             ui.add_space(6.0);
                             ui.label(
-                                RichText::new("1.2 GB liberados")
+                                RichText::new("350 MB liberados")
                                     .size(13.0)
                                     .strong()
                                     .color(RustCareTheme::ACCENT_TEAL),
@@ -279,27 +219,13 @@ impl BoosterView {
 
                             ui.add_space(10.0);
                             ui.horizontal(|ui| {
-                                if RustCareTheme::custom_button(
-                                    ui,
-                                    if is_sel2 { "Activo" } else { "Activar" },
-                                    if is_sel2 { RustCareTheme::ACCENT_TEAL } else { RustCareTheme::BORDER_SUBTLE },
-                                    if is_sel2 { RustCareTheme::ACCENT_TEAL } else { RustCareTheme::TEXT_MUTED },
-                                    Color32::TRANSPARENT,
-                                    26.0,
-                                ).clicked() {
+                                if widgets::ghost_button(ui, if is_sel2 { "Activo" } else { "Activar" }, Some(72.0)).clicked() {
                                     self.selected_mode = TurboBoostMode::Game;
                                     if self.is_boost_active {
                                         self.boost_result = Some(backend.apply_turbo_boost(self.selected_mode));
                                     }
                                 }
-                                if RustCareTheme::custom_button(
-                                    ui,
-                                    "Configurar",
-                                    RustCareTheme::BORDER_SUBTLE,
-                                    RustCareTheme::TEXT_MUTED,
-                                    Color32::TRANSPARENT,
-                                    26.0,
-                                ).clicked() {}
+                                if widgets::ghost_button(ui, "Configurar", Some(88.0)).clicked() {}
                             });
                         });
                     });
@@ -310,7 +236,7 @@ impl BoosterView {
                 egui::Frame::NONE
                     .fill(RustCareTheme::BG_SURFACE)
                     .corner_radius(CornerRadius::same(RustCareTheme::RADIUS_CARD as u8))
-                    .stroke(Stroke::new(1.0_f32, border3))
+                    .stroke(Stroke::new(1.0, border3))
                     .inner_margin(egui::Margin::same(16))
                     .show(ui, |ui| {
                         ui.set_width(col_w - 32.0);
@@ -318,8 +244,9 @@ impl BoosterView {
                         ui.vertical(|ui| {
                             ui.horizontal(|ui| {
                                 let (ic_rect, _) = ui.allocate_exact_size(Vec2::splat(38.0), Sense::hover());
-                                ui.painter().rect_filled(ic_rect, CornerRadius::same(8), Color32::from_rgba_premultiplied(0, 229, 168, 30));
-                                VectorIcons::draw_battery(ui.painter(), ic_rect, RustCareTheme::ACCENT_TEAL);
+                                ui.painter().rect_filled(ic_rect, CornerRadius::same(8), Color32::from_rgba_unmultiplied(14, 165, 233, 20));
+                                ui.painter().rect_stroke(ic_rect, CornerRadius::same(8), Stroke::new(1.0, Color32::from_rgba_unmultiplied(14, 165, 233, 40)), StrokeKind::Inside);
+                                draw_icon(ui.painter(), ic_rect, AppIcon::BatteryBolt, RustCareTheme::ACCENT_CYAN, 1.5);
 
                                 ui.add_space(4.0);
                                 ui.vertical(|ui| {
@@ -330,7 +257,7 @@ impl BoosterView {
                                             .color(RustCareTheme::TEXT_PRIMARY),
                                     );
                                     ui.label(
-                                        RichText::new("12 Servicios detenidos")
+                                        RichText::new("3 Servicios detenidos")
                                             .size(11.0)
                                             .color(RustCareTheme::TEXT_MUTED),
                                     );
@@ -344,7 +271,7 @@ impl BoosterView {
 
                             ui.add_space(6.0);
                             ui.label(
-                                RichText::new("150 MB liberados")
+                                RichText::new("120 MB liberados")
                                     .size(13.0)
                                     .strong()
                                     .color(RustCareTheme::ACCENT_AMBER),
@@ -352,27 +279,13 @@ impl BoosterView {
 
                             ui.add_space(10.0);
                             ui.horizontal(|ui| {
-                                if RustCareTheme::custom_button(
-                                    ui,
-                                    if is_sel3 { "Activo" } else { "Activar" },
-                                    if is_sel3 { RustCareTheme::ACCENT_TEAL } else { RustCareTheme::BORDER_SUBTLE },
-                                    if is_sel3 { RustCareTheme::ACCENT_TEAL } else { RustCareTheme::TEXT_MUTED },
-                                    Color32::TRANSPARENT,
-                                    26.0,
-                                ).clicked() {
+                                if widgets::ghost_button(ui, if is_sel3 { "Activo" } else { "Activar" }, Some(72.0)).clicked() {
                                     self.selected_mode = TurboBoostMode::Economy;
                                     if self.is_boost_active {
                                         self.boost_result = Some(backend.apply_turbo_boost(self.selected_mode));
                                     }
                                 }
-                                if RustCareTheme::custom_button(
-                                    ui,
-                                    "Configurar",
-                                    RustCareTheme::BORDER_SUBTLE,
-                                    RustCareTheme::TEXT_MUTED,
-                                    Color32::TRANSPARENT,
-                                    26.0,
-                                ).clicked() {}
+                                if widgets::ghost_button(ui, "Configurar", Some(88.0)).clicked() {}
                             });
                         });
                     });
@@ -381,7 +294,7 @@ impl BoosterView {
             ui.add_space(RustCareTheme::ITEM_SPACING);
 
             // =================================================================
-            // 3. PANEL INFERIOR: GESTOR DE INICIO (Tabla Estilizada)
+            // 3. PANEL INFERIOR: GESTOR DE INICIO (Tabla con widgets::pill_toggle y ghost_button)
             // =================================================================
             RustCareTheme::card_frame().show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -399,25 +312,33 @@ impl BoosterView {
 
                 ui.add_space(8.0);
 
+                let total_w = ui.available_width();
+                let col_prog_w = total_w * 0.42;
+                let col_impact_w = total_w * 0.20;
+                let col_state_w = total_w * 0.18;
+                let col_action_w = total_w * 0.20;
+
                 // Cabecera de la tabla
                 ui.horizontal(|ui| {
                     ui.add_space(8.0);
-                    ui.allocate_ui_with_layout(Vec2::new(230.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        ui.label(RichText::new("Programa").size(11.5).strong().color(RustCareTheme::TEXT_MUTED));
+                    ui.allocate_ui_with_layout(Vec2::new(col_prog_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.label(RichText::new("Programa").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
-                    ui.allocate_ui_with_layout(Vec2::new(110.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        ui.label(RichText::new("Impacto de Inicio").size(11.5).strong().color(RustCareTheme::TEXT_MUTED));
+                    ui.allocate_ui_with_layout(Vec2::new(col_impact_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.label(RichText::new("Impacto de Inicio").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
-                    ui.allocate_ui_with_layout(Vec2::new(70.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        ui.label(RichText::new("Estado").size(11.5).strong().color(RustCareTheme::TEXT_MUTED));
+                    ui.allocate_ui_with_layout(Vec2::new(col_state_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.label(RichText::new("Estado").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
-                    ui.label(RichText::new("Acción").size(11.5).strong().color(RustCareTheme::TEXT_MUTED));
+                    ui.allocate_ui_with_layout(Vec2::new(col_action_w - 16.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.label(RichText::new("Acción").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
+                    });
                 });
 
                 ui.add_space(4.0);
                 ui.painter().line_segment(
                     [Pos2::new(ui.min_rect().min.x, ui.cursor().min.y), Pos2::new(ui.min_rect().max.x, ui.cursor().min.y)],
-                    Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE),
+                    Stroke::new(1.0, RustCareTheme::BORDER_SUBTLE),
                 );
                 ui.add_space(6.0);
 
@@ -429,7 +350,7 @@ impl BoosterView {
                         let row_bg = if idx % 2 == 0 {
                             RustCareTheme::BG_SURFACE
                         } else {
-                            RustCareTheme::BG_ELEVATED
+                            Color32::from_rgba_unmultiplied(26, 35, 52, 120) // BG_ELEVATED translúcido
                         };
 
                         egui::Frame::NONE
@@ -438,71 +359,49 @@ impl BoosterView {
                             .inner_margin(egui::Margin::symmetric(8, 4))
                             .show(ui, |ui| {
                                 ui.horizontal(|ui| {
-                                    // Mini switch indicador de estado
-                                    let (sw_rect, sw_resp) = ui.allocate_exact_size(Vec2::new(26.0, 14.0), Sense::click());
-                                    let p = ui.painter();
-                                    let sw_color = if entry.is_enabled { RustCareTheme::ACCENT_TEAL } else { Color32::from_rgb(50, 62, 82) };
-                                    p.rect_filled(sw_rect, CornerRadius::same(7), if entry.is_enabled { Color32::from_rgb(14, 40, 50) } else { RustCareTheme::BG_VOID });
-                                    p.rect_stroke(sw_rect, CornerRadius::same(7), Stroke::new(1.0_f32, sw_color), StrokeKind::Inside);
-                                    let k_x = if entry.is_enabled { sw_rect.max.x - 7.0 } else { sw_rect.min.x + 7.0 };
-                                    p.circle_filled(Pos2::new(k_x, sw_rect.center().y), 5.0, sw_color);
+                                    // Punto indicador de estado
+                                    let (dot_rect, _) = ui.allocate_exact_size(Vec2::splat(14.0), Sense::hover());
+                                    let dot_col = if entry.is_enabled { RustCareTheme::ACCENT_TEAL } else { RustCareTheme::BORDER_SUBTLE };
+                                    ui.painter().circle_filled(dot_rect.center(), 3.5, dot_col);
 
-                                    if sw_resp.clicked() {
-                                        toggles.push((entry.id.clone(), !entry.is_enabled));
-                                    }
+                                    ui.add_space(4.0);
 
-                                    ui.add_space(8.0);
-                                    // Nombre del programa (ancho fijo ~200px)
-                                    let name_clean = if entry.name.len() > 22 {
-                                        format!("{}...", &entry.name[..20])
+                                    // Nombre del programa (42%)
+                                    let name_clean = if entry.name.len() > 26 {
+                                        format!("{}...", &entry.name[..24])
                                     } else {
                                         entry.name.clone()
                                     };
-                                    ui.allocate_ui_with_layout(Vec2::new(190.0, 20.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                    ui.allocate_ui_with_layout(Vec2::new(col_prog_w - 24.0, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                                         ui.label(RichText::new(name_clean).size(12.5).color(RustCareTheme::TEXT_PRIMARY));
                                     });
 
-                                    ui.add_space(10.0);
-
-                                    // Píldora de Impacto de Inicio
+                                    // Píldora de Impacto de Inicio (20%)
                                     let (imp_text, imp_color) = if idx == 0 {
                                         ("Alto", RustCareTheme::ACCENT_CORAL)
                                     } else if idx == 1 {
                                         ("Medio", RustCareTheme::ACCENT_AMBER)
                                     } else {
-                                        ("Bajo", RustCareTheme::TEXT_MUTED)
+                                        ("Bajo", RustCareTheme::ACCENT_TEAL)
                                     };
-                                    let (imp_rect, _) = ui.allocate_exact_size(Vec2::new(60.0, 20.0), Sense::hover());
-                                    ui.painter().rect_filled(imp_rect, CornerRadius::same(10), RustCareTheme::BG_ELEVATED);
-                                    ui.painter().rect_stroke(imp_rect, CornerRadius::same(10), Stroke::new(1.0_f32, imp_color), StrokeKind::Inside);
-                                    ui.painter().text(imp_rect.center(), Align2::CENTER_CENTER, imp_text, FontId::proportional(11.0), imp_color);
+                                    ui.allocate_ui_with_layout(Vec2::new(col_impact_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                        let (imp_rect, _) = ui.allocate_exact_size(Vec2::new(60.0, 20.0), Sense::hover());
+                                        ui.painter().rect_filled(imp_rect, CornerRadius::same(10), RustCareTheme::BG_ELEVATED);
+                                        ui.painter().rect_stroke(imp_rect, CornerRadius::same(10), Stroke::new(1.0, imp_color), StrokeKind::Inside);
+                                        ui.painter().text(imp_rect.center(), Align2::CENTER_CENTER, imp_text, FontId::proportional(11.0), imp_color);
+                                    });
 
-                                    ui.add_space(20.0);
+                                    // Toggle de estado (18%) con widgets::pill_toggle
+                                    ui.allocate_ui_with_layout(Vec2::new(col_state_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                        let mut state_copy = entry.is_enabled;
+                                        if widgets::pill_toggle(ui, &mut state_copy).changed() {
+                                            toggles.push((entry.id.clone(), state_copy));
+                                        }
+                                    });
 
-                                    // Mini-toggle switch de estado
-                                    let (sw2_rect, sw2_resp) = ui.allocate_exact_size(Vec2::new(26.0, 14.0), Sense::click());
-                                    let p = ui.painter();
-                                    p.rect_filled(sw2_rect, CornerRadius::same(7), if entry.is_enabled { Color32::from_rgb(14, 40, 50) } else { RustCareTheme::BG_VOID });
-                                    p.rect_stroke(sw2_rect, CornerRadius::same(7), Stroke::new(1.0_f32, sw_color), StrokeKind::Inside);
-                                    p.circle_filled(Pos2::new(k_x, sw2_rect.center().y), 5.0, sw_color);
-
-                                    if sw2_resp.clicked() {
-                                        toggles.push((entry.id.clone(), !entry.is_enabled));
-                                    }
-
-                                    ui.add_space(20.0);
-
-                                    // Botón Activar / Desactivar
+                                    // Botón Activar / Desactivar (20%) con widgets::ghost_button
                                     let btn_label = if entry.is_enabled { "Desactivar" } else { "Activar" };
-                                    let btn_color = if entry.is_enabled { RustCareTheme::ACCENT_AMBER } else { RustCareTheme::ACCENT_TEAL };
-                                    if RustCareTheme::custom_button(
-                                        ui,
-                                        btn_label,
-                                        RustCareTheme::BORDER_SUBTLE,
-                                        btn_color,
-                                        RustCareTheme::BG_VOID,
-                                        24.0,
-                                    ).clicked() {
+                                    if widgets::ghost_button(ui, btn_label, Some(84.0)).clicked() {
                                         toggles.push((entry.id.clone(), !entry.is_enabled));
                                     }
                                 });

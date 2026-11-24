@@ -1,86 +1,138 @@
 //! Primitivas de dibujo vectorial 100% nativas para RustCare
 //! Prohibido el uso de emojis del sistema operativo. Trazo estándar de 1.5px.
-use crate::theme::RustCareTheme;
 use eframe::egui::{Color32, Painter, Pos2, Rect, Stroke};
 use std::f32::consts::TAU;
 
-pub struct VectorIcons;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppIcon {
+    LogoShield,
+    Home,
+    Bolt,
+    Broom,
+    ShieldCheck,
+    Tools,
+    Pulse,
+    Gear,
+    Trash,
+    Eye,
+    RamChip,
+    Briefcase,
+    Gamepad,
+    BatteryBolt,
+    Refresh,
+    SearchDoc,
+    Shredder,
+    Gauge,
+    User,
+}
 
-impl VectorIcons {
-    /// Icono de Radar / Casa para Cuidar / Inicio (18x18)
-    pub fn draw_radar(painter: &Painter, rect: Rect, color: Color32) {
-        let center = rect.center();
-        let stroke = Stroke::new(1.5_f32, color);
-        let r = rect.width().min(rect.height()) * 0.42;
+pub fn draw_icon(painter: &Painter, rect: Rect, icon: AppIcon, color: Color32, stroke_width: f32) {
+    let stroke = Stroke::new(stroke_width, color);
+    let c = rect.center();
+    let w = rect.width();
+    let h = rect.height();
 
-        // Círculo exterior
-        painter.circle_stroke(center, r, stroke);
-        // Círculo concéntrico menor
-        painter.circle_stroke(center, r * 0.55, Stroke::new(1.0_f32, color));
-        // Línea de barrido / radio
-        painter.line_segment([center, Pos2::new(center.x + r * 0.707, center.y - r * 0.707)], stroke);
-        // Punto central
-        painter.circle_filled(center, 1.8, color);
-    }
-
-    /// Icono de Rayo para Acelerar / Turbo Boost (18x18)
-    pub fn draw_lightning(painter: &Painter, rect: Rect, color: Color32) {
-        let stroke = Stroke::new(1.5_f32, color);
-        let p = [
-            Pos2::new(rect.center().x + 1.0, rect.min.y + 2.0),
-            Pos2::new(rect.min.x + 4.0, rect.center().y + 1.0),
-            Pos2::new(rect.center().x - 1.0, rect.center().y + 1.0),
-            Pos2::new(rect.center().x - 1.0, rect.max.y - 2.0),
-            Pos2::new(rect.max.x - 4.0, rect.center().y - 1.0),
-            Pos2::new(rect.center().x + 1.0, rect.center().y - 1.0),
-        ];
-        for w in p.windows(2) {
-            painter.line_segment([w[0], w[1]], stroke);
-        }
-        painter.line_segment([p[5], p[0]], stroke);
-    }
-
-    /// Icono de Escoba / Limpieza (18x18)
-    pub fn draw_broom(painter: &Painter, rect: Rect, color: Color32) {
-        let stroke = Stroke::new(1.5_f32, color);
-        // Mango diagonal
-        painter.line_segment(
-            [Pos2::new(rect.max.x - 3.0, rect.min.y + 3.0), Pos2::new(rect.center().x, rect.center().y)],
-            stroke,
-        );
-        // Cerdas trapezoidales
-        let b1 = Pos2::new(rect.center().x - 3.0, rect.center().y - 1.0);
-        let b2 = Pos2::new(rect.center().x + 1.0, rect.center().y + 3.0);
-        let b3 = Pos2::new(rect.min.x + 3.0, rect.max.y - 2.0);
-        let b4 = Pos2::new(rect.min.x + 7.0, rect.max.y - 1.0);
-        painter.line_segment([b1, b2], stroke);
-        painter.line_segment([b2, b4], stroke);
-        painter.line_segment([b4, b3], stroke);
-        painter.line_segment([b3, b1], stroke);
-    }
-
-    /// Icono de Escudo para Seguridad (18x18)
-    pub fn draw_shield(painter: &Painter, rect: Rect, color: Color32, with_check: bool) {
-        let stroke = Stroke::new(1.5_f32, color);
-        let c = rect.center();
-        let top = rect.min.y + 2.5;
-        let left = rect.min.x + 3.0;
-        let right = rect.max.x - 3.0;
-        let bot = rect.max.y - 2.5;
-
-        let points = [
-            Pos2::new(left, top),
-            Pos2::new(right, top),
-            Pos2::new(right, c.y + 1.0),
-            Pos2::new(c.x, bot),
-            Pos2::new(left, c.y + 1.0),
-            Pos2::new(left, top),
-        ];
-        for w in points.windows(2) {
-            painter.line_segment([w[0], w[1]], stroke);
+    match icon {
+        AppIcon::LogoShield => {
+            // Hexágono exterior
+            let r = (w.min(h) * 0.46).max(6.0);
+            let mut hex_pts = Vec::with_capacity(6);
+            for i in 0..6 {
+                let angle = (i as f32) * (TAU / 6.0) - (TAU / 12.0);
+                hex_pts.push(Pos2::new(c.x + r * angle.cos(), c.y + r * angle.sin()));
+            }
+            for i in 0..6 {
+                painter.line_segment([hex_pts[i], hex_pts[(i + 1) % 6]], stroke);
+            }
+            // Rayo interno estilizado
+            let bolt = [
+                Pos2::new(c.x + 1.0, c.y - r * 0.55),
+                Pos2::new(c.x - r * 0.35, c.y + 0.5),
+                Pos2::new(c.x, c.y + 0.5),
+                Pos2::new(c.x - 1.0, c.y + r * 0.55),
+                Pos2::new(c.x + r * 0.35, c.y - 0.5),
+                Pos2::new(c.x, c.y - 0.5),
+            ];
+            for i in 0..6 {
+                painter.line_segment([bolt[i], bolt[(i + 1) % 6]], Stroke::new(1.2_f32, color));
+            }
         }
 
-        if with_check {
+        AppIcon::Home => {
+            let left = rect.min.x + 3.0;
+            let right = rect.max.x - 3.0;
+            let top = rect.min.y + 2.5;
+            let bot = rect.max.y - 2.5;
+            let mid_y = c.y - 0.5;
+
+            // Tejado triangular
+            painter.line_segment([Pos2::new(left - 0.5, mid_y + 1.0), Pos2::new(c.x, top)], stroke);
+            painter.line_segment([Pos2::new(c.x, top), Pos2::new(right + 0.5, mid_y + 1.0)], stroke);
+
+            // Base rectangular
+            painter.line_segment([Pos2::new(left + 2.0, mid_y + 1.0), Pos2::new(left + 2.0, bot)], stroke);
+            painter.line_segment([Pos2::new(right - 2.0, mid_y + 1.0), Pos2::new(right - 2.0, bot)], stroke);
+            painter.line_segment([Pos2::new(left + 2.0, bot), Pos2::new(right - 2.0, bot)], stroke);
+
+            // Puerta central
+            painter.line_segment([Pos2::new(c.x - 2.5, bot), Pos2::new(c.x - 2.5, bot - 5.0)], stroke);
+            painter.line_segment([Pos2::new(c.x - 2.5, bot - 5.0), Pos2::new(c.x + 2.5, bot - 5.0)], stroke);
+            painter.line_segment([Pos2::new(c.x + 2.5, bot - 5.0), Pos2::new(c.x + 2.5, bot)], stroke);
+        }
+
+        AppIcon::Bolt => {
+            let p = [
+                Pos2::new(c.x + 1.0, rect.min.y + 2.0),
+                Pos2::new(rect.min.x + 4.0, c.y + 1.0),
+                Pos2::new(c.x - 1.0, c.y + 1.0),
+                Pos2::new(c.x - 1.0, rect.max.y - 2.0),
+                Pos2::new(rect.max.x - 4.0, c.y - 1.0),
+                Pos2::new(c.x + 1.0, c.y - 1.0),
+            ];
+            for i in 0..6 {
+                painter.line_segment([p[i], p[(i + 1) % 6]], stroke);
+            }
+        }
+
+        AppIcon::Broom => {
+            // Mango diagonal
+            painter.line_segment(
+                [Pos2::new(rect.max.x - 3.0, rect.min.y + 3.0), Pos2::new(c.x, c.y)],
+                stroke,
+            );
+            // Cerdas trapezoidales
+            let b1 = Pos2::new(c.x - 3.0, c.y - 1.0);
+            let b2 = Pos2::new(c.x + 1.0, c.y + 3.0);
+            let b3 = Pos2::new(rect.min.x + 3.0, rect.max.y - 2.0);
+            let b4 = Pos2::new(rect.min.x + 7.5, rect.max.y - 1.0);
+            painter.line_segment([b1, b2], stroke);
+            painter.line_segment([b2, b4], stroke);
+            painter.line_segment([b4, b3], stroke);
+            painter.line_segment([b3, b1], stroke);
+
+            // 3 líneas de cerdas internas
+            painter.line_segment([Pos2::new(c.x - 1.0, c.y + 1.0), Pos2::new(rect.min.x + 4.5, rect.max.y - 1.5)], stroke);
+            painter.line_segment([Pos2::new(c.x, c.y + 2.0), Pos2::new(rect.min.x + 6.0, rect.max.y - 1.2)], stroke);
+        }
+
+        AppIcon::ShieldCheck => {
+            let top = rect.min.y + 2.5;
+            let left = rect.min.x + 3.0;
+            let right = rect.max.x - 3.0;
+            let bot = rect.max.y - 2.5;
+
+            let points = [
+                Pos2::new(left, top),
+                Pos2::new(right, top),
+                Pos2::new(right, c.y + 1.0),
+                Pos2::new(c.x, bot),
+                Pos2::new(left, c.y + 1.0),
+                Pos2::new(left, top),
+            ];
+            for w in points.windows(2) {
+                painter.line_segment([w[0], w[1]], stroke);
+            }
+
             let chk = [
                 Pos2::new(c.x - 3.5, c.y),
                 Pos2::new(c.x - 1.0, c.y + 2.5),
@@ -89,243 +141,381 @@ impl VectorIcons {
             painter.line_segment([chk[0], chk[1]], stroke);
             painter.line_segment([chk[1], chk[2]], stroke);
         }
-    }
 
-    /// Icono de Herramientas / Llaves Cruzadas (18x18)
+        AppIcon::Tools => {
+            // Dos líneas cruzadas con topes/llaves
+            painter.line_segment(
+                [Pos2::new(rect.min.x + 4.0, rect.min.y + 4.0), Pos2::new(rect.max.x - 4.0, rect.max.y - 4.0)],
+                stroke,
+            );
+            painter.line_segment(
+                [Pos2::new(rect.max.x - 4.0, rect.min.y + 4.0), Pos2::new(rect.min.x + 4.0, rect.max.y - 4.0)],
+                stroke,
+            );
+            // Topes ensanchados
+            painter.line_segment([Pos2::new(rect.min.x + 2.5, rect.min.y + 5.5), Pos2::new(rect.min.x + 5.5, rect.min.y + 2.5)], stroke);
+            painter.line_segment([Pos2::new(rect.max.x - 2.5, rect.max.y - 5.5), Pos2::new(rect.max.x - 5.5, rect.max.y - 2.5)], stroke);
+            painter.line_segment([Pos2::new(rect.max.x - 5.5, rect.min.y + 2.5), Pos2::new(rect.max.x - 2.5, rect.min.y + 5.5)], stroke);
+            painter.line_segment([Pos2::new(rect.min.x + 5.5, rect.max.y - 2.5), Pos2::new(rect.min.x + 2.5, rect.max.y - 5.5)], stroke);
+        }
+
+        AppIcon::Pulse => {
+            let left = rect.min.x + 2.0;
+            let right = rect.max.x - 2.0;
+            let mid_y = c.y;
+
+            let pts = [
+                Pos2::new(left, mid_y),
+                Pos2::new(c.x - 5.0, mid_y),
+                Pos2::new(c.x - 3.0, mid_y - 4.5),
+                Pos2::new(c.x - 1.0, mid_y + 4.5),
+                Pos2::new(c.x + 1.0, mid_y - 7.0),
+                Pos2::new(c.x + 3.0, mid_y + 3.0),
+                Pos2::new(c.x + 5.0, mid_y),
+                Pos2::new(right, mid_y),
+            ];
+            for w in pts.windows(2) {
+                painter.line_segment([w[0], w[1]], stroke);
+            }
+        }
+
+        AppIcon::Gear => {
+            let r = (w.min(h) * 0.32).max(4.0);
+            painter.circle_stroke(c, r, stroke);
+            painter.circle_filled(c, 1.8, color);
+
+            // 8 dientes radiales
+            for i in 0..8 {
+                let angle = (i as f32) * (TAU / 8.0);
+                let p1 = Pos2::new(c.x + r * angle.cos(), c.y + r * angle.sin());
+                let p2 = Pos2::new(c.x + (r + 2.8) * angle.cos(), c.y + (r + 2.8) * angle.sin());
+                painter.line_segment([p1, p2], stroke);
+            }
+        }
+
+        AppIcon::Trash => {
+            let top = rect.min.y + 3.0;
+            let bot = rect.max.y - 2.5;
+            let left = rect.min.x + 4.0;
+            let right = rect.max.x - 4.0;
+
+            // Asa y tapa
+            painter.line_segment([Pos2::new(c.x - 2.5, top), Pos2::new(c.x + 2.5, top)], stroke);
+            painter.line_segment([Pos2::new(left - 1.5, top + 2.0), Pos2::new(right + 1.5, top + 2.0)], stroke);
+
+            // Cuerpo trapezoidal
+            painter.line_segment([Pos2::new(left, top + 2.0), Pos2::new(left + 1.5, bot)], stroke);
+            painter.line_segment([Pos2::new(right, top + 2.0), Pos2::new(right - 1.5, bot)], stroke);
+            painter.line_segment([Pos2::new(left + 1.5, bot), Pos2::new(right - 1.5, bot)], stroke);
+
+            // 2 líneas verticales internas
+            painter.line_segment([Pos2::new(c.x - 2.0, top + 4.5), Pos2::new(c.x - 1.5, bot - 2.0)], stroke);
+            painter.line_segment([Pos2::new(c.x + 2.0, top + 4.5), Pos2::new(c.x + 1.5, bot - 2.0)], stroke);
+        }
+
+        AppIcon::Eye => {
+            let left = Pos2::new(rect.min.x + 2.0, c.y);
+            let right = Pos2::new(rect.max.x - 2.0, c.y);
+            let top = Pos2::new(c.x, rect.min.y + 4.0);
+            let bot = Pos2::new(c.x, rect.max.y - 4.0);
+
+            // Arcos de almendra
+            painter.line_segment([left, top], stroke);
+            painter.line_segment([top, right], stroke);
+            painter.line_segment([right, bot], stroke);
+            painter.line_segment([bot, left], stroke);
+
+            // Pupila
+            painter.circle_stroke(c, 3.2, stroke);
+            painter.circle_filled(c, 1.4, color);
+        }
+
+        AppIcon::RamChip => {
+            let left = rect.min.x + 4.5;
+            let right = rect.max.x - 4.5;
+            let top = rect.min.y + 4.0;
+            let bot = rect.max.y - 4.0;
+
+            // Cuerpo chip
+            painter.rect_stroke(
+                Rect::from_min_max(Pos2::new(left, top), Pos2::new(right, bot)),
+                eframe::egui::CornerRadius::same(2),
+                stroke,
+                eframe::egui::StrokeKind::Inside,
+            );
+
+            // 4 pines superiores y 4 pines inferiores
+            let count = 4;
+            let step = (right - left) / (count as f32 + 1.0);
+            for i in 1..=count {
+                let x = left + step * (i as f32);
+                painter.line_segment([Pos2::new(x, rect.min.y + 1.5), Pos2::new(x, top)], stroke);
+                painter.line_segment([Pos2::new(x, bot), Pos2::new(x, rect.max.y - 1.5)], stroke);
+            }
+
+            // Marca interna
+            painter.circle_filled(Pos2::new(left + 3.0, top + 3.0), 1.0, color);
+        }
+
+        AppIcon::Briefcase => {
+            let left = rect.min.x + 3.0;
+            let right = rect.max.x - 3.0;
+            let top = rect.min.y + 5.0;
+            let bot = rect.max.y - 3.0;
+
+            // Cuerpo maletín
+            painter.rect_stroke(
+                Rect::from_min_max(Pos2::new(left, top), Pos2::new(right, bot)),
+                eframe::egui::CornerRadius::same(3),
+                stroke,
+                eframe::egui::StrokeKind::Inside,
+            );
+
+            // Asa superior
+            painter.line_segment([Pos2::new(c.x - 4.0, top), Pos2::new(c.x - 4.0, rect.min.y + 2.5)], stroke);
+            painter.line_segment([Pos2::new(c.x - 4.0, rect.min.y + 2.5), Pos2::new(c.x + 4.0, rect.min.y + 2.5)], stroke);
+            painter.line_segment([Pos2::new(c.x + 4.0, rect.min.y + 2.5), Pos2::new(c.x + 4.0, top)], stroke);
+
+            // Línea central y cerradura
+            painter.line_segment([Pos2::new(left, c.y), Pos2::new(right, c.y)], Stroke::new(1.0_f32, color));
+            painter.rect_filled(Rect::from_center_size(c, eframe::egui::vec2(3.0, 2.5)), eframe::egui::CornerRadius::same(1), color);
+        }
+
+        AppIcon::Gamepad => {
+            let left = rect.min.x + 2.5;
+            let right = rect.max.x - 2.5;
+            let top = rect.min.y + 4.5;
+            let bot = rect.max.y - 3.5;
+
+            // Contorno mando
+            painter.rect_stroke(
+                Rect::from_min_max(Pos2::new(left, top), Pos2::new(right, bot)),
+                eframe::egui::CornerRadius::same(6),
+                stroke,
+                eframe::egui::StrokeKind::Inside,
+            );
+
+            // Cruceta izquierda
+            let pad_c = Pos2::new(left + 5.0, c.y + 0.5);
+            painter.line_segment([Pos2::new(pad_c.x - 2.5, pad_c.y), Pos2::new(pad_c.x + 2.5, pad_c.y)], stroke);
+            painter.line_segment([Pos2::new(pad_c.x, pad_c.y - 2.5), Pos2::new(pad_c.x, pad_c.y + 2.5)], stroke);
+
+            // 2 botones derecha
+            painter.circle_filled(Pos2::new(right - 6.5, c.y - 0.5), 1.3, color);
+            painter.circle_filled(Pos2::new(right - 3.5, c.y + 1.5), 1.3, color);
+        }
+
+        AppIcon::BatteryBolt => {
+            let left = rect.min.x + 4.5;
+            let right = rect.max.x - 4.5;
+            let top = rect.min.y + 4.5;
+            let bot = rect.max.y - 2.5;
+
+            // Borne superior
+            painter.line_segment([Pos2::new(c.x - 2.0, rect.min.y + 2.5), Pos2::new(c.x + 2.0, rect.min.y + 2.5)], stroke);
+            painter.line_segment([Pos2::new(c.x - 2.0, rect.min.y + 2.5), Pos2::new(c.x - 2.0, top)], stroke);
+            painter.line_segment([Pos2::new(c.x + 2.0, rect.min.y + 2.5), Pos2::new(c.x + 2.0, top)], stroke);
+
+            // Cuerpo batería
+            painter.rect_stroke(
+                Rect::from_min_max(Pos2::new(left, top), Pos2::new(right, bot)),
+                eframe::egui::CornerRadius::same(2),
+                stroke,
+                eframe::egui::StrokeKind::Inside,
+            );
+
+            // Rayo central
+            let b_pts = [
+                Pos2::new(c.x + 0.5, top + 2.0),
+                Pos2::new(c.x - 2.0, c.y + 0.5),
+                Pos2::new(c.x + 0.5, c.y + 0.5),
+                Pos2::new(c.x - 0.5, bot - 2.0),
+                Pos2::new(c.x + 2.0, c.y - 0.5),
+                Pos2::new(c.x - 0.5, c.y - 0.5),
+            ];
+            for w in b_pts.windows(2) {
+                painter.line_segment([w[0], w[1]], Stroke::new(1.0_f32, color));
+            }
+        }
+
+        AppIcon::Refresh => {
+            let r = (w.min(h) * 0.36).max(5.0);
+            let start_angle: f32 = -0.3_f32;
+            let end_angle: f32 = start_angle + 4.8_f32; // ~275 deg
+            let steps = 18;
+            let mut prev = Pos2::new(c.x + r * start_angle.cos(), c.y + r * start_angle.sin());
+
+            for i in 1..=steps {
+                let frac = i as f32 / steps as f32;
+                let a = start_angle + frac * (end_angle - start_angle);
+                let next = Pos2::new(c.x + r * a.cos(), c.y + r * a.sin());
+                painter.line_segment([prev, next], stroke);
+                prev = next;
+            }
+
+            // Flecha triangular en el extremo final
+            let arrow_tip = prev;
+            painter.line_segment([arrow_tip, Pos2::new(arrow_tip.x + 3.0, arrow_tip.y - 2.0)], stroke);
+            painter.line_segment([arrow_tip, Pos2::new(arrow_tip.x - 1.0, arrow_tip.y - 3.5)], stroke);
+        }
+
+        AppIcon::SearchDoc => {
+            let left = rect.min.x + 3.0;
+            let right = rect.max.x - 6.0;
+            let top = rect.min.y + 2.5;
+            let bot = rect.max.y - 4.5;
+            let fold = 3.5;
+
+            // Hoja doblada
+            painter.line_segment([Pos2::new(left, top), Pos2::new(right - fold, top)], stroke);
+            painter.line_segment([Pos2::new(right - fold, top), Pos2::new(right, top + fold)], stroke);
+            painter.line_segment([Pos2::new(right, top + fold), Pos2::new(right, bot)], stroke);
+            painter.line_segment([Pos2::new(right, bot), Pos2::new(left, bot)], stroke);
+            painter.line_segment([Pos2::new(left, bot), Pos2::new(left, top)], stroke);
+
+            // Pliegue
+            painter.line_segment([Pos2::new(right - fold, top), Pos2::new(right - fold, top + fold)], stroke);
+            painter.line_segment([Pos2::new(right - fold, top + fold), Pos2::new(right, top + fold)], stroke);
+
+            // Lupa superpuesta abajo derecha
+            let m_c = Pos2::new(rect.max.x - 4.5, rect.max.y - 4.5);
+            painter.circle_stroke(m_c, 3.0, stroke);
+            painter.line_segment([Pos2::new(m_c.x + 2.0, m_c.y + 2.0), Pos2::new(rect.max.x - 1.0, rect.max.y - 1.0)], stroke);
+        }
+
+        AppIcon::Shredder => {
+            let left = rect.min.x + 3.0;
+            let right = rect.max.x - 3.0;
+            let mid_y = c.y - 1.0;
+
+            // Ranura superior
+            painter.rect_stroke(
+                Rect::from_min_max(Pos2::new(left, mid_y - 2.5), Pos2::new(right, mid_y + 2.5)),
+                eframe::egui::CornerRadius::same(2),
+                stroke,
+                eframe::egui::StrokeKind::Inside,
+            );
+
+            // Hoja entrando por arriba
+            painter.line_segment([Pos2::new(left + 2.5, rect.min.y + 2.5), Pos2::new(right - 2.5, rect.min.y + 2.5)], stroke);
+            painter.line_segment([Pos2::new(left + 2.5, rect.min.y + 2.5), Pos2::new(left + 2.5, mid_y - 2.5)], stroke);
+            painter.line_segment([Pos2::new(right - 2.5, rect.min.y + 2.5), Pos2::new(right - 2.5, mid_y - 2.5)], stroke);
+
+            // 4 tiras de papel saliendo abajo
+            let step = (right - left - 4.0) / 3.0;
+            for i in 0..4 {
+                let x = left + 2.0 + (i as f32) * step;
+                painter.line_segment([Pos2::new(x, mid_y + 2.5), Pos2::new(x, rect.max.y - 2.0)], stroke);
+            }
+        }
+
+        AppIcon::Gauge => {
+            let r = (w.min(h) * 0.40).max(5.0);
+            let start = 0.75 * TAU; // Arriba
+            let span = 0.67 * TAU;  // 240 deg
+            let arc_start = start - span / 2.0;
+            let steps = 16;
+            let mut prev = Pos2::new(c.x + r * arc_start.cos(), c.y + r * arc_start.sin());
+
+            for i in 1..=steps {
+                let frac = i as f32 / steps as f32;
+                let a = arc_start + frac * span;
+                let next = Pos2::new(c.x + r * a.cos(), c.y + r * a.sin());
+                painter.line_segment([prev, next], stroke);
+                prev = next;
+            }
+
+            // Aguja apuntando a las 2 en punto (~30 deg / 0.5 rad)
+            let needle_angle: f32 = -0.55_f32;
+            let needle_end = Pos2::new(c.x + (r - 2.0) * needle_angle.cos(), c.y + (r - 2.0) * needle_angle.sin());
+            painter.line_segment([c, needle_end], stroke);
+            painter.circle_filled(c, 1.8, color);
+        }
+
+        AppIcon::User => {
+            let head_r = (w.min(h) * 0.18).max(2.5);
+            let head_c = Pos2::new(c.x, c.y - 2.5);
+            painter.circle_stroke(head_c, head_r, stroke);
+
+            let body_top = Pos2::new(c.x, c.y + head_r);
+            let shoulder_w = head_r * 2.2;
+            let shoulder_y = body_top.y + 4.0;
+            painter.line_segment([Pos2::new(c.x - shoulder_w, shoulder_y), Pos2::new(c.x + shoulder_w, shoulder_y)], stroke);
+            painter.line_segment([Pos2::new(c.x - shoulder_w, shoulder_y), Pos2::new(c.x - shoulder_w + 1.0, rect.max.y - 2.0)], stroke);
+            painter.line_segment([Pos2::new(c.x + shoulder_w, shoulder_y), Pos2::new(c.x + shoulder_w - 1.0, rect.max.y - 2.0)], stroke);
+        }
+    }
+}
+
+pub struct VectorIcons;
+
+impl VectorIcons {
+    pub fn draw_radar(painter: &Painter, rect: Rect, color: Color32) {
+        draw_icon(painter, rect, AppIcon::Home, color, 1.5);
+    }
+    pub fn draw_lightning(painter: &Painter, rect: Rect, color: Color32) {
+        draw_icon(painter, rect, AppIcon::Bolt, color, 1.5);
+    }
+    pub fn draw_broom(painter: &Painter, rect: Rect, color: Color32) {
+        draw_icon(painter, rect, AppIcon::Broom, color, 1.5);
+    }
+    pub fn draw_shield(painter: &Painter, rect: Rect, color: Color32, with_check: bool) {
+        if with_check {
+            draw_icon(painter, rect, AppIcon::ShieldCheck, color, 1.5);
+        } else {
+            let stroke = Stroke::new(1.5_f32, color);
+            let c = rect.center();
+            let top = rect.min.y + 2.5;
+            let left = rect.min.x + 3.0;
+            let right = rect.max.x - 3.0;
+            let bot = rect.max.y - 2.5;
+            let points = [
+                Pos2::new(left, top),
+                Pos2::new(right, top),
+                Pos2::new(right, c.y + 1.0),
+                Pos2::new(c.x, bot),
+                Pos2::new(left, c.y + 1.0),
+                Pos2::new(left, top),
+            ];
+            for w in points.windows(2) {
+                painter.line_segment([w[0], w[1]], stroke);
+            }
+        }
+    }
     pub fn draw_tools(painter: &Painter, rect: Rect, color: Color32) {
-        let stroke = Stroke::new(1.5_f32, color);
-        // Barra 1
-        painter.line_segment(
-            [Pos2::new(rect.min.x + 4.0, rect.min.y + 4.0), Pos2::new(rect.max.x - 4.0, rect.max.y - 4.0)],
-            stroke,
-        );
-        // Barra 2
-        painter.line_segment(
-            [Pos2::new(rect.max.x - 4.0, rect.min.y + 4.0), Pos2::new(rect.min.x + 4.0, rect.max.y - 4.0)],
-            stroke,
-        );
-        // Cabezales
-        painter.circle_stroke(Pos2::new(rect.min.x + 4.0, rect.min.y + 4.0), 2.2, stroke);
-        painter.circle_stroke(Pos2::new(rect.max.x - 4.0, rect.max.y - 4.0), 2.2, stroke);
+        draw_icon(painter, rect, AppIcon::Tools, color, 1.5);
     }
-
-    /// Icono de Monitor / Gráfica de pulso ECG (18x18)
     pub fn draw_monitor(painter: &Painter, rect: Rect, color: Color32) {
-        let stroke = Stroke::new(1.5_f32, color);
-        let cy = rect.center().y;
-        let points = [
-            Pos2::new(rect.min.x + 2.0, cy),
-            Pos2::new(rect.min.x + 5.0, cy),
-            Pos2::new(rect.min.x + 7.5, cy - 6.0),
-            Pos2::new(rect.min.x + 10.5, cy + 6.0),
-            Pos2::new(rect.min.x + 13.0, cy),
-            Pos2::new(rect.max.x - 2.0, cy),
-        ];
-        for w in points.windows(2) {
-            painter.line_segment([w[0], w[1]], stroke);
-        }
+        draw_icon(painter, rect, AppIcon::Pulse, color, 1.5);
     }
-
-    /// Icono de Engranaje para Ajustes (18x18)
     pub fn draw_gear(painter: &Painter, rect: Rect, color: Color32) {
-        let center = rect.center();
-        let stroke = Stroke::new(1.5_f32, color);
-        let r = rect.width().min(rect.height()) * 0.38;
-
-        painter.circle_stroke(center, r * 0.5, stroke);
-        painter.circle_stroke(center, r, Stroke::new(1.0_f32, color));
-
-        for i in 0..6 {
-            let a = (i as f32 / 6.0) * TAU;
-            let p1 = Pos2::new(center.x + (r - 1.0) * a.cos(), center.y + (r - 1.0) * a.sin());
-            let p2 = Pos2::new(center.x + (r + 2.5) * a.cos(), center.y + (r + 2.5) * a.sin());
-            painter.line_segment([p1, p2], stroke);
-        }
+        draw_icon(painter, rect, AppIcon::Gear, color, 1.5);
     }
-
-    /// Icono Papelera / Archivos Basura (24x24 o superior)
     pub fn draw_trash(painter: &Painter, rect: Rect, color: Color32) {
-        let stroke = Stroke::new(1.5_f32, color);
-        let top = rect.min.y + rect.height() * 0.22;
-        let bot = rect.max.y - rect.height() * 0.15;
-        let left = rect.min.x + rect.width() * 0.25;
-        let right = rect.max.x - rect.width() * 0.25;
-
-        // Tapa
-        painter.line_segment([Pos2::new(left - 3.0, top), Pos2::new(right + 3.0, top)], stroke);
-        painter.line_segment(
-            [Pos2::new(rect.center().x - 3.0, top - 3.0), Pos2::new(rect.center().x + 3.0, top - 3.0)],
-            stroke,
-        );
-
-        // Cuerpo trapezoidal
-        painter.line_segment([Pos2::new(left, top), Pos2::new(left + 2.0, bot)], stroke);
-        painter.line_segment([Pos2::new(right, top), Pos2::new(right - 2.0, bot)], stroke);
-        painter.line_segment([Pos2::new(left + 2.0, bot), Pos2::new(right - 2.0, bot)], stroke);
-
-        // Ranuras verticales
-        let cx = rect.center().x;
-        painter.line_segment([Pos2::new(cx, top + 4.0), Pos2::new(cx, bot - 3.0)], Stroke::new(1.2_f32, color));
-        painter.line_segment([Pos2::new(cx - 3.5, top + 4.0), Pos2::new(cx - 3.0, bot - 3.0)], Stroke::new(1.2_f32, color));
-        painter.line_segment([Pos2::new(cx + 3.5, top + 4.0), Pos2::new(cx + 3.0, bot - 3.0)], Stroke::new(1.2_f32, color));
+        draw_icon(painter, rect, AppIcon::Trash, color, 1.5);
     }
-
-    /// Icono Ojo / Privacidad (24x24)
     pub fn draw_eye(painter: &Painter, rect: Rect, color: Color32) {
-        let stroke = Stroke::new(1.5_f32, color);
-        let c = rect.center();
-        let w = rect.width() * 0.40;
-        let h = rect.height() * 0.24;
-
-        // Puntos contorno de ojo
-        let p1 = Pos2::new(c.x - w, c.y);
-        let p2 = Pos2::new(c.x, c.y - h);
-        let p3 = Pos2::new(c.x + w, c.y);
-        let p4 = Pos2::new(c.x, c.y + h);
-
-        painter.line_segment([p1, p2], stroke);
-        painter.line_segment([p2, p3], stroke);
-        painter.line_segment([p3, p4], stroke);
-        painter.line_segment([p4, p1], stroke);
-
-        // Pupila central
-        painter.circle_filled(c, 2.8, color);
+        draw_icon(painter, rect, AppIcon::Eye, color, 1.5);
     }
-
-    /// Icono Chip RAM (24x24)
-    pub fn draw_ram_chip(painter: &Painter, rect: Rect, color: Color32) {
-        let stroke = Stroke::new(1.5_f32, color);
-        let inner = rect.shrink(rect.width() * 0.22);
-
-        painter.rect_stroke(inner, eframe::egui::CornerRadius::same(2), stroke, eframe::egui::StrokeKind::Inside);
-
-        // Pines exteriores horizontales
-        for i in 0..3 {
-            let y = inner.min.y + inner.height() * (0.25 + i as f32 * 0.25);
-            painter.line_segment([Pos2::new(rect.min.x + 1.0, y), Pos2::new(inner.min.x, y)], stroke);
-            painter.line_segment([Pos2::new(inner.max.x, y), Pos2::new(rect.max.x - 1.0, y)], stroke);
-        }
-
-        // Pines exteriores verticales
-        for i in 0..3 {
-            let x = inner.min.x + inner.width() * (0.25 + i as f32 * 0.25);
-            painter.line_segment([Pos2::new(x, rect.min.y + 1.0), Pos2::new(x, inner.min.y)], stroke);
-            painter.line_segment([Pos2::new(x, inner.max.y), Pos2::new(x, rect.max.y - 1.0)], stroke);
-        }
+    pub fn draw_ram(painter: &Painter, rect: Rect, color: Color32) {
+        draw_icon(painter, rect, AppIcon::RamChip, color, 1.5);
     }
-
-    /// Icono Maletín / Modo Trabajo (32x32)
     pub fn draw_briefcase(painter: &Painter, rect: Rect, color: Color32) {
-        let stroke = Stroke::new(1.5_f32, color);
-        let body = Rect::from_min_max(
-            Pos2::new(rect.min.x + 3.0, rect.min.y + 8.0),
-            Pos2::new(rect.max.x - 3.0, rect.max.y - 4.0),
-        );
-        painter.rect_stroke(body, eframe::egui::CornerRadius::same(4), stroke, eframe::egui::StrokeKind::Inside);
-
-        // Asa
-        let h_left = rect.center().x - 6.0;
-        let h_right = rect.center().x + 6.0;
-        painter.line_segment([Pos2::new(h_left, body.min.y), Pos2::new(h_left, rect.min.y + 4.0)], stroke);
-        painter.line_segment([Pos2::new(h_left, rect.min.y + 4.0), Pos2::new(h_right, rect.min.y + 4.0)], stroke);
-        painter.line_segment([Pos2::new(h_right, rect.min.y + 4.0), Pos2::new(h_right, body.min.y)], stroke);
-
-        // Línea central
-        painter.line_segment([Pos2::new(body.min.x, body.center().y), Pos2::new(body.max.x, body.center().y)], Stroke::new(1.0_f32, color));
+        draw_icon(painter, rect, AppIcon::Briefcase, color, 1.5);
     }
-
-    /// Icono Gamepad / Modo Juego (32x32)
     pub fn draw_gamepad(painter: &Painter, rect: Rect, color: Color32) {
-        let stroke = Stroke::new(1.5_f32, color);
-        let body = Rect::from_min_max(
-            Pos2::new(rect.min.x + 3.0, rect.min.y + 7.0),
-            Pos2::new(rect.max.x - 3.0, rect.max.y - 7.0),
-        );
-        painter.rect_stroke(body, eframe::egui::CornerRadius::same(7), stroke, eframe::egui::StrokeKind::Inside);
-
-        // D-Pad a la izquierda
-        let d_center = Pos2::new(body.min.x + 8.0, body.center().y);
-        painter.line_segment([Pos2::new(d_center.x - 3.5, d_center.y), Pos2::new(d_center.x + 3.5, d_center.y)], stroke);
-        painter.line_segment([Pos2::new(d_center.x, d_center.y - 3.5), Pos2::new(d_center.x, d_center.y + 3.5)], stroke);
-
-        // 2 Botones a la derecha
-        let b1 = Pos2::new(body.max.x - 9.0, body.center().y - 2.5);
-        let b2 = Pos2::new(body.max.x - 6.0, body.center().y + 2.5);
-        painter.circle_filled(b1, 1.8, color);
-        painter.circle_filled(b2, 1.8, color);
+        draw_icon(painter, rect, AppIcon::Gamepad, color, 1.5);
     }
-
-    /// Icono Batería / Ahorro de Energía (32x32)
     pub fn draw_battery(painter: &Painter, rect: Rect, color: Color32) {
-        let stroke = Stroke::new(1.5_f32, color);
-        let body = Rect::from_min_max(
-            Pos2::new(rect.min.x + 5.0, rect.min.y + 7.0),
-            Pos2::new(rect.max.x - 7.0, rect.max.y - 7.0),
-        );
-        painter.rect_stroke(body, eframe::egui::CornerRadius::same(3), stroke, eframe::egui::StrokeKind::Inside);
-
-        // Terminal positivo
-        let term = Rect::from_min_max(
-            Pos2::new(body.max.x, body.center().y - 3.5),
-            Pos2::new(body.max.x + 2.5, body.center().y + 3.5),
-        );
-        painter.rect_filled(term, eframe::egui::CornerRadius::same(1), color);
-
-        // Rayo dentro de la batería
-        let c = body.center();
-        let pts = [
-            Pos2::new(c.x + 1.0, c.y - 4.5),
-            Pos2::new(c.x - 2.5, c.y),
-            Pos2::new(c.x + 0.5, c.y),
-            Pos2::new(c.x - 1.0, c.y + 4.5),
-        ];
-        painter.line_segment([pts[0], pts[1]], stroke);
-        painter.line_segment([pts[1], pts[2]], stroke);
-        painter.line_segment([pts[2], pts[3]], stroke);
+        draw_icon(painter, rect, AppIcon::BatteryBolt, color, 1.5);
     }
-
-    /// Icono Destructor de Archivos (32x32)
     pub fn draw_shredder(painter: &Painter, rect: Rect, color: Color32) {
-        let stroke = Stroke::new(1.5_f32, color);
-        let c = rect.center();
-        // Barra ranura horizontal
-        painter.line_segment([Pos2::new(rect.min.x + 3.0, c.y - 2.0), Pos2::new(rect.max.x - 3.0, c.y - 2.0)], stroke);
-        painter.line_segment([Pos2::new(rect.min.x + 3.0, c.y + 2.0), Pos2::new(rect.max.x - 3.0, c.y + 2.0)], stroke);
-
-        // Hoja arriba
-        let page = Rect::from_min_max(Pos2::new(c.x - 7.0, rect.min.y + 3.0), Pos2::new(c.x + 7.0, c.y - 2.0));
-        painter.rect_stroke(page, eframe::egui::CornerRadius::same(1), stroke, eframe::egui::StrokeKind::Inside);
-
-        // Tiras de papel triturado abajo
-        for i in 0..4 {
-            let x = c.x - 6.0 + i as f32 * 4.0;
-            painter.line_segment([Pos2::new(x, c.y + 2.0), Pos2::new(x, rect.max.y - 3.0)], Stroke::new(1.2_f32, color));
-        }
+        draw_icon(painter, rect, AppIcon::Shredder, color, 1.5);
     }
-
-    /// Icono Buscador de Duplicados (32x32)
     pub fn draw_duplicate(painter: &Painter, rect: Rect, color: Color32) {
-        let stroke = Stroke::new(1.5_f32, color);
-        // Página trasera
-        let p_back = Rect::from_min_max(Pos2::new(rect.min.x + 7.0, rect.min.y + 3.0), Pos2::new(rect.max.x - 3.0, rect.max.y - 7.0));
-        painter.rect_stroke(p_back, eframe::egui::CornerRadius::same(2), Stroke::new(1.0_f32, color), eframe::egui::StrokeKind::Inside);
-        // Página delantera
-        let p_front = Rect::from_min_max(Pos2::new(rect.min.x + 3.0, rect.min.y + 7.0), Pos2::new(rect.max.x - 7.0, rect.max.y - 3.0));
-        painter.rect_filled(p_front, eframe::egui::CornerRadius::same(2), RustCareTheme::BG_SURFACE);
-        painter.rect_stroke(p_front, eframe::egui::CornerRadius::same(2), stroke, eframe::egui::StrokeKind::Inside);
+        draw_icon(painter, rect, AppIcon::SearchDoc, color, 1.5);
     }
-
-    /// Icono Avatar Usuario (Topbar)
     pub fn draw_user(painter: &Painter, rect: Rect, color: Color32) {
-        let stroke = Stroke::new(1.5_f32, color);
-        let c = rect.center();
-        // Cabeza
-        painter.circle_stroke(Pos2::new(c.x, c.y - 3.0), 3.5, stroke);
-        // Hombros
-        let s_left = Pos2::new(c.x - 6.0, c.y + 6.0);
-        let s_top = Pos2::new(c.x, c.y + 2.0);
-        let s_right = Pos2::new(c.x + 6.0, c.y + 6.0);
-        painter.line_segment([s_left, s_top], stroke);
-        painter.line_segment([s_top, s_right], stroke);
+        draw_icon(painter, rect, AppIcon::User, color, 1.5);
     }
 }

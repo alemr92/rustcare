@@ -3,8 +3,9 @@
 
 mod app;
 pub mod icons;
-mod theme;
+pub mod theme;
 mod views;
+pub mod widgets;
 
 use app::RustCareApp;
 use eframe::egui;
@@ -42,6 +43,7 @@ fn main() -> eframe::Result<()> {
             .with_inner_size([1150.0, 720.0])
             .with_min_inner_size([950.0, 600.0])
             .with_title("RustCare - Windows 10/11 Optimization Suite"),
+        vsync: true,
         ..Default::default()
     };
 

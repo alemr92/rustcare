@@ -61,6 +61,16 @@ pub struct CleanerTarget {
     pub description: String,
     #[serde(default)]
     pub requires_admin: bool,
+    #[serde(default = "default_safe")]
+    pub safety_level: String,
+    #[serde(default)]
+    pub why_it_exists: String,
+    #[serde(default)]
+    pub safe_to_delete_reason: String,
+}
+
+fn default_safe() -> String {
+    "safe".to_string()
 }
 
 fn default_true() -> bool {

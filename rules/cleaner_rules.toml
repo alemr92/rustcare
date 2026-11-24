@@ -1,4 +1,5 @@
-# Reglas declarativas de limpieza para Windows, Navegadores y Entornos Dev
+# Reglas declarativas de limpieza para Windows, Navegadores, Juegos y Entornos Dev
+# Enriquecido con el modelo de transparencia y categorías de alto impacto de Roomy
 
 [[groups]]
 id = "windows_system"
@@ -13,6 +14,9 @@ recursive = true
 patterns = ["*"]
 description = "Archivos temporales generados por el sistema operativo y servicios."
 requires_admin = true
+safety_level = "safe"
+why_it_exists = "Creado por instaladores y procesos del sistema para almacenar archivos provisionales durante su ejecución."
+safe_to_delete_reason = "100% seguro. Windows protege automáticamente los archivos que están actualmente en uso."
 
 [[groups.targets]]
 id = "user_temp"
@@ -22,6 +26,9 @@ recursive = true
 patterns = ["*"]
 description = "Archivos temporales creados por aplicaciones en la sesión del usuario."
 requires_admin = false
+safety_level = "safe"
+why_it_exists = "Cachés de sesión de aplicaciones activas o cerradas que ya no se necesitan."
+safe_to_delete_reason = "Seguro. Libera espacio residual dejado por programas que no limpiaron al cerrarse."
 
 [[groups.targets]]
 id = "win_prefetch"
@@ -31,6 +38,9 @@ recursive = false
 patterns = ["*.pf"]
 description = "Archivos prefetch de aplicaciones que aceleran arranques antiguos pero acumulan residuos."
 requires_admin = true
+safety_level = "recommended"
+why_it_exists = "Windows monitora el arranque de ejecutables para predecir cargas futuras."
+safe_to_delete_reason = "Seguro. Windows regenera automáticamente el índice para las aplicaciones que utilizas actualmente."
 
 [[groups.targets]]
 id = "win_minidump"
@@ -40,6 +50,9 @@ recursive = true
 patterns = ["*.dmp"]
 description = "Informes de fallos de pantalla azul (BSOD) que ocupan espacio considerable."
 requires_admin = true
+safety_level = "safe"
+why_it_exists = "Capturas del estado de la memoria RAM tomadas cuando Windows sufre una pantalla azul."
+safe_to_delete_reason = "100% seguro si tu equipo ya funciona con normalidad."
 
 [[groups.targets]]
 id = "win_crashdumps"
@@ -49,6 +62,9 @@ recursive = true
 patterns = ["*.dmp"]
 description = "Volcados de error de aplicaciones colapsadas en espacio de usuario."
 requires_admin = false
+safety_level = "safe"
+why_it_exists = "Informes de depuración generados automáticamente cuando un programa se cierra de forma inesperada."
+safe_to_delete_reason = "Seguro. No contienen datos personales esenciales ni afectan a las aplicaciones."
 
 [[groups.targets]]
 id = "win_update_cache"
@@ -58,6 +74,21 @@ recursive = true
 patterns = ["*"]
 description = "Archivos de instalación descargados de actualizaciones ya aplicadas."
 requires_admin = true
+safety_level = "recommended"
+why_it_exists = "Paquetes .msu y parches descargados para instalar actualizaciones acumulativas."
+safe_to_delete_reason = "Completamente seguro una vez que las actualizaciones han terminado de instalarse."
+
+[[groups.targets]]
+id = "win_delivery_optimization"
+name = "Optimización de Distribución (P2P Update)"
+path = "%SystemRoot%\\SoftwareDistribution\\DeliveryOptimization"
+recursive = true
+patterns = ["*"]
+description = "Caché P2P de actualizaciones de Windows compartidas con otros equipos."
+requires_admin = true
+safety_level = "recommended"
+why_it_exists = "Windows conserva paquetes para enviarlos a otros equipos de tu red local y ahorrar ancho de banda."
+safe_to_delete_reason = "Muy seguro. Puede llegar a ocupar de 5 a 20 GB sin ninguna utilidad tras actualizar tu equipo."
 
 [[groups.targets]]
 id = "win_logs"
@@ -67,6 +98,192 @@ recursive = true
 patterns = ["*.log", "*.txt"]
 description = "Logs de diagnóstico y mantenimiento del sistema."
 requires_admin = true
+safety_level = "safe"
+why_it_exists = "Historiales de eventos y diagnósticos creados por componentes del sistema operativo."
+safe_to_delete_reason = "Seguro. Solo son necesarios si estás depurando un problema específico con el soporte técnico."
+
+[[groups]]
+id = "gpu_shaders"
+name = "Caché de Tarjeta Gráfica y Sombreadores (Shaders)"
+description = "Sombreadores precompilados de GPU que ocupan gigabytes y pueden causar tirones tras actualizar drivers"
+
+[[groups.targets]]
+id = "nvidia_dxcache"
+name = "NVIDIA - Caché de Sombreadores DirectX"
+path = "%LOCALAPPDATA%\\NVIDIA\\DXCache"
+recursive = true
+patterns = ["*"]
+description = "Caché de sombreadores DirectX compilados por el controlador NVIDIA."
+requires_admin = false
+safety_level = "optional"
+why_it_exists = "Almacena shaders compilados para que tus juegos carguen texturas y efectos más rápido."
+safe_to_delete_reason = "Seguro. Muy recomendado si has actualizado drivers y experimentas caídas de FPS o corrupción gráfica."
+
+[[groups.targets]]
+id = "nvidia_glcache"
+name = "NVIDIA - Caché OpenGL y Vulkan"
+path = "%LOCALAPPDATA%\\NVIDIA\\GLCache"
+recursive = true
+patterns = ["*"]
+description = "Caché de sombreadores de juegos y apps basadas en Vulkan y OpenGL."
+requires_admin = false
+safety_level = "optional"
+why_it_exists = "Precompilación de pipelines gráficos para títulos con soporte Vulkan u OpenGL."
+safe_to_delete_reason = "Seguro. Los títulos en ejecución regenerarán los shaders limpios en la próxima partida."
+
+[[groups.targets]]
+id = "amd_dxcache"
+name = "AMD Radeon - Caché de Sombreadores"
+path = "%LOCALAPPDATA%\\AMD\\DxCache"
+recursive = true
+patterns = ["*"]
+description = "Sombreadores compilados por el software AMD Radeon Adrenalin."
+requires_admin = false
+safety_level = "optional"
+why_it_exists = "Almacén temporal de pipelines DirectX procesados por la GPU AMD."
+safe_to_delete_reason = "Seguro. Libera espacio residual acumulado de versiones anteriores del driver."
+
+[[groups.targets]]
+id = "directx_shader_cache"
+name = "DirectX - Caché de Sombreadores D3D"
+path = "%LOCALAPPDATA%\\D3DSCache"
+recursive = true
+patterns = ["*"]
+description = "Caché global de sombreadores de Windows DirectX."
+requires_admin = false
+safety_level = "optional"
+why_it_exists = "Almacén nativo de Windows para acelerar renderizado 3D en aplicaciones y juegos."
+safe_to_delete_reason = "Seguro. Windows reconstruye los sombreadores bajo demanda de forma transparente."
+
+[[groups]]
+id = "game_launchers"
+name = "Plataformas de Juegos & Tiendas"
+description = "Cachés de navegadores internos y paquetes temporales de Steam, Epic y Battle.net"
+
+[[groups.targets]]
+id = "steam_htmlcache"
+name = "Steam - Caché Web Interno"
+path = "%LOCALAPPDATA%\\Steam\\htmlcache"
+recursive = true
+patterns = ["*"]
+description = "Caché web de la tienda, biblioteca y foros de la interfaz de Steam."
+requires_admin = false
+safety_level = "safe"
+why_it_exists = "Steam usa un navegador Chromium integrado para mostrar la tienda y el feed de noticias."
+safe_to_delete_reason = "100% seguro. No afecta a tus partidas guardadas, compras ni descargas de juegos."
+
+[[groups.targets]]
+id = "steam_package_temp"
+name = "Steam - Paquetes de Actualización Residuales"
+path = "%LOCALAPPDATA%\\Steam\\package"
+recursive = true
+patterns = ["*"]
+description = "Paquetes temporales descargados al actualizar el cliente de Steam."
+requires_admin = false
+safety_level = "recommended"
+why_it_exists = "Descargas provisionales utilizadas para aplicar parches al software de Steam."
+safe_to_delete_reason = "Seguro. Steam los conserva tras actualizar, acumulando cientos de megabytes innecesarios."
+
+[[groups.targets]]
+id = "epic_webcache"
+name = "Epic Games Launcher - Caché Web"
+path = "%LOCALAPPDATA%\\EpicGamesLauncher\\Saved\\webcache"
+recursive = true
+patterns = ["*"]
+description = "Caché de páginas y promociones de la tienda de Epic Games."
+requires_admin = false
+safety_level = "safe"
+why_it_exists = "Almacena en local banners e imágenes promocionales de la tienda."
+safe_to_delete_reason = "100% seguro. No altera tus juegos instalados ni las partidas sincronizadas en la nube."
+
+[[groups.targets]]
+id = "battlenet_cache"
+name = "Battle.net - Caché de Navegación"
+path = "%LOCALAPPDATA%\\Battle.net\\BrowserCaches"
+recursive = true
+patterns = ["*"]
+description = "Caché del navegador web de Blizzard Battle.net."
+requires_admin = false
+safety_level = "safe"
+why_it_exists = "El launcher de Blizzard guarda en caché las noticias y la tienda interna."
+safe_to_delete_reason = "Totalmente seguro. Se limpiará sin cerrar tu sesión."
+
+[[groups.targets]]
+id = "ea_desktop_cache"
+name = "EA Desktop - Caché de Interfaz"
+path = "%LOCALAPPDATA%\\Electronic Arts\\EA Desktop\\CEF"
+recursive = true
+patterns = ["*"]
+description = "Caché del framework Chromium de la aplicación EA Desktop."
+requires_admin = false
+safety_level = "safe"
+why_it_exists = "Archivos temporales del motor web de la aplicación EA."
+safe_to_delete_reason = "Seguro. Resuelve problemas cuando la app EA no muestra tus juegos correctamente."
+
+[[groups]]
+id = "streaming_comms"
+name = "Streaming & Comunicación"
+description = "Cachés de canciones locales de Spotify, vistas previas de Discord y Microsoft Teams"
+
+[[groups.targets]]
+id = "spotify_storage"
+name = "Spotify - Caché de Canciones (Almacenamiento Local)"
+path = "%LOCALAPPDATA%\\Spotify\\Storage"
+recursive = true
+patterns = ["*"]
+description = "Fragmentos de canciones descargadas en caché para reproducción instantánea."
+requires_admin = false
+safety_level = "recommended"
+why_it_exists = "Spotify guarda en disco todas las canciones que escuchas para ahorrar ancho de banda al repetirlas."
+safe_to_delete_reason = "Muy seguro. Puede llegar a ocupar más de 10 GB. No cierra sesión; solo volverá a transmitirlas en streaming."
+
+[[groups.targets]]
+id = "spotify_data"
+name = "Spotify - Datos de Portadas y Navegación"
+path = "%LOCALAPPDATA%\\Spotify\\Data"
+recursive = true
+patterns = ["*"]
+description = "Portadas de álbumes e imágenes de artistas almacenadas en local."
+requires_admin = false
+safety_level = "safe"
+why_it_exists = "Caché de miniaturas y metadatos visuales de la aplicación Spotify."
+safe_to_delete_reason = "100% seguro. Las portadas se descargarán al navegar según se necesiten."
+
+[[groups.targets]]
+id = "discord_cache"
+name = "Discord - Caché de Medios"
+path = "%APPDATA%\\discord\\Cache"
+recursive = true
+patterns = ["*"]
+description = "Imágenes, gifs, avatares y archivos compartidos en canales de Discord."
+requires_admin = false
+safety_level = "safe"
+why_it_exists = "Discord guarda cada archivo multimedia visto en canales y llamadas para no volver a descargarlo."
+safe_to_delete_reason = "Totalmente seguro. No borra tu cuenta ni tus configuraciones."
+
+[[groups.targets]]
+id = "discord_code_cache"
+name = "Discord - Caché de Código y Renderizado"
+path = "%APPDATA%\\discord\\Code Cache"
+recursive = true
+patterns = ["*"]
+description = "Scripts y binarios WebAssembly precompilados por el cliente de Discord."
+requires_admin = false
+safety_level = "safe"
+why_it_exists = "Caché de optimización de ejecución de JavaScript dentro del cliente Electron de Discord."
+safe_to_delete_reason = "Seguro. Ayuda a resolver problemas si Discord se queda en blanco o consume demasiada RAM."
+
+[[groups.targets]]
+id = "teams_cache"
+name = "Microsoft Teams - Caché Temporal"
+path = "%APPDATA%\\Microsoft\\Teams\\Cache"
+recursive = true
+patterns = ["*"]
+description = "Caché de conversaciones y medios de Microsoft Teams."
+requires_admin = false
+safety_level = "safe"
+why_it_exists = "Almacena fragmentos de chats y documentos consultados recientemente."
+safe_to_delete_reason = "Seguro. Teams siempre mantiene la copia maestra en los servidores de Microsoft."
 
 [[groups]]
 id = "web_browsers"
@@ -81,6 +298,9 @@ recursive = true
 patterns = ["*"]
 description = "Caché de navegación web de Google Chrome."
 requires_admin = false
+safety_level = "safe"
+why_it_exists = "Guarda imágenes y scripts de páginas web visitadas para acelerar su próxima apertura."
+safe_to_delete_reason = "Seguro. No borra marcadores ni contraseñas."
 
 [[groups.targets]]
 id = "chrome_code_cache"
@@ -90,6 +310,9 @@ recursive = true
 patterns = ["*"]
 description = "Caché de scripts y shaders compilados de Google Chrome."
 requires_admin = false
+safety_level = "safe"
+why_it_exists = "Código JavaScript optimizado y compilado por el motor V8."
+safe_to_delete_reason = "Seguro. Chrome lo regenera al navegar."
 
 [[groups.targets]]
 id = "chrome_sessions"
@@ -99,6 +322,9 @@ recursive = true
 patterns = ["*"]
 description = "Pestañas y ventanas abiertas de la última sesión."
 requires_admin = false
+safety_level = "optional"
+why_it_exists = "Permite a Chrome restaurar las pestañas abiertas tras un cierre."
+safe_to_delete_reason = "Opcional. Si lo borras, Chrome iniciará con una pestaña en blanco."
 
 [[groups.targets]]
 id = "edge_cache"
@@ -108,6 +334,9 @@ recursive = true
 patterns = ["*"]
 description = "Caché de navegación web de Microsoft Edge."
 requires_admin = false
+safety_level = "safe"
+why_it_exists = "Caché HTTP del motor Chromium de Edge."
+safe_to_delete_reason = "100% seguro."
 
 [[groups.targets]]
 id = "edge_code_cache"
@@ -117,6 +346,9 @@ recursive = true
 patterns = ["*"]
 description = "Caché de scripts y shaders compilados de Microsoft Edge."
 requires_admin = false
+safety_level = "safe"
+why_it_exists = "Optimizaciones en caché de scripts de Edge."
+safe_to_delete_reason = "Seguro."
 
 [[groups.targets]]
 id = "edge_sessions"
@@ -126,6 +358,9 @@ recursive = true
 patterns = ["*"]
 description = "Pestañas y ventanas abiertas de la sesión anterior de Edge."
 requires_admin = false
+safety_level = "optional"
+why_it_exists = "Restaura la sesión anterior de navegación al abrir Edge."
+safe_to_delete_reason = "Opcional. Borra el historial de pestañas restaurables."
 
 [[groups.targets]]
 id = "brave_cache"
@@ -135,6 +370,9 @@ recursive = true
 patterns = ["*"]
 description = "Caché de navegación de Brave."
 requires_admin = false
+safety_level = "safe"
+why_it_exists = "Archivos temporales de páginas web visitadas en Brave."
+safe_to_delete_reason = "Seguro. Respeta tus contraseñas y favoritos."
 
 [[groups]]
 id = "developer_caches"
@@ -149,6 +387,9 @@ recursive = true
 patterns = ["*"]
 description = "Caché de descargas de crates de Rust Cargo."
 requires_admin = false
+safety_level = "recommended"
+why_it_exists = "Cargo almacena copias de crates .crate descargados desde crates.io."
+safe_to_delete_reason = "Seguro. Cargo los volverá a descargar automáticamente si compilas un proyecto que los necesite."
 
 [[groups.targets]]
 id = "npm_cache"
@@ -158,6 +399,9 @@ recursive = true
 patterns = ["*"]
 description = "Caché de módulos Node.js descargados por npm."
 requires_admin = false
+safety_level = "recommended"
+why_it_exists = "Caché global de paquetes tarball descargados vía npm install."
+safe_to_delete_reason = "Seguro. Equivale a ejecutar 'npm cache clean --force'."
 
 [[groups.targets]]
 id = "pip_cache"
@@ -167,6 +411,9 @@ recursive = true
 patterns = ["*"]
 description = "Caché de paquetes wheel y tar.gz de Python Pip."
 requires_admin = false
+safety_level = "recommended"
+why_it_exists = "Ruedas binarias y tarballs de librerías de Python."
+safe_to_delete_reason = "Seguro. Pip los vuelve a descargar si se instalan nuevamente."
 
 [[groups.targets]]
 id = "vscode_cache"
@@ -176,3 +423,30 @@ recursive = true
 patterns = ["*"]
 description = "Caché temporal y de renderizado de VS Code."
 requires_admin = false
+safety_level = "safe"
+why_it_exists = "Caché interno del editor VS Code."
+safe_to_delete_reason = "100% seguro. No modifica tus extensiones ni tu configuración."
+
+[[groups.targets]]
+id = "yarn_cache"
+name = "Yarn - Caché de Dependencias"
+path = "%LOCALAPPDATA%\\Yarn\\Cache"
+recursive = true
+patterns = ["*"]
+description = "Caché de paquetes descargados por el gestor Yarn."
+requires_admin = false
+safety_level = "recommended"
+why_it_exists = "Archivos de librerías JavaScript cacheados por Yarn."
+safe_to_delete_reason = "Seguro. Se repondrán al ejecutar yarn install."
+
+[[groups.targets]]
+id = "nuget_cache"
+name = "NuGet - Caché de Paquetes .NET"
+path = "%USERPROFILE%\\.nuget\\packages"
+recursive = true
+patterns = ["*"]
+description = "Caché de librerías y SDKs .NET de NuGet."
+requires_admin = false
+safety_level = "recommended"
+why_it_exists = "Descargas de paquetes de compilación de proyectos C# y .NET."
+safe_to_delete_reason = "Seguro. Visual Studio o dotnet restore los descargará si se reconstruye el proyecto."

@@ -1,6 +1,9 @@
 //! Vista 4: Monitor (Live Hardware Monitor) - Basada en 04_monitor.png con fidelidad pixel-perfect
 use crate::theme::RustCareTheme;
-use eframe::egui::{self, Color32, CornerRadius, Pos2, Rect, RichText, ScrollArea, Sense, Stroke, Ui, Vec2};
+use crate::widgets;
+use eframe::egui::{
+    self, Color32, CornerRadius, Pos2, RichText, ScrollArea, Stroke, Ui, Vec2,
+};
 use rustcare_core::cleaner::CleanerEngine;
 use rustcare_core::monitor::{ProcessSnapshot, SystemMetricsSnapshot, SystemMonitor};
 
@@ -18,7 +21,7 @@ impl Default for MonitorView {
         let mut monitor = SystemMonitor::new();
         let snap = monitor.refresh_snapshot();
 
-        // 60 puntos de historial iniciales simulados suaves
+        // 60 puntos de historial iniciales suaves
         let mut cpu_hist = Vec::with_capacity(60);
         let mut ram_hist = Vec::with_capacity(60);
         let mut disk_hist = Vec::with_capacity(60);
@@ -72,214 +75,95 @@ impl MonitorView {
         self.net_history.push(12.4);
     }
 
-    fn draw_sparkline(painter: &egui::Painter, rect: Rect, data: &[f32], max_val: f32, color: Color32) {
-        if data.is_empty() {
-            return;
-        }
-
-        let n = data.len();
-        let step_x = rect.width() / (n.max(2) - 1) as f32;
-
-        let mut pts = Vec::with_capacity(n);
-        for (i, &val) in data.iter().enumerate() {
-            let x = rect.min.x + i as f32 * step_x;
-            let ratio = (val / max_val).clamp(0.02, 0.98);
-            let y = rect.max.y - ratio * rect.height();
-            pts.push(Pos2::new(x, y));
-        }
-
-        // Relleno de área semitransparente
-        for i in 0..(n - 1) {
-            let p1 = pts[i];
-            let p2 = pts[i + 1];
-            let b1 = Pos2::new(p1.x, rect.max.y);
-            let b2 = Pos2::new(p2.x, rect.max.y);
-
-            let fill_col = Color32::from_rgba_premultiplied(color.r(), color.g(), color.b(), 28);
-            let tri1 = [p1, p2, b1];
-            let tri2 = [p2, b2, b1];
-            painter.line_segment([p1, b1], Stroke::new(1.0_f32, fill_col));
-            painter.line_segment([p2, b2], Stroke::new(1.0_f32, fill_col));
-            painter.circle_filled(p1, 0.5, fill_col);
-            let _ = (tri1, tri2);
-        }
-
-        // Trazo de línea continua 1.8px
-        for w in pts.windows(2) {
-            painter.line_segment([w[0], w[1]], Stroke::new(1.8_f32, color));
-        }
-    }
-
     pub fn render(&mut self, ui: &mut Ui) {
         self.refresh();
 
         ui.vertical(|ui| {
+            // Título
             ui.label(
                 RichText::new("Monitor de Hardware en Vivo")
                     .size(20.0)
                     .strong()
                     .color(RustCareTheme::TEXT_PRIMARY),
             );
-            ui.add_space(10.0);
+            ui.add_space(14.0);
 
             // =================================================================
-            // 1. FILA SUPERIOR (4 TARJETAS IGUALES EN GRID DE 4 COLUMNAS, height: 175px)
+            // 1. FILA SUPERIOR: 4 TARJETAS SPARKLINES (height: 185px, gap: 14px)
             // =================================================================
             let avail_w = ui.available_width();
             let card_spacing = RustCareTheme::ITEM_SPACING;
             let card_w = (avail_w - (card_spacing * 3.0)) / 4.0;
-            let card_h = 175.0;
+            let card_h = 185.0;
+
+            let cpu_pct = self.last_snapshot.cpu_global_percent;
+            let ram_pct = self.last_snapshot.memory_usage_percent;
+            let free_mb = (self.last_snapshot.memory_total_bytes.saturating_sub(self.last_snapshot.memory_used_bytes)) / (1024 * 1024);
 
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = card_spacing;
 
-                // TARJETA 1: CPU
-                RustCareTheme::card_frame().show(ui, |ui| {
-                    ui.set_width(card_w - 32.0);
-                    ui.set_height(card_h - 32.0);
-                    ui.vertical(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(RichText::new("CPU").size(15.0).strong().color(RustCareTheme::TEXT_PRIMARY));
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                ui.label(RichText::new("Intel Core i7 / AMD").size(10.5).color(RustCareTheme::TEXT_MUTED));
-                            });
-                        });
+                // 1. CPU
+                widgets::sparkline_card(
+                    ui,
+                    "CPU",
+                    "Intel Core i7 / AMD",
+                    &format!("{:.0}%", cpu_pct),
+                    &format!("Pico: {:.0}%", self.cpu_history.iter().cloned().fold(0.0_f32, f32::max)),
+                    "Estadísticas",
+                    &self.cpu_history,
+                    RustCareTheme::ACCENT_TEAL,
+                    card_w,
+                    card_h,
+                );
 
-                        // Cifra Gigante 34px Bold #00E5A8
-                        ui.add_space(2.0);
-                        let cpu_val = self.last_snapshot.cpu_global_percent;
-                        ui.label(
-                            RichText::new(format!("{:.0}%", cpu_val))
-                                .size(34.0)
-                                .strong()
-                                .color(RustCareTheme::ACCENT_TEAL),
-                        );
+                // 2. RAM
+                widgets::sparkline_card(
+                    ui,
+                    "RAM",
+                    "64GB DDR5 / DDR4",
+                    &format!("{:.0}%", ram_pct),
+                    &format!("{} MB Libres", free_mb),
+                    "Estadísticas",
+                    &self.ram_history,
+                    RustCareTheme::ACCENT_CYAN,
+                    card_w,
+                    card_h,
+                );
 
-                        // Sparkline de 60 puntos
-                        ui.add_space(2.0);
-                        let (spark_rect, _) = ui.allocate_exact_size(Vec2::new(card_w - 34.0, 42.0), Sense::hover());
-                        Self::draw_sparkline(ui.painter(), spark_rect, &self.cpu_history, 100.0, RustCareTheme::ACCENT_TEAL);
+                // 3. DISCO
+                widgets::sparkline_card(
+                    ui,
+                    "DISCO",
+                    "NVMe SSD / SATA",
+                    "4%",
+                    "0.0 MB/s",
+                    "Estadísticas",
+                    &self.disk_history,
+                    RustCareTheme::ACCENT_INDIGO,
+                    card_w,
+                    card_h,
+                );
 
-                        // Barra inferior con Picos
-                        ui.add_space(6.0);
-                        ui.horizontal(|ui| {
-                            ui.label(RichText::new("Estadísticas:").size(10.0).color(RustCareTheme::TEXT_MUTED));
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                ui.label(RichText::new(format!("Pico: {:.0}%", cpu_val)).size(10.5).color(RustCareTheme::TEXT_MUTED));
-                            });
-                        });
-                    });
-                });
-
-                // TARJETA 2: RAM
-                RustCareTheme::card_frame().show(ui, |ui| {
-                    ui.set_width(card_w - 32.0);
-                    ui.set_height(card_h - 32.0);
-                    ui.vertical(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(RichText::new("RAM").size(15.0).strong().color(RustCareTheme::TEXT_PRIMARY));
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                ui.label(RichText::new("64GB DDR5 / DDR4").size(10.5).color(RustCareTheme::TEXT_MUTED));
-                            });
-                        });
-
-                        ui.add_space(2.0);
-                        let ram_val = self.last_snapshot.memory_usage_percent;
-                        ui.label(
-                            RichText::new(format!("{:.0}%", ram_val))
-                                .size(34.0)
-                                .strong()
-                                .color(RustCareTheme::ACCENT_CYAN),
-                        );
-
-                        ui.add_space(2.0);
-                        let (spark_rect, _) = ui.allocate_exact_size(Vec2::new(card_w - 34.0, 42.0), Sense::hover());
-                        Self::draw_sparkline(ui.painter(), spark_rect, &self.ram_history, 100.0, RustCareTheme::ACCENT_CYAN);
-
-                        ui.add_space(6.0);
-                        ui.horizontal(|ui| {
-                            ui.label(RichText::new("Estadísticas:").size(10.0).color(RustCareTheme::TEXT_MUTED));
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                let free_mb = (self.last_snapshot.memory_total_bytes.saturating_sub(self.last_snapshot.memory_used_bytes)) / (1024 * 1024);
-                                ui.label(RichText::new(format!("{} MB Libres", free_mb)).size(10.5).color(RustCareTheme::TEXT_MUTED));
-                            });
-                        });
-                    });
-                });
-
-                // TARJETA 3: DISCO
-                RustCareTheme::card_frame().show(ui, |ui| {
-                    ui.set_width(card_w - 32.0);
-                    ui.set_height(card_h - 32.0);
-                    ui.vertical(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(RichText::new("DISCO").size(15.0).strong().color(RustCareTheme::TEXT_PRIMARY));
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                ui.label(RichText::new("NVMe SSD / SATA").size(10.5).color(RustCareTheme::TEXT_MUTED));
-                            });
-                        });
-
-                        ui.add_space(2.0);
-                        ui.label(
-                            RichText::new("4%")
-                                .size(34.0)
-                                .strong()
-                                .color(RustCareTheme::ACCENT_INDIGO),
-                        );
-
-                        ui.add_space(2.0);
-                        let (spark_rect, _) = ui.allocate_exact_size(Vec2::new(card_w - 34.0, 42.0), Sense::hover());
-                        Self::draw_sparkline(ui.painter(), spark_rect, &self.disk_history, 50.0, RustCareTheme::ACCENT_INDIGO);
-
-                        ui.add_space(6.0);
-                        ui.horizontal(|ui| {
-                            ui.label(RichText::new("Estadísticas:").size(10.0).color(RustCareTheme::TEXT_MUTED));
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                ui.label(RichText::new("0.0 MB/s").size(10.5).color(RustCareTheme::TEXT_MUTED));
-                            });
-                        });
-                    });
-                });
-
-                // TARJETA 4: RED
-                RustCareTheme::card_frame().show(ui, |ui| {
-                    ui.set_width(card_w - 32.0);
-                    ui.set_height(card_h - 32.0);
-                    ui.vertical(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(RichText::new("RED").size(15.0).strong().color(RustCareTheme::TEXT_PRIMARY));
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                ui.label(RichText::new("Wi-Fi / Ethernet").size(10.5).color(RustCareTheme::TEXT_MUTED));
-                            });
-                        });
-
-                        ui.add_space(2.0);
-                        ui.label(
-                            RichText::new("12.4 Mbps")
-                                .size(28.0)
-                                .strong()
-                                .color(RustCareTheme::ACCENT_AMBER),
-                        );
-
-                        ui.add_space(2.0);
-                        let (spark_rect, _) = ui.allocate_exact_size(Vec2::new(card_w - 34.0, 42.0), Sense::hover());
-                        Self::draw_sparkline(ui.painter(), spark_rect, &self.net_history, 30.0, RustCareTheme::ACCENT_AMBER);
-
-                        ui.add_space(6.0);
-                        ui.horizontal(|ui| {
-                            ui.label(RichText::new("Estadísticas:").size(10.0).color(RustCareTheme::TEXT_MUTED));
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                ui.label(RichText::new("12.4 Mbps").size(10.5).color(RustCareTheme::TEXT_MUTED));
-                            });
-                        });
-                    });
-                });
+                // 4. RED
+                widgets::sparkline_card(
+                    ui,
+                    "RED",
+                    "Wi-Fi / Ethernet",
+                    "12.4 Mbps",
+                    "12.4 Mbps",
+                    "Estadísticas",
+                    &self.net_history,
+                    RustCareTheme::ACCENT_AMBER,
+                    card_w,
+                    card_h,
+                );
             });
 
             ui.add_space(RustCareTheme::ITEM_SPACING);
 
             // =================================================================
-            // 2. PANEL INFERIOR: PROCESOS CON MAYOR CONSUMO (Tabla Estilizada)
+            // 2. PANEL INFERIOR: PROCESOS CON MAYOR CONSUMO
             // =================================================================
             RustCareTheme::card_frame().show(ui, |ui| {
                 ui.label(
@@ -290,36 +174,44 @@ impl MonitorView {
                 );
                 ui.add_space(10.0);
 
+                let total_w = ui.available_width();
+                let col_name_w = total_w * 0.34;
+                let col_pid_w = total_w * 0.12;
+                let col_cpu_w = total_w * 0.12;
+                let col_ram_w = total_w * 0.14;
+                let col_disk_w = total_w * 0.12;
+                let col_actions_w = total_w * 0.16;
+
                 // Cabecera de la tabla
                 ui.horizontal(|ui| {
-                    ui.set_width(ui.available_width());
-                    ui.add_space(12.0);
-                    ui.allocate_ui_with_layout(Vec2::new(180.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    ui.add_space(8.0);
+                    ui.allocate_ui_with_layout(Vec2::new(col_name_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                         ui.label(RichText::new("Nombre del Proceso").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
-                    ui.allocate_ui_with_layout(Vec2::new(70.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    ui.allocate_ui_with_layout(Vec2::new(col_pid_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                         ui.label(RichText::new("PID").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
-                    ui.allocate_ui_with_layout(Vec2::new(80.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    ui.allocate_ui_with_layout(Vec2::new(col_cpu_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                         ui.label(RichText::new("CPU").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
-                    ui.allocate_ui_with_layout(Vec2::new(100.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    ui.allocate_ui_with_layout(Vec2::new(col_ram_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                         ui.label(RichText::new("RAM").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
-                    ui.allocate_ui_with_layout(Vec2::new(90.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    ui.allocate_ui_with_layout(Vec2::new(col_disk_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                         ui.label(RichText::new("DISCO").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
-                    ui.label(RichText::new("Acciones Rápidas").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
+                    ui.allocate_ui_with_layout(Vec2::new(col_actions_w - 16.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.label(RichText::new("Acciones Rápidas").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
+                    });
                 });
 
                 ui.add_space(4.0);
                 ui.painter().line_segment(
                     [Pos2::new(ui.min_rect().min.x, ui.cursor().min.y), Pos2::new(ui.min_rect().max.x, ui.cursor().min.y)],
-                    Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE),
+                    Stroke::new(1.0, RustCareTheme::BORDER_SUBTLE),
                 );
                 ui.add_space(6.0);
 
-                // Lista de procesos
                 let default_procs = vec![
                     ProcessSnapshot { pid: 8432, name: "firefox.exe".into(), cpu_usage: 4.8, memory_bytes: 820 * 1024 * 1024 },
                     ProcessSnapshot { pid: 1204, name: "rustcare_svc.exe".into(), cpu_usage: 2.1, memory_bytes: 112 * 1024 * 1024 },
@@ -339,61 +231,50 @@ impl MonitorView {
                         let row_bg = if i % 2 == 0 {
                             RustCareTheme::BG_SURFACE
                         } else {
-                            RustCareTheme::BG_ELEVATED
+                            Color32::from_rgba_unmultiplied(26, 35, 52, 120) // BG_ELEVATED translúcido
                         };
 
                         egui::Frame::NONE
                             .fill(row_bg)
                             .corner_radius(CornerRadius::same(6))
-                            .inner_margin(egui::Margin::symmetric(12, 6))
+                            .inner_margin(egui::Margin::symmetric(8, 4))
                             .show(ui, |ui| {
                                 ui.horizontal(|ui| {
-                                    // Nombre
-                                    ui.allocate_ui_with_layout(Vec2::new(180.0, 20.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                                        ui.label(RichText::new(&p.name).size(12.5).color(RustCareTheme::TEXT_PRIMARY));
+                                    // Nombre (34%)
+                                    let name_clean = if p.name.len() > 22 {
+                                        format!("{}...", &p.name[..20])
+                                    } else {
+                                        p.name.clone()
+                                    };
+                                    ui.allocate_ui_with_layout(Vec2::new(col_name_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                        ui.label(RichText::new(name_clean).size(12.5).color(RustCareTheme::TEXT_PRIMARY));
                                     });
 
-                                    // PID
-                                    ui.allocate_ui_with_layout(Vec2::new(70.0, 20.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                    // PID (12%)
+                                    ui.allocate_ui_with_layout(Vec2::new(col_pid_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                                         ui.label(RichText::new(format!("{}", p.pid)).size(12.0).color(RustCareTheme::TEXT_MUTED));
                                     });
 
-                                    // CPU
-                                    ui.allocate_ui_with_layout(Vec2::new(80.0, 20.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                    // CPU (12%)
+                                    ui.allocate_ui_with_layout(Vec2::new(col_cpu_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                                         ui.label(RichText::new(format!("{:.1}%", p.cpu_usage)).size(12.0).color(RustCareTheme::TEXT_PRIMARY));
                                     });
 
-                                    // RAM
-                                    ui.allocate_ui_with_layout(Vec2::new(100.0, 20.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                    // RAM (14%)
+                                    ui.allocate_ui_with_layout(Vec2::new(col_ram_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                                         ui.label(RichText::new(CleanerEngine::format_bytes(p.memory_bytes)).size(12.0).color(RustCareTheme::TEXT_PRIMARY));
                                     });
 
-                                    // DISK
-                                    ui.allocate_ui_with_layout(Vec2::new(90.0, 20.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                    // DISCO (12%)
+                                    ui.allocate_ui_with_layout(Vec2::new(col_disk_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                                         ui.label(RichText::new("0.1 MB/s").size(12.0).color(RustCareTheme::TEXT_MUTED));
                                     });
 
-                                    // Acciones Rápidas: Finalizar & Optimizar
-                                    ui.horizontal(|ui| {
-                                        if RustCareTheme::custom_button(
-                                            ui,
-                                            "Finalizar",
-                                            RustCareTheme::ACCENT_CORAL,
-                                            RustCareTheme::ACCENT_CORAL,
-                                            Color32::from_rgba_premultiplied(255, 77, 109, 15),
-                                            22.0,
-                                        ).clicked() {}
-
+                                    // Acciones Rápidas (16%): danger_button + neon_button
+                                    ui.allocate_ui_with_layout(Vec2::new(col_actions_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                        if widgets::danger_button(ui, "Finalizar", Some(74.0)).clicked() {}
                                         ui.add_space(6.0);
-
-                                        if RustCareTheme::custom_button(
-                                            ui,
-                                            "Optimizar",
-                                            RustCareTheme::ACCENT_TEAL,
-                                            RustCareTheme::ACCENT_TEAL,
-                                            Color32::from_rgba_premultiplied(0, 229, 168, 15),
-                                            22.0,
-                                        ).clicked() {}
+                                        if widgets::neon_button(ui, "Optimizar", Some(78.0)).clicked() {}
                                     });
                                 });
                             });

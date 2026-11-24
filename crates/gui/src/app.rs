@@ -1,7 +1,8 @@
 //! Orquestador de Interfaz Gráfica de RustCare 2026 - Determinista Pixel-Perfect
-use crate::icons::VectorIcons;
+use crate::icons::{draw_icon, AppIcon};
 use crate::theme::RustCareTheme;
 use crate::views::{BoosterView, CareView, CleanerView, MonitorView, SettingsView, ShieldView, ToolboxView};
+use crate::widgets;
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Pos2, Rect, RichText, Stroke, StrokeKind, Ui, Vec2};
 use rustcare_core::backend::{LiveWindowsBackend, SandboxBackend, SystemBackend};
@@ -159,18 +160,11 @@ impl eframe::App for RustCareApp {
             )
             .show(ctx, |ui| {
                 ui.horizontal_centered(|ui| {
-                    // Logo vectorial R + RUSTCARE PRO
-                    let (logo_rect, _) = ui.allocate_exact_size(Vec2::new(22.0, 22.0), egui::Sense::hover());
-                    let p = ui.painter();
-                    // Dibuja icono estilizado 'R'
-                    let stroke_teal = Stroke::new(2.0_f32, RustCareTheme::ACCENT_TEAL);
-                    p.line_segment([Pos2::new(logo_rect.min.x + 3.0, logo_rect.max.y - 2.0), Pos2::new(logo_rect.min.x + 3.0, logo_rect.min.y + 2.0)], stroke_teal);
-                    p.line_segment([Pos2::new(logo_rect.min.x + 3.0, logo_rect.min.y + 2.0), Pos2::new(logo_rect.min.x + 13.0, logo_rect.min.y + 2.0)], stroke_teal);
-                    p.line_segment([Pos2::new(logo_rect.min.x + 13.0, logo_rect.min.y + 2.0), Pos2::new(logo_rect.min.x + 13.0, logo_rect.center().y)], stroke_teal);
-                    p.line_segment([Pos2::new(logo_rect.min.x + 13.0, logo_rect.center().y), Pos2::new(logo_rect.min.x + 3.0, logo_rect.center().y)], stroke_teal);
-                    p.line_segment([Pos2::new(logo_rect.min.x + 7.0, logo_rect.center().y), Pos2::new(logo_rect.max.x - 3.0, logo_rect.max.y - 2.0)], stroke_teal);
+                    // Logo vectorial LogoShield (24x24) + RUSTCARE PRO
+                    let (logo_rect, _) = ui.allocate_exact_size(Vec2::new(24.0, 24.0), egui::Sense::hover());
+                    draw_icon(ui.painter(), logo_rect, AppIcon::LogoShield, RustCareTheme::ACCENT_TEAL, 1.8);
 
-                    ui.add_space(6.0);
+                    ui.add_space(8.0);
                     ui.label(
                         RichText::new("RUSTCARE PRO")
                             .size(18.0)
@@ -186,7 +180,7 @@ impl eframe::App for RustCareApp {
                         p.rect_filled(avatar_rect, CornerRadius::same(14), RustCareTheme::BG_ELEVATED);
                         p.rect_stroke(avatar_rect, CornerRadius::same(14), Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE), StrokeKind::Inside);
                         let icon_rect = Rect::from_center_size(Pos2::new(avatar_rect.min.x + 14.0, avatar_rect.center().y), Vec2::splat(14.0));
-                        VectorIcons::draw_user(p, icon_rect, RustCareTheme::ACCENT_CYAN);
+                        draw_icon(p, icon_rect, AppIcon::User, RustCareTheme::ACCENT_CYAN, 1.5);
                         // Flecha abajo (chevron)
                         let ch_x = avatar_rect.max.x - 9.0;
                         let ch_y = avatar_rect.center().y;
@@ -195,20 +189,20 @@ impl eframe::App for RustCareApp {
 
                         ui.add_space(10.0);
 
-                        // Píldora redondeada interactiva MODO SANDBOX / MODO REAL
+                        // Píldora redondeada interactiva MODO SANDBOX / MODO WINDOWS REAL
                         let is_sb = self.backend.is_sandbox();
-                        let (pill_border, pill_bg, pill_text) = if is_sb {
-                            (RustCareTheme::ACCENT_AMBER, Color32::from_rgba_premultiplied(255, 176, 32, 38), "MODO SANDBOX")
+                        let (pill_border, pill_bg, pill_text, pill_w) = if is_sb {
+                            (RustCareTheme::ACCENT_AMBER, Color32::from_rgba_unmultiplied(245, 158, 11, 25), "MODO SANDBOX", 145.0)
                         } else {
-                            (RustCareTheme::ACCENT_CORAL, Color32::from_rgba_premultiplied(255, 77, 109, 38), "MODO REAL")
+                            (RustCareTheme::ACCENT_CORAL, Color32::from_rgba_unmultiplied(244, 63, 94, 25), "MODO WINDOWS REAL", 175.0)
                         };
 
-                        let pill_size = Vec2::new(145.0, 30.0);
+                        let pill_size = Vec2::new(pill_w, 30.0);
                         let (pill_rect, pill_resp) = ui.allocate_exact_size(pill_size, egui::Sense::click());
                         let p = ui.painter();
 
                         p.rect_filled(pill_rect, CornerRadius::same(15), pill_bg);
-                        p.rect_stroke(pill_rect, CornerRadius::same(15), Stroke::new(1.5_f32, pill_border), StrokeKind::Inside);
+                        p.rect_stroke(pill_rect, CornerRadius::same(15), Stroke::new(1.0_f32, pill_border), StrokeKind::Inside);
 
                         // Texto de la píldora
                         p.text(
@@ -221,7 +215,7 @@ impl eframe::App for RustCareApp {
 
                         // Mini escudo vectorial dentro de la píldora
                         let s_rect = Rect::from_center_size(Pos2::new(pill_rect.max.x - 20.0, pill_rect.center().y), Vec2::splat(14.0));
-                        VectorIcons::draw_shield(p, s_rect, pill_border, false);
+                        draw_icon(p, s_rect, AppIcon::ShieldCheck, pill_border, 1.5);
 
                         if pill_resp.clicked() {
                             if is_sb {
@@ -256,22 +250,22 @@ impl eframe::App for RustCareApp {
                 ui.add_space(10.0);
 
                 // Función auxiliar de ítem de navegación determinista
-                let nav_item = |ui: &mut Ui, label: &str, active: bool, icon_drawer: fn(&egui::Painter, Rect, Color32)| -> bool {
+                let nav_item = |ui: &mut Ui, label: &str, active: bool, icon: AppIcon| -> bool {
                     let desired_size = Vec2::new(210.0, 44.0);
                     let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
                     let p = ui.painter();
 
                     let (bg_col, text_col, icon_col) = if active {
                         (
-                            Color32::from_rgba_premultiplied(24, 32, 44, 255), // #18202C
-                            Color32::WHITE,
-                            RustCareTheme::ACCENT_TEAL,
+                            Color32::from_rgba_unmultiplied(14, 165, 233, 20),
+                            RustCareTheme::TEXT_PRIMARY,
+                            RustCareTheme::ACCENT_CYAN,
                         )
                     } else if response.hovered() {
                         (
-                            Color32::from_rgba_premultiplied(24, 32, 44, 150),
+                            Color32::from_rgba_unmultiplied(26, 35, 52, 160),
                             RustCareTheme::TEXT_PRIMARY,
-                            RustCareTheme::ACCENT_TEAL,
+                            RustCareTheme::ACCENT_CYAN,
                         )
                     } else {
                         (
@@ -294,7 +288,7 @@ impl eframe::App for RustCareApp {
 
                     // Icono vectorial 18x18 a la izquierda
                     let icon_rect = Rect::from_center_size(Pos2::new(rect.min.x + 28.0, rect.center().y), Vec2::splat(18.0));
-                    icon_drawer(p, icon_rect, icon_col);
+                    draw_icon(p, icon_rect, icon, icon_col, 1.5);
 
                     // Texto 14px
                     p.text(
@@ -308,22 +302,22 @@ impl eframe::App for RustCareApp {
                     response.clicked()
                 };
 
-                if nav_item(ui, "Cuidar", self.current_section == NavSection::Care, VectorIcons::draw_radar) {
+                if nav_item(ui, "Cuidar", self.current_section == NavSection::Care, AppIcon::Home) {
                     self.current_section = NavSection::Care;
                 }
-                if nav_item(ui, "Acelerar", self.current_section == NavSection::Booster, VectorIcons::draw_lightning) {
+                if nav_item(ui, "Acelerar", self.current_section == NavSection::Booster, AppIcon::Bolt) {
                     self.current_section = NavSection::Booster;
                 }
-                if nav_item(ui, "Limpieza", self.current_section == NavSection::Cleaner, VectorIcons::draw_broom) {
+                if nav_item(ui, "Limpieza", self.current_section == NavSection::Cleaner, AppIcon::Broom) {
                     self.current_section = NavSection::Cleaner;
                 }
-                if nav_item(ui, "Escudo", self.current_section == NavSection::Shield, |p, r, c| VectorIcons::draw_shield(p, r, c, true)) {
+                if nav_item(ui, "Escudo", self.current_section == NavSection::Shield, AppIcon::ShieldCheck) {
                     self.current_section = NavSection::Shield;
                 }
-                if nav_item(ui, "Herramientas", self.current_section == NavSection::Toolbox, VectorIcons::draw_tools) {
+                if nav_item(ui, "Herramientas", self.current_section == NavSection::Toolbox, AppIcon::Tools) {
                     self.current_section = NavSection::Toolbox;
                 }
-                if nav_item(ui, "Monitor", self.current_section == NavSection::Monitor, VectorIcons::draw_monitor) {
+                if nav_item(ui, "Monitor", self.current_section == NavSection::Monitor, AppIcon::Pulse) {
                     self.current_section = NavSection::Monitor;
                 }
 
@@ -336,7 +330,7 @@ impl eframe::App for RustCareApp {
                 );
                 ui.add_space(8.0);
 
-                if nav_item(ui, "Ajustes", self.current_section == NavSection::Settings, VectorIcons::draw_gear) {
+                if nav_item(ui, "Ajustes", self.current_section == NavSection::Settings, AppIcon::Gear) {
                     self.current_section = NavSection::Settings;
                 }
 
@@ -352,62 +346,51 @@ impl eframe::App for RustCareApp {
                         .stroke(Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE))
                         .inner_margin(egui::Margin::same(10))
                         .show(ui, |ui| {
-                            ui.vertical(|ui| {
-                                ui.set_width(182.0);
-                                let metrics = self.backend.get_metrics();
-                                let cpu_pct = metrics.cpu_global_percent.clamp(0.0, 100.0);
-                                let ram_pct = metrics.memory_usage_percent.clamp(0.0, 100.0);
+                            ui.set_width(182.0);
+                            let metrics = self.backend.get_metrics();
+                            let cpu_pct = metrics.cpu_global_percent.clamp(0.0, 100.0);
+                            let ram_pct = metrics.memory_usage_percent.clamp(0.0, 100.0);
 
-                                // CPU Bar
-                                ui.horizontal(|ui| {
-                                    ui.label(RichText::new("CPU").size(11.0).color(RustCareTheme::TEXT_MUTED));
-                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                        ui.label(RichText::new(format!("{:.0}%", cpu_pct)).size(11.0).strong().color(RustCareTheme::ACCENT_TEAL));
-                                    });
+                            // CPU Bar
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new("CPU").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(RichText::new(format!("{:.0}%", cpu_pct)).size(11.0).strong().color(RustCareTheme::ACCENT_TEAL));
                                 });
-                                let (cpu_bar, _) = ui.allocate_exact_size(Vec2::new(162.0, 4.0), egui::Sense::hover());
-                                ui.painter().rect_filled(cpu_bar, CornerRadius::same(2), RustCareTheme::BG_ELEVATED);
-                                let fill_w = (cpu_bar.width() * (cpu_pct / 100.0)).max(2.0);
-                                ui.painter().rect_filled(
-                                    Rect::from_min_size(cpu_bar.min, Vec2::new(fill_w, 4.0)),
-                                    CornerRadius::same(2),
-                                    RustCareTheme::ACCENT_TEAL,
-                                );
-
-                                ui.add_space(6.0);
-
-                                // RAM Bar
-                                ui.horizontal(|ui| {
-                                    ui.label(RichText::new("RAM").size(11.0).color(RustCareTheme::TEXT_MUTED));
-                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                        ui.label(RichText::new(format!("{:.0}%", ram_pct)).size(11.0).strong().color(RustCareTheme::ACCENT_CYAN));
-                                    });
-                                });
-                                let (ram_bar, _) = ui.allocate_exact_size(Vec2::new(162.0, 4.0), egui::Sense::hover());
-                                ui.painter().rect_filled(ram_bar, CornerRadius::same(2), RustCareTheme::BG_ELEVATED);
-                                let fill_ram_w = (ram_bar.width() * (ram_pct / 100.0)).max(2.0);
-                                ui.painter().rect_filled(
-                                    Rect::from_min_size(ram_bar.min, Vec2::new(fill_ram_w, 4.0)),
-                                    CornerRadius::same(2),
-                                    RustCareTheme::ACCENT_CYAN,
-                                );
-
-                                ui.add_space(8.0);
-
-                                // Botón ancho completo Liberar RAM con border 1px #00E5A8
-                                if RustCareTheme::custom_button(
-                                    ui,
-                                    "Liberar RAM",
-                                    RustCareTheme::ACCENT_TEAL,
-                                    RustCareTheme::ACCENT_TEAL,
-                                    Color32::from_rgba_premultiplied(0, 229, 168, 15),
-                                    28.0,
-                                )
-                                .clicked()
-                                {
-                                    let _ = self.backend.clean_ram();
-                                }
                             });
+                            let (cpu_bar, _) = ui.allocate_exact_size(Vec2::new(162.0, 4.0), egui::Sense::hover());
+                            ui.painter().rect_filled(cpu_bar, CornerRadius::same(2), RustCareTheme::BG_ELEVATED);
+                            let fill_w = (cpu_bar.width() * (cpu_pct / 100.0)).max(2.0);
+                            ui.painter().rect_filled(
+                                Rect::from_min_size(cpu_bar.min, Vec2::new(fill_w, 4.0)),
+                                CornerRadius::same(2),
+                                RustCareTheme::ACCENT_TEAL,
+                            );
+
+                            ui.add_space(6.0);
+
+                            // RAM Bar
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new("RAM").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(RichText::new(format!("{:.0}%", ram_pct)).size(11.0).strong().color(RustCareTheme::ACCENT_CYAN));
+                                });
+                            });
+                            let (ram_bar, _) = ui.allocate_exact_size(Vec2::new(162.0, 4.0), egui::Sense::hover());
+                            ui.painter().rect_filled(ram_bar, CornerRadius::same(2), RustCareTheme::BG_ELEVATED);
+                            let fill_ram_w = (ram_bar.width() * (ram_pct / 100.0)).max(2.0);
+                            ui.painter().rect_filled(
+                                Rect::from_min_size(ram_bar.min, Vec2::new(fill_ram_w, 4.0)),
+                                CornerRadius::same(2),
+                                RustCareTheme::ACCENT_CYAN,
+                            );
+
+                            ui.add_space(8.0);
+
+                            // Botón ancho completo Liberar RAM con neon_button
+                            if widgets::neon_button(ui, "Liberar RAM", Some(162.0)).clicked() {
+                                let _ = self.backend.clean_ram();
+                            }
                         });
                 });
             });
@@ -525,7 +508,7 @@ impl eframe::App for RustCareApp {
             || self.cleaner_view.is_scanning
             || self.shield_view.is_scanning
         {
-            ctx.request_repaint();
+            ctx.request_repaint_after(Duration::from_millis(16));
         }
     }
 }

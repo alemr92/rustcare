@@ -1,5 +1,6 @@
 //! Vista de Seguridad y Antivirus (RustCare Shield) - 2026 Edition
 use crate::theme::RustCareTheme;
+use crate::widgets::neon_button;
 use eframe::egui::{self, Color32, CornerRadius, ProgressBar, RichText, ScrollArea, Ui};
 use rustcare_core::shield::{ShieldScanResult, ThreatLevel};
 
@@ -28,14 +29,7 @@ impl ShieldView {
             );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if !self.is_scanning {
-                    if RustCareTheme::custom_button(
-                        ui,
-                        "Escanear Amenazas",
-                        RustCareTheme::ACCENT_TEAL,
-                        RustCareTheme::ACCENT_TEAL,
-                        Color32::from_rgba_premultiplied(0, 229, 168, 20),
-                        32.0,
-                    ).clicked() {
+                    if neon_button(ui, "Escanear Amenazas", Some(160.0)).clicked() {
                         self.is_scanning = true;
                         on_scan();
                     }
@@ -45,7 +39,7 @@ impl ShieldView {
 
         ui.add_space(6.0);
         ui.label(
-            RichText::new("Auditoría heurística: detecta binarios ejecutándose desde %TEMP%, suplantadores de svchost.exe y secuestros de depuración (IFEO / AppInit_DLLs).")
+            RichText::new("Auditoría heurística: detecta binarios ejecutándose desde carpetas temporales, suplantadores de svchost.exe y secuestros de depuración (IFEO / AppInit_DLLs).")
                 .color(RustCareTheme::TEXT_MUTED),
         );
         ui.separator();
@@ -73,13 +67,13 @@ impl ShieldView {
                         ui,
                         &format!("{} Procesos Verificados", res.processes_scanned),
                         RustCareTheme::ACCENT_CYAN,
-                        Color32::from_rgba_premultiplied(0, 229, 255, 25),
+                        Color32::from_rgba_unmultiplied(56, 189, 248, 25),
                     );
                     RustCareTheme::draw_badge(
                         ui,
                         &format!("{} Claves de Registro Auditadas", res.registry_keys_scanned),
                         RustCareTheme::TEXT_PRIMARY,
-                        Color32::from_rgba_premultiplied(148, 163, 184, 25),
+                        Color32::from_rgba_unmultiplied(148, 163, 184, 25),
                     );
                 });
             });
@@ -89,7 +83,7 @@ impl ShieldView {
                 RustCareTheme::hero_frame(false).show(ui, |ui| {
                     ui.vertical_centered(|ui| {
                         ui.label(
-                            RichText::new("✅ Sistema Seguro y Protegido")
+                            RichText::new("Sistema Seguro y Protegido")
                                 .size(20.0)
                                 .strong()
                                 .color(RustCareTheme::SUCCESS_GREEN),
@@ -100,7 +94,7 @@ impl ShieldView {
                 });
             } else {
                 ui.label(
-                    RichText::new(format!("⚠️ Se han detectado {} alertas de seguridad:", res.threats.len()))
+                    RichText::new(format!("Se han detectado {} alertas de seguridad:", res.threats.len()))
                         .size(16.0)
                         .strong()
                         .color(RustCareTheme::DANGER_RED),
@@ -127,7 +121,7 @@ impl ShieldView {
                                     ui,
                                     badge_label,
                                     badge_color,
-                                    Color32::from_rgba_premultiplied(badge_color.r(), badge_color.g(), badge_color.b(), 25),
+                                    Color32::from_rgba_unmultiplied(badge_color.r(), badge_color.g(), badge_color.b(), 25),
                                 );
                                 ui.vertical(|ui| {
                                     ui.label(
@@ -156,7 +150,7 @@ impl ShieldView {
             RustCareTheme::card_frame().show(ui, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.label(
-                        RichText::new("🛡️ Escudo de Protección en Tiempo Real y Heurística")
+                        RichText::new("Escudo de Protección en Tiempo Real y Heurística")
                             .size(17.0)
                             .strong()
                             .color(RustCareTheme::TEXT_PRIMARY),
