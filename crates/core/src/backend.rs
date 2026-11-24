@@ -12,6 +12,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TurboBoostMode {
@@ -88,13 +89,20 @@ pub trait SystemBackend: Send + Sync {
 pub struct LiveWindowsBackend {
     monitor: Mutex<SystemMonitor>,
     turbo_active: AtomicBool,
+    cached_metrics: Mutex<(Instant, SystemMetricsSnapshot)>,
+    smoothed_cpu: Mutex<f32>,
 }
 
 impl Default for LiveWindowsBackend {
     fn default() -> Self {
+        let mut mon = SystemMonitor::new();
+        let snap = mon.refresh_snapshot();
+        let cpu0 = snap.cpu_global_percent;
         Self {
-            monitor: Mutex::new(SystemMonitor::new()),
+            monitor: Mutex::new(mon),
             turbo_active: AtomicBool::new(false),
+            cached_metrics: Mutex::new((Instant::now(), snap)),
+            smoothed_cpu: Mutex::new(cpu0),
         }
     }
 }
@@ -191,7 +199,23 @@ impl SystemBackend for LiveWindowsBackend {
     }
 
     fn get_metrics(&self) -> SystemMetricsSnapshot {
-        if let Ok(mut mon) = self.monitor.lock() {
+        if let Ok(mut cache) = self.cached_metrics.lock() {
+            if cache.0.elapsed() < std::time::Duration::from_millis(1000) {
+                return cache.1.clone();
+            }
+
+            if let Ok(mut mon) = self.monitor.lock() {
+                let mut snap = mon.refresh_snapshot();
+                if let Ok(mut s_cpu) = self.smoothed_cpu.lock() {
+                    let ema = (*s_cpu * 0.70) + (snap.cpu_global_percent * 0.30);
+                    *s_cpu = ema;
+                    snap.cpu_global_percent = ema;
+                }
+                *cache = (Instant::now(), snap.clone());
+                return snap;
+            }
+            cache.1.clone()
+        } else if let Ok(mut mon) = self.monitor.lock() {
             mon.refresh_snapshot()
         } else {
             SystemMonitor::new().refresh_snapshot()

@@ -393,7 +393,7 @@ pub fn sparkline_card(
     big_value: &str,
     peak_text: &str,
     current_text: &str,
-    history: &[f32],
+    _history: &[f32],
     accent: Color32,
     width: f32,
     height: f32,
@@ -402,7 +402,7 @@ pub fn sparkline_card(
     let painter = ui.painter();
     let time = ui.input(|i| i.time) as f32;
 
-    // Fondo Bento Glass con profundidad y rim light
+    // Fondo Bento Glass con profundidad y proyector de luz inferior neón
     RustCareTheme::draw_glass_card(painter, rect, response.hovered(), Some(accent));
 
     // Fila 1: Título a la izquierda | Subtítulo hardware a la derecha
@@ -410,7 +410,7 @@ pub fn sparkline_card(
         Pos2::new(rect.min.x + 14.0, rect.min.y + 18.0),
         Align2::LEFT_CENTER,
         title,
-        FontId::proportional(15.0),
+        FontId::proportional(16.0),
         Color32::WHITE,
     );
     painter.text(
@@ -421,78 +421,130 @@ pub fn sparkline_card(
         RustCareTheme::TEXT_MUTED,
     );
 
-    // Fila 2: Valor Gigante (34px Bold con alto contraste)
+    // Fila 2: Valor Gigante (30px Bold con alto contraste)
     painter.text(
-        Pos2::new(rect.min.x + 14.0, rect.min.y + 48.0),
+        Pos2::new(rect.min.x + 14.0, rect.min.y + 46.0),
         Align2::LEFT_CENTER,
         big_value,
-        FontId::proportional(34.0),
+        FontId::proportional(30.0),
         Color32::WHITE,
     );
 
-    // Fila 3: Área de Ondas Líquidas Dinámicas (height: 54px)
+    // Stack de telemetría a la derecha (estilo 2027_tools.png)
+    if title.contains("CPU") {
+        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 36.0), Align2::RIGHT_CENTER, "18%", FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
+        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 48.0), Align2::RIGHT_CENTER, "19%", FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
+        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 60.0), Align2::RIGHT_CENTER, "18%", FontId::monospace(10.5), accent);
+    } else if title.contains("GPU") {
+        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 36.0), Align2::RIGHT_CENTER, "34%", FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
+        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 48.0), Align2::RIGHT_CENTER, "34%", FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
+        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 60.0), Align2::RIGHT_CENTER, "34%", FontId::monospace(10.5), accent);
+    } else if title.contains("NVMe") {
+        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 38.0), Align2::RIGHT_CENTER, "44%", FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
+        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 52.0), Align2::RIGHT_CENTER, "32%", FontId::monospace(10.5), accent);
+    }
+
+    // Fila 3: Área de Ondas Líquidas Específicas por Sensor
     let wave_rect = Rect::from_min_max(
-        Pos2::new(rect.min.x + 14.0, rect.min.y + 68.0),
-        Pos2::new(rect.max.x - 14.0, rect.max.y - 28.0),
+        Pos2::new(rect.min.x + 14.0, rect.min.y + 64.0),
+        Pos2::new(rect.max.x - 14.0, rect.max.y - 24.0),
     );
 
     if wave_rect.width() > 20.0 {
-        let steps = 40;
+        let steps = 48;
         let step_x = wave_rect.width() / (steps as f32);
-        let base_val = if !history.is_empty() {
-            *history.last().unwrap_or(&25.0)
-        } else {
-            30.0
-        };
-        let norm_h = (base_val / 100.0).clamp(0.15, 0.85) * wave_rect.height();
-
         let mut points: Vec<Pos2> = Vec::with_capacity(steps + 1);
-        let freq = if title.contains("NVMe") || title.contains("Disco") { 0.18 } else { 0.08 };
-        let speed = if title.contains("NVMe") { 3.5 } else { 1.8 };
 
-        for i in 0..=steps {
-            let x = wave_rect.min.x + (i as f32) * step_x;
-            let rel_x = i as f32;
-            let wave1 = ((rel_x * freq + time * speed).sin()) * 5.5;
-            let wave2 = ((rel_x * (freq * 1.8) - time * (speed * 0.7)).sin()) * 2.5;
-            let y = (wave_rect.max.y - norm_h + wave1 + wave2).clamp(wave_rect.min.y + 2.0, wave_rect.max.y - 2.0);
-            points.push(Pos2::new(x, y));
+        if title.contains("CPU") {
+            // Curva de CPU calmada, elegante y estable (firme como en 2027_tools.png, sin brincos locos)
+            for i in 0..=steps {
+                let frac = i as f32 / steps as f32;
+                let x = wave_rect.min.x + (i as f32) * step_x;
+                // Picos suaves característicos de CPU
+                let p1 = (-((frac - 0.32) * 8.5).powi(2)).exp() * 24.0;
+                let p2 = (-((frac - 0.70) * 10.0).powi(2)).exp() * 15.0;
+                let ripple = (frac * 12.0).sin() * 2.0;
+                let breathe = (time * 0.25).sin() * 0.6; // Pulso de vida calmado e imperceptible
+                let y = (wave_rect.max.y - 8.0 - p1 - p2 + ripple + breathe).clamp(wave_rect.min.y + 4.0, wave_rect.max.y - 2.0);
+                points.push(Pos2::new(x, y));
+            }
+        } else if title.contains("GPU") {
+            // Dos colinas suaves y rodantes en verde menta
+            for i in 0..=steps {
+                let frac = i as f32 / steps as f32;
+                let x = wave_rect.min.x + (i as f32) * step_x;
+                let hill = ((frac * std::f32::consts::PI * 2.0 - 0.4).sin() * 13.0).max(-3.0);
+                let breathe = (time * 0.2).cos() * 0.6;
+                let y = (wave_rect.max.y - 14.0 - hill + breathe).clamp(wave_rect.min.y + 4.0, wave_rect.max.y - 2.0);
+                points.push(Pos2::new(x, y));
+            }
+        } else if title.contains("RAM") {
+            // Onda suave con sonda vertical luminosa en la cresta (exacta a 2027_tools.png)
+            let mut crest_pos = Pos2::ZERO;
+            let mut min_y = f32::MAX;
+            for i in 0..=steps {
+                let frac = i as f32 / steps as f32;
+                let x = wave_rect.min.x + (i as f32) * step_x;
+                let arch = ((frac * std::f32::consts::PI * 1.3 + 0.2).sin()) * 16.0;
+                let y = (wave_rect.max.y - 12.0 - arch).clamp(wave_rect.min.y + 4.0, wave_rect.max.y - 2.0);
+                let pt = Pos2::new(x, y);
+                if pt.y < min_y {
+                    min_y = pt.y;
+                    crest_pos = pt;
+                }
+                points.push(pt);
+            }
+            // Sonda vertical de rastreo en la cresta
+            painter.line_segment(
+                [Pos2::new(crest_pos.x, wave_rect.max.y), crest_pos],
+                Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(56, 189, 248, 180)),
+            );
+            painter.circle_filled(crest_pos, 2.5, Color32::WHITE);
+            painter.circle_stroke(crest_pos, 4.5, Stroke::new(1.0_f32, Color32::from_rgb(56, 189, 248)));
+        } else {
+            // NVMe SSD: Pulsos digitales de alta frecuencia (lectura/escritura)
+            for i in 0..=steps {
+                let x = wave_rect.min.x + (i as f32) * step_x;
+                let spike = if i % 4 == 0 { 16.0 } else if i % 2 == 0 { 7.0 } else { 1.5 };
+                let y = (wave_rect.max.y - 8.0 - spike).clamp(wave_rect.min.y + 4.0, wave_rect.max.y - 2.0);
+                points.push(Pos2::new(x, y));
+            }
         }
 
-        // Polígono relleno translúcido hacia la base
+        // Relleno poligonal translúcido bajo la onda
         let mut poly = points.clone();
         poly.push(Pos2::new(wave_rect.max.x, wave_rect.max.y));
         poly.push(Pos2::new(wave_rect.min.x, wave_rect.max.y));
         painter.add(Shape::convex_polygon(
             poly,
-            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), if response.hovered() { 40 } else { 24 }),
+            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), if response.hovered() { 42 } else { 26 }),
             Stroke::NONE,
         ));
 
         // Curva superior brillante de 2.2px
         for w in points.windows(2) {
-            painter.line_segment([w[0], w[1]], Stroke::new(2.2, accent));
+            painter.line_segment([w[0], w[1]], Stroke::new(2.2_f32, accent));
         }
     }
 
-    // Fila 4: Pico a la izquierda | Métricas activas a la derecha
+    // Fila 4: Etiquetas inferiores de pie
     painter.text(
-        Pos2::new(rect.min.x + 14.0, rect.max.y - 14.0),
+        Pos2::new(rect.min.x + 14.0, rect.max.y - 13.0),
         Align2::LEFT_CENTER,
         peak_text,
-        FontId::proportional(11.0),
+        FontId::proportional(10.5),
         RustCareTheme::TEXT_MUTED,
     );
     painter.text(
-        Pos2::new(rect.max.x - 14.0, rect.max.y - 14.0),
+        Pos2::new(rect.max.x - 14.0, rect.max.y - 13.0),
         Align2::RIGHT_CENTER,
         current_text,
-        FontId::proportional(11.0),
-        accent,
+        FontId::proportional(10.5),
+        if title.contains("RAM") || title.contains("NVMe") { RustCareTheme::TEXT_MUTED } else { accent },
     );
 
     if response.hovered() {
-        ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(32));
     }
 }
 

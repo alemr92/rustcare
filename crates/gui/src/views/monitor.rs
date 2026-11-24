@@ -14,6 +14,7 @@ pub struct MonitorView {
     pub ram_history: Vec<f32>,
     pub disk_history: Vec<f32>,
     pub net_history: Vec<f32>,
+    pub last_refresh: std::time::Instant,
 }
 
 impl Default for MonitorView {
@@ -42,15 +43,23 @@ impl Default for MonitorView {
             ram_history: ram_hist,
             disk_history: disk_hist,
             net_history: net_hist,
+            last_refresh: std::time::Instant::now(),
         }
     }
 }
 
 impl MonitorView {
     pub fn refresh(&mut self) {
+        if self.last_refresh.elapsed() < std::time::Duration::from_millis(1000) {
+            return;
+        }
+        self.last_refresh = std::time::Instant::now();
+
         self.last_snapshot = self.monitor.refresh_snapshot();
 
-        let cpu = self.last_snapshot.cpu_global_percent;
+        let raw_cpu = self.last_snapshot.cpu_global_percent;
+        let prev_cpu = self.cpu_history.last().copied().unwrap_or(raw_cpu);
+        let cpu = prev_cpu * 0.70 + raw_cpu * 0.30;
         let ram = self.last_snapshot.memory_usage_percent;
 
         if self.cpu_history.len() >= 60 {

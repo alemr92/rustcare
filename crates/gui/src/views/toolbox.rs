@@ -199,41 +199,67 @@ impl ToolboxView {
             return;
         }
 
-        // Barra de Navegación Superior
-        ui.horizontal(|ui| {
-            if ghost_button(ui, "Volver al Centro de Herramientas", Some(250.0)).clicked() {
-                self.current_tab = ToolboxTab::Overview;
-            }
-            ui.add_space(8.0);
-            ui.label(RichText::new("Centro de Herramientas PRO > ").color(RustCareTheme::TEXT_MUTED));
-            let title = match self.current_tab {
-                ToolboxTab::Uninstaller => "Desinstalador Profundo de Software",
-                ToolboxTab::DriverBooster => "Driver Booster PRO (Controladores de Hardware)",
-                ToolboxTab::Duplicates => "Buscador de Archivos Duplicados",
-                ToolboxTab::DiskAnalyzer => "Analizador de Espacio en Disco WizTree",
-                ToolboxTab::LargeFiles => "Filtro de Archivos Gigantes",
-                ToolboxTab::EmptyFolders => "Limpiador de Carpetas Vacías",
-                ToolboxTab::Shortcuts => "Reparador de Accesos Directos Rotos",
-                ToolboxTab::FileShredder => "Destructor Seguro de Archivos (DoD Wipe)",
-                ToolboxTab::ContextMenu => "Gestor de Extensiones de Clic Derecho",
-                ToolboxTab::Updater => "WinGet Software Updater",
-                ToolboxTab::RescueCenter => "Centro de Rescate & Puntos de Restauración",
-                ToolboxTab::InternetBooster => "Acelerador de Red e Internet TCP/IP",
-                ToolboxTab::DiskOptimizer => "Desfragmentador & Comando TRIM de SSD",
-                ToolboxTab::BrowserVacuum => "Compactador SQLite de Navegadores",
-                ToolboxTab::UiRepair => "Reparador de Iconos y Miniaturas de Windows",
-                ToolboxTab::SystemInfo => "Ficha Técnica de Hardware y Sistema",
-                ToolboxTab::PowerPlan => "Planes de Energía y Rendimiento",
-                ToolboxTab::DismWinSxs => "Limpieza Profunda de WinSxS (DISM)",
-                ToolboxTab::Hibernation => "Gestor del Archivo hiberfil.sys",
-                ToolboxTab::HardwareTroubleshooter => "Diagnóstico de Conflictos de Hardware",
-                ToolboxTab::ScheduledTasks => "Auditor de Tareas Programadas Huérfanas",
-                ToolboxTab::Overview => "",
-            };
-            ui.label(RichText::new(title).strong().color(RustCareTheme::ACCENT_CYAN));
-        });
-        ui.separator();
-        ui.add_space(8.0);
+        // Barra de Navegación Superior estilo 2027
+        if self.current_tab == ToolboxTab::Overview {
+            ui.horizontal(|ui| {
+                let nav_pill = |ui: &mut Ui, text: &str, is_active: bool| {
+                    let padding = Vec2::new(14.0, 6.0);
+                    let font_id = FontId::proportional(12.5);
+                    let galley = ui.painter().layout_no_wrap(text.to_string(), font_id, if is_active { RustCareTheme::TEXT_PRIMARY } else { RustCareTheme::TEXT_MUTED });
+                    let desired_size = galley.size() + padding * 2.0;
+                    let (rect, resp) = ui.allocate_exact_size(desired_size, Sense::hover());
+                    let p = ui.painter();
+                    if is_active {
+                        p.rect_filled(rect, CornerRadius::same(8), Color32::from_rgba_unmultiplied(56, 189, 248, 22));
+                        p.rect_stroke(rect, CornerRadius::same(8), Stroke::new(1.0_f32, Color32::from_rgb(56, 189, 248)), StrokeKind::Inside);
+                    } else if resp.hovered() {
+                        p.rect_filled(rect, CornerRadius::same(8), RustCareTheme::BG_HOVER);
+                    }
+                    p.text(rect.center(), Align2::CENTER_CENTER, text, FontId::proportional(12.5), if is_active { RustCareTheme::TEXT_PRIMARY } else { RustCareTheme::TEXT_MUTED });
+                };
+
+                nav_pill(ui, "Inicio", false);
+                nav_pill(ui, "Herramientas", true);
+                nav_pill(ui, "Monitoreo", false);
+                nav_pill(ui, "Rendimiento", false);
+                nav_pill(ui, "Herramientas y Rendimiento", false);
+            });
+            ui.add_space(6.0);
+        } else {
+            ui.horizontal(|ui| {
+                if ghost_button(ui, "← Volver al Centro de Herramientas", Some(260.0)).clicked() {
+                    self.current_tab = ToolboxTab::Overview;
+                }
+                ui.add_space(8.0);
+                ui.label(RichText::new("Herramientas > ").color(RustCareTheme::TEXT_MUTED));
+                let title = match self.current_tab {
+                    ToolboxTab::Uninstaller => "Desinstalador Profundo de Software",
+                    ToolboxTab::DriverBooster => "Driver Booster PRO (Controladores de Hardware)",
+                    ToolboxTab::Duplicates => "Buscador de Archivos Duplicados",
+                    ToolboxTab::DiskAnalyzer => "Analizador de Espacio en Disco WizTree",
+                    ToolboxTab::LargeFiles => "Filtro de Archivos Gigantes",
+                    ToolboxTab::EmptyFolders => "Limpiador de Carpetas Vacías",
+                    ToolboxTab::Shortcuts => "Reparador de Accesos Directos Rotos",
+                    ToolboxTab::FileShredder => "Destructor Seguro de Archivos (DoD Wipe)",
+                    ToolboxTab::ContextMenu => "Gestor de Extensiones de Clic Derecho",
+                    ToolboxTab::Updater => "WinGet Software Updater",
+                    ToolboxTab::RescueCenter => "Centro de Rescate & Puntos de Restauración",
+                    ToolboxTab::InternetBooster => "Acelerador de Red e Internet TCP/IP",
+                    ToolboxTab::DiskOptimizer => "Desfragmentador & Comando TRIM de SSD",
+                    ToolboxTab::BrowserVacuum => "Compactador SQLite de Navegadores",
+                    ToolboxTab::UiRepair => "Reparador de Iconos y Miniaturas de Windows",
+                    ToolboxTab::SystemInfo => "Ficha Técnica de Hardware y Sistema",
+                    ToolboxTab::PowerPlan => "Planes de Energía y Rendimiento",
+                    ToolboxTab::DismWinSxs => "Limpieza Profunda de WinSxS (DISM)",
+                    ToolboxTab::Hibernation => "Gestor del Archivo hiberfil.sys",
+                    ToolboxTab::HardwareTroubleshooter => "Diagnóstico de Conflictos de Hardware",
+                    ToolboxTab::ScheduledTasks => "Auditor de Tareas Programadas Huérfanas",
+                    ToolboxTab::Overview => "",
+                };
+                ui.label(RichText::new(title).strong().color(RustCareTheme::ACCENT_CYAN));
+            });
+            ui.add_space(6.0);
+        }
 
         match self.current_tab {
             ToolboxTab::Overview => self.render_overview(ui),
@@ -279,56 +305,56 @@ impl ToolboxView {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = spacing;
 
-            // SENSOR 1: CPU
+            // SENSOR 1: CPU (Firme, calmado y elegante como en 2027_tools.png)
             crate::widgets::sparkline_card(
                 ui,
                 "CPU",
-                "Peak Real time",
+                "Currents Real time",
                 "18%",
-                "Peak 18%",
-                "Current 18%",
+                "",
+                "18%",
                 &cpu_hist,
                 RustCareTheme::ACCENT_CYAN,
                 sensor_w,
                 sensor_h,
             );
 
-            // SENSOR 2: GPU
+            // SENSOR 2: GPU (Ondas suaves en verde menta)
             crate::widgets::sparkline_card(
                 ui,
                 "GPU",
                 "Active rest Real time",
                 "34%",
                 "Active read",
-                "34%",
+                "",
                 &gpu_hist,
                 Color32::from_rgb(45, 212, 191),
                 sensor_w,
                 sensor_h,
             );
 
-            // SENSOR 3: RAM
+            // SENSOR 3: RAM (Onda suave con sonda vertical luminosa en cresta)
             crate::widgets::sparkline_card(
                 ui,
                 "RAM",
-                "Capacity",
+                "",
                 "42% - 13.4 GB",
-                "Capacity 32 GB",
-                "Load 42%",
+                "Capacity",
+                "Load",
                 &ram_hist,
                 RustCareTheme::ACCENT_INDIGO,
                 sensor_w,
                 sensor_h,
             );
 
-            // SENSOR 4: NVMe SSD
+            // SENSOR 4: NVMe SSD (Pulsos digitales en azul eléctrico)
             crate::widgets::sparkline_card(
                 ui,
                 "NVMe SSD",
-                "Read / Write",
+                "Current read Read/Write",
                 "4%",
-                "Read 44 MB/s",
-                "Write 32 MB/s",
+                "Curren read",
+                "Read/Write speed",
                 &ssd_hist,
                 Color32::from_rgb(37, 99, 235),
                 sensor_w,
