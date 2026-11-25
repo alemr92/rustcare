@@ -393,7 +393,7 @@ pub fn sparkline_card(
     big_value: &str,
     peak_text: &str,
     current_text: &str,
-    _history: &[f32],
+    history: &[f32],
     accent: Color32,
     width: f32,
     height: f32,
@@ -430,21 +430,23 @@ pub fn sparkline_card(
         Color32::WHITE,
     );
 
-    // Stack de telemetría a la derecha (estilo 2027_tools.png)
-    if title.contains("CPU") {
-        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 36.0), Align2::RIGHT_CENTER, "18%", FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
-        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 48.0), Align2::RIGHT_CENTER, "19%", FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
-        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 60.0), Align2::RIGHT_CENTER, "18%", FontId::monospace(10.5), accent);
-    } else if title.contains("GPU") {
-        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 36.0), Align2::RIGHT_CENTER, "34%", FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
-        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 48.0), Align2::RIGHT_CENTER, "34%", FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
-        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 60.0), Align2::RIGHT_CENTER, "34%", FontId::monospace(10.5), accent);
-    } else if title.contains("NVMe") {
-        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 38.0), Align2::RIGHT_CENTER, "44%", FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
-        painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 52.0), Align2::RIGHT_CENTER, "32%", FontId::monospace(10.5), accent);
+    // Stack de telemetría real a la derecha (últimas muestras del historial)
+    if !history.is_empty() && (title.contains("CPU") || title.contains("GPU") || title.contains("NVMe") || title.contains("Disco")) {
+        let len = history.len();
+        let v_last = history[len - 1];
+        let v_prev1 = if len >= 2 { history[len - 2] } else { v_last };
+        let v_prev2 = if len >= 3 { history[len - 3] } else { v_prev1 };
+        if title.contains("NVMe") || title.contains("Disco") {
+            painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 38.0), Align2::RIGHT_CENTER, format!("{:.0}%", v_prev1), FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
+            painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 52.0), Align2::RIGHT_CENTER, format!("{:.0}%", v_last), FontId::monospace(10.5), accent);
+        } else {
+            painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 36.0), Align2::RIGHT_CENTER, format!("{:.0}%", v_prev2), FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
+            painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 48.0), Align2::RIGHT_CENTER, format!("{:.0}%", v_prev1), FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
+            painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 60.0), Align2::RIGHT_CENTER, format!("{:.0}%", v_last), FontId::monospace(10.5), accent);
+        }
     }
 
-    // Fila 3: Área de Ondas Líquidas Específicas por Sensor
+    // Fila 3: Área de Ondas Líquidas basadas en historial real suavizado
     let wave_rect = Rect::from_min_max(
         Pos2::new(rect.min.x + 14.0, rect.min.y + 64.0),
         Pos2::new(rect.max.x - 14.0, rect.max.y - 24.0),
@@ -455,45 +457,45 @@ pub fn sparkline_card(
         let step_x = wave_rect.width() / (steps as f32);
         let mut points: Vec<Pos2> = Vec::with_capacity(steps + 1);
 
-        if title.contains("CPU") {
-            // Curva de CPU calmada, elegante y estable (firme como en 2027_tools.png, sin brincos locos)
-            for i in 0..=steps {
-                let frac = i as f32 / steps as f32;
-                let x = wave_rect.min.x + (i as f32) * step_x;
-                // Picos suaves característicos de CPU
-                let p1 = (-((frac - 0.32) * 8.5).powi(2)).exp() * 24.0;
-                let p2 = (-((frac - 0.70) * 10.0).powi(2)).exp() * 15.0;
-                let ripple = (frac * 12.0).sin() * 2.0;
-                let breathe = (time * 0.25).sin() * 0.6; // Pulso de vida calmado e imperceptible
-                let y = (wave_rect.max.y - 8.0 - p1 - p2 + ripple + breathe).clamp(wave_rect.min.y + 4.0, wave_rect.max.y - 2.0);
-                points.push(Pos2::new(x, y));
+        // Muestreo interpolado desde `history` real
+        let sample_history = |frac: f32| -> f32 {
+            if history.is_empty() {
+                return 20.0;
             }
-        } else if title.contains("GPU") {
-            // Dos colinas suaves y rodantes en verde menta
-            for i in 0..=steps {
-                let frac = i as f32 / steps as f32;
-                let x = wave_rect.min.x + (i as f32) * step_x;
-                let hill = ((frac * std::f32::consts::PI * 2.0 - 0.4).sin() * 13.0).max(-3.0);
-                let breathe = (time * 0.2).cos() * 0.6;
-                let y = (wave_rect.max.y - 14.0 - hill + breathe).clamp(wave_rect.min.y + 4.0, wave_rect.max.y - 2.0);
-                points.push(Pos2::new(x, y));
+            if history.len() == 1 {
+                return history[0];
             }
-        } else if title.contains("RAM") {
-            // Onda suave con sonda vertical luminosa en la cresta (exacta a 2027_tools.png)
-            let mut crest_pos = Pos2::ZERO;
-            let mut min_y = f32::MAX;
-            for i in 0..=steps {
-                let frac = i as f32 / steps as f32;
-                let x = wave_rect.min.x + (i as f32) * step_x;
-                let arch = ((frac * std::f32::consts::PI * 1.3 + 0.2).sin()) * 16.0;
-                let y = (wave_rect.max.y - 12.0 - arch).clamp(wave_rect.min.y + 4.0, wave_rect.max.y - 2.0);
-                let pt = Pos2::new(x, y);
-                if pt.y < min_y {
-                    min_y = pt.y;
-                    crest_pos = pt;
-                }
-                points.push(pt);
+            let pos = frac.clamp(0.0, 1.0) * (history.len() - 1) as f32;
+            let i0 = pos.floor() as usize;
+            let i1 = (i0 + 1).min(history.len() - 1);
+            let t = pos - i0 as f32;
+            // Interpolación coseno suave para evitar aristas bruscas
+            let mu = (1.0 - (t * std::f32::consts::PI).cos()) * 0.5;
+            history[i0] * (1.0 - mu) + history[i1] * mu
+        };
+
+        let mut crest_pos = Pos2::ZERO;
+        let mut min_y = f32::MAX;
+        let wave_h = (wave_rect.height() - 6.0).max(10.0);
+
+        for i in 0..=steps {
+            let frac = i as f32 / steps as f32;
+            let x = wave_rect.min.x + (i as f32) * step_x;
+            let val = sample_history(frac).clamp(0.0, 100.0);
+            let norm = (val / 100.0).clamp(0.06, 0.94);
+            // Respiración orgánica sutil (calmada, sin oscilaciones nerviosas)
+            let breathe = (time * 0.25 + frac * 2.0).sin() * 0.45;
+            let y = (wave_rect.max.y - 4.0 - norm * wave_h + breathe)
+                .clamp(wave_rect.min.y + 3.0, wave_rect.max.y - 2.0);
+            let pt = Pos2::new(x, y);
+            if pt.y < min_y {
+                min_y = pt.y;
+                crest_pos = pt;
             }
+            points.push(pt);
+        }
+
+        if title.contains("RAM") && !points.is_empty() {
             // Sonda vertical de rastreo en la cresta
             painter.line_segment(
                 [Pos2::new(crest_pos.x, wave_rect.max.y), crest_pos],
@@ -501,14 +503,6 @@ pub fn sparkline_card(
             );
             painter.circle_filled(crest_pos, 2.5, Color32::WHITE);
             painter.circle_stroke(crest_pos, 4.5, Stroke::new(1.0_f32, Color32::from_rgb(56, 189, 248)));
-        } else {
-            // NVMe SSD: Pulsos digitales de alta frecuencia (lectura/escritura)
-            for i in 0..=steps {
-                let x = wave_rect.min.x + (i as f32) * step_x;
-                let spike = if i % 4 == 0 { 16.0 } else if i % 2 == 0 { 7.0 } else { 1.5 };
-                let y = (wave_rect.max.y - 8.0 - spike).clamp(wave_rect.min.y + 4.0, wave_rect.max.y - 2.0);
-                points.push(Pos2::new(x, y));
-            }
         }
 
         // Relleno poligonal translúcido bajo la onda
@@ -524,6 +518,35 @@ pub fn sparkline_card(
         // Curva superior brillante de 2.2px
         for w in points.windows(2) {
             painter.line_segment([w[0], w[1]], Stroke::new(2.2_f32, accent));
+        }
+
+        // Tooltip interactivo al pasar el ratón (estilo Recharts)
+        if let Some(hover_pos) = response.hover_pos() {
+            if wave_rect.contains(hover_pos) && !points.is_empty() {
+                let frac = ((hover_pos.x - wave_rect.min.x) / wave_rect.width()).clamp(0.0, 1.0);
+                let pt_idx = ((frac * (points.len() - 1) as f32).round() as usize).min(points.len() - 1);
+                let snap_pt = points[pt_idx];
+                let val_sample = sample_history(frac);
+
+                // Línea guía vertical (Crosshair)
+                painter.line_segment(
+                    [Pos2::new(snap_pt.x, wave_rect.min.y), Pos2::new(snap_pt.x, wave_rect.max.y)],
+                    Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(248, 250, 252, 110)),
+                );
+                painter.circle_filled(snap_pt, 3.5, Color32::WHITE);
+                painter.circle_stroke(snap_pt, 6.0, Stroke::new(1.2_f32, accent));
+
+                // Cápsula tooltip flotante
+                let tip_text = format!("{:.1}%", val_sample);
+                let tip_w = 50.0_f32;
+                let tip_h = 20.0_f32;
+                let tip_x = (snap_pt.x - tip_w * 0.5).clamp(rect.min.x + 8.0, rect.max.x - tip_w - 8.0);
+                let tip_y = (snap_pt.y - tip_h - 8.0).max(rect.min.y + 6.0);
+                let tip_rect = Rect::from_min_size(Pos2::new(tip_x, tip_y), Vec2::new(tip_w, tip_h));
+                painter.rect_filled(tip_rect, CornerRadius::same(6), Color32::from_rgba_unmultiplied(11, 15, 23, 235));
+                painter.rect_stroke(tip_rect, CornerRadius::same(6), Stroke::new(1.0_f32, accent), StrokeKind::Inside);
+                painter.text(tip_rect.center(), Align2::CENTER_CENTER, tip_text, FontId::monospace(10.5), Color32::WHITE);
+            }
         }
     }
 
@@ -758,4 +781,95 @@ pub fn checkbox_item(ui: &mut Ui, checked: &mut bool, label: &str) -> Response {
 
     p.galley(Pos2::new(rect.min.x + 24.0, rect.center().y - galley.size().y / 2.0), galley, RustCareTheme::TEXT_PRIMARY);
     response
+}
+
+/// 12. Panel lateral deslizable (Slide-Over Drawer estilo emilkowalski/vaul)
+pub fn slide_over_drawer(
+    ctx: &eframe::egui::Context,
+    is_open: &mut bool,
+    title: &str,
+    subtitle: &str,
+    accent: Color32,
+    width: f32,
+    body: impl FnOnce(&mut Ui),
+) {
+    if !*is_open {
+        return;
+    }
+
+    if ctx.input(|i| i.key_pressed(eframe::egui::Key::Escape)) {
+        *is_open = false;
+        return;
+    }
+
+    let screen = ctx.screen_rect();
+    let drawer_w = width.min(screen.width() - 48.0);
+
+    // Backdrop atenuado clicable para cerrar
+    eframe::egui::Area::new(eframe::egui::Id::new("vaul_drawer_backdrop"))
+        .order(eframe::egui::Order::Middle)
+        .fixed_pos(screen.min)
+        .show(ctx, |ui| {
+            let (bg_rect, bg_resp) = ui.allocate_exact_size(
+                Vec2::new((screen.width() - drawer_w).max(0.0), screen.height()),
+                Sense::click(),
+            );
+            ui.painter().rect_filled(
+                bg_rect,
+                CornerRadius::ZERO,
+                Color32::from_rgba_unmultiplied(6, 9, 15, 145),
+            );
+            if bg_resp.clicked() {
+                *is_open = false;
+            }
+        });
+
+    let drawer_pos = Pos2::new(screen.max.x - drawer_w, screen.min.y);
+    eframe::egui::Area::new(eframe::egui::Id::new("vaul_drawer_panel"))
+        .order(eframe::egui::Order::Foreground)
+        .fixed_pos(drawer_pos)
+        .show(ctx, |ui| {
+            let frame = eframe::egui::Frame::NONE
+                .fill(Color32::from_rgba_unmultiplied(13, 18, 28, 248))
+                .stroke(Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 100)))
+                .inner_margin(eframe::egui::Margin::same(20));
+
+            frame.show(ui, |ui| {
+                ui.set_width(drawer_w - 40.0);
+                ui.set_min_height(screen.height() - 40.0);
+                ui.set_max_height(screen.height() - 40.0);
+
+                // Cabecera del Drawer
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        ui.label(eframe::egui::RichText::new(title).size(17.0).strong().color(Color32::WHITE));
+                        ui.label(eframe::egui::RichText::new(subtitle).size(11.5).color(RustCareTheme::TEXT_MUTED));
+                    });
+                    ui.with_layout(eframe::egui::Layout::right_to_left(eframe::egui::Align::Center), |ui| {
+                        let (c_rect, c_resp) = ui.allocate_exact_size(Vec2::splat(28.0), Sense::click());
+                        let p = ui.painter();
+                        p.rect_filled(
+                            c_rect,
+                            CornerRadius::same(7),
+                            if c_resp.hovered() { RustCareTheme::BG_HOVER } else { RustCareTheme::BG_ELEVATED },
+                        );
+                        let cc = c_rect.center();
+                        let col = if c_resp.hovered() { Color32::WHITE } else { RustCareTheme::TEXT_MUTED };
+                        p.line_segment([Pos2::new(cc.x - 4.0, cc.y - 4.0), Pos2::new(cc.x + 4.0, cc.y + 4.0)], Stroke::new(1.4_f32, col));
+                        p.line_segment([Pos2::new(cc.x + 4.0, cc.y - 4.0), Pos2::new(cc.x - 4.0, cc.y + 4.0)], Stroke::new(1.4_f32, col));
+                        if c_resp.clicked() {
+                            *is_open = false;
+                        }
+                    });
+                });
+
+                ui.add_space(10.0);
+                ui.separator();
+                ui.add_space(10.0);
+
+                eframe::egui::ScrollArea::vertical().show(ui, |ui| {
+                    body(ui);
+                });
+            });
+        });
 }

@@ -1,7 +1,9 @@
 //! Orquestador de Interfaz Gráfica de RustCare 2026 - Determinista Pixel-Perfect
+use crate::cmdk::{CmdkAction, CommandPalette};
 use crate::icons::{draw_icon, AppIcon};
 use crate::theme::RustCareTheme;
-use crate::views::{BoosterView, CareView, CleanerView, MonitorView, SettingsView, ShieldView, ToolboxView};
+use crate::toast::ToastManager;
+use crate::views::{BoosterView, CareView, CleanerView, GalleryView, MonitorView, SettingsView, ShieldView, ToolboxView};
 use crate::widgets;
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Pos2, Rect, RichText, Stroke, StrokeKind, Ui, Vec2};
@@ -24,6 +26,7 @@ pub enum NavSection {
     Toolbox,
     Monitor,
     Settings,
+    Gallery,
 }
 
 pub enum AppEvent {
@@ -56,6 +59,9 @@ pub struct RustCareApp {
     pub toolbox_view: ToolboxView,
     pub monitor_view: MonitorView,
     pub settings_view: SettingsView,
+    pub gallery_view: GalleryView,
+    pub toasts: ToastManager,
+    pub cmdk: CommandPalette,
 
     // Canales asíncronos para evitar congelamientos de UI
     sender: Sender<AppEvent>,
@@ -85,6 +91,9 @@ impl RustCareApp {
             toolbox_view: ToolboxView::default(),
             monitor_view: MonitorView::default(),
             settings_view: SettingsView::default(),
+            gallery_view: GalleryView::default(),
+            toasts: ToastManager::default(),
+            cmdk: CommandPalette::default(),
             sender,
             receiver,
         }
@@ -109,6 +118,10 @@ impl RustCareApp {
                     self.care_view.threats_found = threats_found;
                     self.care_view.health_score = 42; // Crítica
                     self.care_view.progress = 1.0;
+                    self.toasts.info(
+                        "Diagnóstico completado",
+                        format!("{} archivos detectados ({} amenazas)", files_found, threats_found),
+                    );
                 }
                 AppEvent::CareCleanFinished {
                     bytes_freed,
@@ -120,13 +133,36 @@ impl RustCareApp {
                     self.care_view.total_items_found = files_deleted;
                     self.care_view.health_score = 98; // Óptima
                     self.care_view.progress = 1.0;
+                    self.toasts.success(
+                        "Sistema optimizado",
+                        format!(
+                            "{} liberados ({} elementos)",
+                            rustcare_core::cleaner::CleanerEngine::format_bytes(bytes_freed),
+                            files_deleted
+                        ),
+                    );
                 }
                 AppEvent::CleanerScanFinished(res) => {
                     self.cleaner_view.is_scanning = false;
+                    self.toasts.info(
+                        "Escaneo de limpieza listo",
+                        format!(
+                            "{} en {} archivos",
+                            rustcare_core::cleaner::CleanerEngine::format_bytes(res.total_bytes),
+                            res.total_files
+                        ),
+                    );
                     self.cleaner_view.scan_result = Some(res);
                 }
                 AppEvent::CleanerCleanFinished(res) => {
                     self.cleaner_view.is_cleaning = false;
+                    self.toasts.success(
+                        "Limpieza completada",
+                        format!(
+                            "{} liberados",
+                            rustcare_core::cleaner::CleanerEngine::format_bytes(res.total_bytes_freed)
+                        ),
+                    );
                     self.cleaner_view.clean_result = Some(res);
                     if let Some(scan) = &mut self.cleaner_view.scan_result {
                         scan.total_bytes = 0;
@@ -135,6 +171,14 @@ impl RustCareApp {
                 }
                 AppEvent::ShieldScanFinished(res) => {
                     self.shield_view.is_scanning = false;
+                    if res.threats.is_empty() {
+                        self.toasts.success("Escudo activo", "No se detectaron amenazas en el sistema");
+                    } else {
+                        self.toasts.warning(
+                            "Amenazas detectadas",
+                            format!("{} elemento(s) sospechoso(s) encontrado(s)", res.threats.len()),
+                        );
+                    }
                     self.shield_view.scan_result = Some(res);
                 }
             }
@@ -188,7 +232,7 @@ impl eframe::App for RustCareApp {
                             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                         }
 
-                        // Botón Maximizar (□)
+                        // Botón Maximizar / Restaurar (□)
                         let (max_rect, max_resp) = ui.allocate_exact_size(Vec2::new(32.0, 28.0), egui::Sense::click());
                         let p = ui.painter();
                         if max_resp.hovered() {
@@ -198,8 +242,8 @@ impl eframe::App for RustCareApp {
                         let mx_col = if max_resp.hovered() { Color32::WHITE } else { RustCareTheme::TEXT_MUTED };
                         p.rect_stroke(Rect::from_center_size(mx_c, Vec2::splat(9.0)), CornerRadius::ZERO, Stroke::new(1.2, mx_col), StrokeKind::Inside);
                         if max_resp.clicked() {
-                            // Alternar maximizar
-                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Maximized(true));
+                            let is_max = ui.ctx().input(|i| i.viewport().maximized.unwrap_or(false));
+                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Maximized(!is_max));
                         }
 
                         // Botón Minimizar (—)
@@ -241,10 +285,47 @@ impl eframe::App for RustCareApp {
                         if pill_resp.clicked() {
                             if is_sb {
                                 self.backend = Arc::new(LiveWindowsBackend::default());
+                                self.toasts.warning("Modo Real activado", "Las acciones se aplicarán sobre Windows");
                             } else {
                                 self.backend = Arc::new(SandboxBackend::new());
+                                self.toasts.info("Modo Sandbox activado", "Entorno aislado y seguro para pruebas");
                             }
                             self.booster_view.startup_entries = self.backend.list_startup_entries();
+                        }
+
+                        // Píldora Buscar / Paleta de Comandos (Ctrl+K)
+                        let cmd_size = Vec2::new(118.0, 24.0);
+                        let (cmd_rect, cmd_resp) = ui.allocate_exact_size(cmd_size, egui::Sense::click());
+                        let p = ui.painter();
+                        p.rect_filled(
+                            cmd_rect,
+                            CornerRadius::same(12),
+                            if cmd_resp.hovered() { RustCareTheme::BG_HOVER } else { RustCareTheme::BG_ELEVATED },
+                        );
+                        p.rect_stroke(
+                            cmd_rect,
+                            CornerRadius::same(12),
+                            Stroke::new(1.0_f32, if cmd_resp.hovered() { RustCareTheme::ACCENT_CYAN } else { RustCareTheme::BORDER_SUBTLE }),
+                            StrokeKind::Inside,
+                        );
+                        p.text(
+                            cmd_rect.center(),
+                            Align2::CENTER_CENTER,
+                            "Buscar  Ctrl+K",
+                            FontId::proportional(11.0),
+                            if cmd_resp.hovered() { Color32::WHITE } else { RustCareTheme::TEXT_MUTED },
+                        );
+                        if cmd_resp.clicked() {
+                            self.cmdk.open();
+                        }
+
+                        ui.add_space(6.0);
+
+                        // Área central libre de la barra para arrastrar la ventana sin bordes
+                        let drag_w = ui.available_width().max(20.0);
+                        let (_drag_rect, drag_resp) = ui.allocate_exact_size(Vec2::new(drag_w, 32.0), egui::Sense::drag());
+                        if drag_resp.drag_started() {
+                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
                         }
                     });
                 });
@@ -425,7 +506,21 @@ impl eframe::App for RustCareApp {
 
                             // Botón ancho completo Liberar RAM con neon_button
                             if widgets::neon_button(ui, "Liberar RAM", Some(162.0)).clicked() {
-                                let _ = self.backend.clean_ram();
+                                let res = self.backend.clean_ram();
+                                if res.processes_cleaned > 0 {
+                                    self.toasts.success(
+                                        "Memoria RAM optimizada",
+                                        format!(
+                                            "{} procesos recortados ({} omitidos)",
+                                            res.processes_cleaned, res.processes_failed
+                                        ),
+                                    );
+                                } else {
+                                    self.toasts.info(
+                                        "Memoria RAM verificada",
+                                        "No hubo procesos pendientes de recorte",
+                                    );
+                                }
                             }
                         });
                 });
@@ -530,7 +625,10 @@ impl eframe::App for RustCareApp {
                         });
                     }
                     NavSection::Toolbox => {
-                        self.toolbox_view.render(ui);
+                        if let Some(next_sec) = self.toolbox_view.render(ui, &self.backend) {
+                            self.current_section = next_sec;
+                        }
+                        ctx.request_repaint_after(Duration::from_millis(1200));
                     }
                     NavSection::Monitor => {
                         self.monitor_view.render(ui);
@@ -539,8 +637,40 @@ impl eframe::App for RustCareApp {
                     NavSection::Settings => {
                         self.settings_view.render(ui);
                     }
+                    NavSection::Gallery => {
+                        self.gallery_view.render(ui, &mut self.toasts);
+                    }
                 }
             });
+
+        if let Some(action) = self.cmdk.render(ctx) {
+            match action {
+                CmdkAction::Navigate(sec) => self.current_section = sec,
+                CmdkAction::OpenTool(tab) => {
+                    self.current_section = NavSection::Toolbox;
+                    self.toolbox_view.current_tab = tab;
+                }
+                CmdkAction::CleanRam => {
+                    let res = self.backend.clean_ram();
+                    self.toasts.success(
+                        "Memoria RAM optimizada",
+                        format!("{} procesos recortados", res.processes_cleaned),
+                    );
+                }
+                CmdkAction::ToggleSandbox => {
+                    if self.backend.is_sandbox() {
+                        self.backend = Arc::new(LiveWindowsBackend::default());
+                        self.toasts.warning("Modo Real activado", "Las acciones se aplicarán sobre Windows");
+                    } else {
+                        self.backend = Arc::new(SandboxBackend::new());
+                        self.toasts.info("Modo Sandbox activado", "Entorno aislado y seguro para pruebas");
+                    }
+                    self.booster_view.startup_entries = self.backend.list_startup_entries();
+                }
+            }
+        }
+
+        self.toasts.render(ctx);
 
         if self.care_view.is_scanning
             || self.care_view.is_cleaning
