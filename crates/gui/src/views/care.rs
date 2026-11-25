@@ -243,14 +243,31 @@ impl CareView {
                         for (label, threshold) in stages {
                             let done = self.progress > threshold + 0.15;
                             let active = !done && self.progress >= threshold - 0.05;
-                            let (prefix, col) = if done {
-                                ("✓ ", RustCareTheme::ACCENT_EMERALD)
+                            let col = if done {
+                                RustCareTheme::ACCENT_EMERALD
                             } else if active {
-                                ("● ", RustCareTheme::ACCENT_CYAN)
+                                RustCareTheme::ACCENT_CYAN
                             } else {
-                                ("○ ", RustCareTheme::TEXT_MUTED)
+                                RustCareTheme::TEXT_MUTED
                             };
-                            ui.label(RichText::new(format!("{}{}", prefix, label)).size(11.0).color(col));
+                            let (dot_r, _) = ui.allocate_exact_size(Vec2::splat(14.0), Sense::hover());
+                            let c = dot_r.center();
+                            if done {
+                                ui.painter().circle_filled(c, 5.5, col);
+                                ui.painter().line_segment(
+                                    [Pos2::new(c.x - 2.4, c.y + 0.2), Pos2::new(c.x - 0.6, c.y + 2.0)],
+                                    Stroke::new(1.5_f32, Color32::WHITE),
+                                );
+                                ui.painter().line_segment(
+                                    [Pos2::new(c.x - 0.6, c.y + 2.0), Pos2::new(c.x + 2.6, c.y - 1.8)],
+                                    Stroke::new(1.5_f32, Color32::WHITE),
+                                );
+                            } else if active {
+                                ui.painter().circle_filled(c, 4.5, col);
+                            } else {
+                                ui.painter().circle_stroke(c, 4.5, Stroke::new(1.2_f32, col));
+                            }
+                            ui.label(RichText::new(label).size(11.0).color(col));
                             ui.add_space(10.0);
                         }
                     });
@@ -262,54 +279,76 @@ impl CareView {
             }
 
             // =================================================================
-            // 3. FILA INFERIOR: 4 TARJETAS ESTILO AVG TUNEUP CON ANILLOS DE ESTADO
+            // 3. FILA INFERIOR: 4 BENTO GLASS CARDS 2027 (Icono 48px + Veredicto AVG)
             // =================================================================
             let avail_w = ui.available_width();
             let card_spacing = RustCareTheme::ITEM_SPACING;
             let card_w = (avail_w - (card_spacing * 3.0)) / 4.0;
-            let card_h = 122.0;
+            let card_h = 112.0;
 
             let enabled_startup = self.last_startup_entries.iter().filter(|e| e.is_enabled).count();
+
+            let draw_bento_care_card = |ui: &mut Ui,
+                                        title: &str,
+                                        verdict: &str,
+                                        sub: &str,
+                                        icon: AppIcon,
+                                        accent: Color32,
+                                        is_ok: bool|
+             -> egui::Response {
+                let (rect, resp) = ui.allocate_exact_size(Vec2::new(card_w, card_h), Sense::click());
+                RustCareTheme::draw_glass_card(ui.painter(), rect, resp.hovered(), Some(accent));
+                let p = ui.painter();
+
+                // Icono volumétrico 48x48 a la izquierda (fidelidad 2027_care.png)
+                let ic_box = Rect::from_min_size(Pos2::new(rect.min.x + 14.0, rect.center().y - 24.0), Vec2::splat(48.0));
+                draw_icon(p, ic_box, icon, accent, 1.7);
+
+                // Insignia de estado AVG vectorial (check o !) arriba a la derecha
+                let badge_c = Pos2::new(rect.max.x - 16.0, rect.min.y + 16.0);
+                let badge_col = if is_ok { RustCareTheme::ACCENT_EMERALD } else { accent };
+                p.circle_filled(badge_c, 7.5, badge_col);
+                if is_ok {
+                    p.line_segment(
+                        [Pos2::new(badge_c.x - 3.2, badge_c.y + 0.2), Pos2::new(badge_c.x - 0.8, badge_c.y + 2.6)],
+                        Stroke::new(1.6_f32, Color32::WHITE),
+                    );
+                    p.line_segment(
+                        [Pos2::new(badge_c.x - 0.8, badge_c.y + 2.6), Pos2::new(badge_c.x + 3.4, badge_c.y - 2.4)],
+                        Stroke::new(1.6_f32, Color32::WHITE),
+                    );
+                } else {
+                    p.text(badge_c, Align2::CENTER_CENTER, "!", FontId::proportional(10.0), Color32::WHITE);
+                }
+
+                // Título, Veredicto Grande y Subtexto a la derecha del icono
+                let tx_x = rect.min.x + 72.0;
+                p.text(Pos2::new(tx_x, rect.min.y + 18.0), Align2::LEFT_TOP, title, FontId::proportional(10.5), RustCareTheme::TEXT_MUTED);
+                p.text(Pos2::new(tx_x, rect.min.y + 42.0), Align2::LEFT_TOP, verdict, FontId::proportional(18.0), Color32::WHITE);
+                p.text(Pos2::new(tx_x, rect.max.y - 24.0), Align2::LEFT_TOP, sub, FontId::proportional(10.5), badge_col);
+
+                resp
+            };
 
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = card_spacing;
 
-                // TARJETA 1: LIBERAR ESPACIO (Basura y Temporales)
+                // TARJETA 1: ARCHIVOS BASURA / LIBERAR ESPACIO
                 let space_ok = !self.scan_completed || self.total_bytes_found == 0 || self.clean_completed;
-                let c1_accent = if space_ok { RustCareTheme::ACCENT_EMERALD } else { RustCareTheme::ACCENT_AMBER };
-                let (c1_rect, c1_resp) = ui.allocate_exact_size(Vec2::new(card_w, card_h), Sense::click());
-                RustCareTheme::draw_glass_card(ui.painter(), c1_rect, c1_resp.hovered(), Some(c1_accent));
-
-                let p1 = ui.painter();
-                p1.text(
-                    Pos2::new(c1_rect.center().x, c1_rect.min.y + 16.0),
-                    Align2::CENTER_CENTER,
-                    "Liberar Espacio",
-                    FontId::proportional(13.0),
-                    Color32::WHITE,
-                );
-                let ring1_c = Pos2::new(c1_rect.center().x, c1_rect.min.y + 56.0);
-                widgets::draw_status_ring(p1, ring1_c, 22.0, if space_ok { 1.0 } else { 0.72 }, c1_accent, space_ok);
-                let ic1_box = Rect::from_center_size(ring1_c, Vec2::splat(24.0));
-                draw_icon(p1, ic1_box, AppIcon::Trash, c1_accent, 1.4);
-
-                let space_lbl = if self.scan_completed && self.total_bytes_found > 0 && !self.clean_completed {
-                    format!("{} ({} arch.)", CleanerEngine::format_bytes(self.total_bytes_found), self.total_items_found)
+                let c1_accent = if space_ok { Color32::from_rgb(0, 229, 168) } else { RustCareTheme::ACCENT_AMBER };
+                let space_verdict = if self.scan_completed && self.total_bytes_found > 0 && !self.clean_completed {
+                    CleanerEngine::format_bytes(self.total_bytes_found)
                 } else if self.clean_completed {
-                    format!("{} liberados", CleanerEngine::format_bytes(self.total_bytes_found))
-                } else if self.scan_completed {
-                    "Limpio (0 B)".to_string()
+                    format!("{} limpios", CleanerEngine::format_bytes(self.total_bytes_found))
                 } else {
-                    "Clic para ver detalle".to_string()
+                    "0 GB".to_string()
                 };
-                p1.text(
-                    Pos2::new(c1_rect.center().x, c1_rect.max.y - 20.0),
-                    Align2::CENTER_CENTER,
-                    space_lbl,
-                    FontId::proportional(12.0),
-                    c1_accent,
-                );
-                if c1_resp.clicked() {
+                let space_sub = if self.scan_completed && !self.clean_completed {
+                    format!("{} archivos · Ver →", self.total_items_found)
+                } else {
+                    "Espacio recuperable".to_string()
+                };
+                if draw_bento_care_card(ui, "ARCHIVOS BASURA", &space_verdict, &space_sub, AppIcon::Trash, c1_accent, space_ok).clicked() {
                     if self.scan_completed {
                         self.detail_drawer = Some(CareDetailDrawer::Space);
                     } else {
@@ -317,122 +356,51 @@ impl CareView {
                     }
                 }
 
-                // TARJETA 2: ACELERAR PC (Programas de inicio + RAM)
-                let speed_ok = !self.scan_completed || enabled_startup <= 2;
-                let c2_accent = if speed_ok { RustCareTheme::ACCENT_EMERALD } else { RustCareTheme::ACCENT_AMBER };
-                let (c2_rect, c2_resp) = ui.allocate_exact_size(Vec2::new(card_w, card_h), Sense::click());
-                RustCareTheme::draw_glass_card(ui.painter(), c2_rect, c2_resp.hovered(), Some(c2_accent));
-
-                let p2 = ui.painter();
-                p2.text(
-                    Pos2::new(c2_rect.center().x, c2_rect.min.y + 16.0),
-                    Align2::CENTER_CENTER,
-                    "Acelerar PC",
-                    FontId::proportional(13.0),
-                    Color32::WHITE,
-                );
-                let ring2_c = Pos2::new(c2_rect.center().x, c2_rect.min.y + 56.0);
-                let speed_prog = if self.scan_completed { (1.0 - (enabled_startup as f32 * 0.08)).clamp(0.25, 1.0) } else { 0.85 };
-                widgets::draw_status_ring(p2, ring2_c, 22.0, speed_prog, c2_accent, speed_ok);
-                let ic2_box = Rect::from_center_size(ring2_c, Vec2::splat(24.0));
-                draw_icon(p2, ic2_box, AppIcon::RamChip, c2_accent, 1.4);
-
-                let speed_lbl = if self.scan_completed {
-                    format!("{} en inicio · {:.0}% RAM libre", enabled_startup, self.ram_free_pct)
+                // TARJETA 2: ESCUDO PRIVACIDAD
+                let sec_ok = self.threats_found == 0;
+                let c2_accent = if sec_ok { Color32::from_rgb(56, 189, 248) } else { RustCareTheme::ACCENT_CORAL };
+                let sec_verdict = if sec_ok { "Seguro".to_string() } else { format!("{} alertas", self.threats_found) };
+                let sec_sub = if let Some(sh) = &self.last_shield_result {
+                    format!("{} proc · {} claves", sh.processes_scanned, sh.registry_keys_scanned)
                 } else {
-                    "Gestionar inicio y RAM".to_string()
+                    "Auditoría heurística".to_string()
                 };
-                p2.text(
-                    Pos2::new(c2_rect.center().x, c2_rect.max.y - 20.0),
-                    Align2::CENTER_CENTER,
-                    speed_lbl,
-                    FontId::proportional(11.5),
-                    c2_accent,
-                );
-                if c2_resp.clicked() {
+                if draw_bento_care_card(ui, "ESCUDO PRIVACIDAD", &sec_verdict, &sec_sub, AppIcon::Eye, c2_accent, sec_ok).clicked() {
+                    self.detail_drawer = Some(CareDetailDrawer::Problems);
+                }
+
+                // TARJETA 3: RAM TURBO / ACELERAR PC
+                let speed_ok = !self.scan_completed || enabled_startup <= 2;
+                let c3_accent = Color32::from_rgb(45, 212, 191);
+                let ram_verdict = format!("{:.0}% Libre", self.ram_free_pct);
+                let ram_sub = if self.scan_completed {
+                    format!("{} en inicio · Gestionar →", enabled_startup)
+                } else {
+                    "Inicio y Memoria".to_string()
+                };
+                if draw_bento_care_card(ui, "RAM TURBO", &ram_verdict, &ram_sub, AppIcon::RamChip, c3_accent, speed_ok).clicked() {
                     if self.last_startup_entries.is_empty() {
                         self.last_startup_entries = backend.list_startup_entries();
                     }
                     self.detail_drawer = Some(CareDetailDrawer::SpeedUp);
                 }
 
-                // TARJETA 3: SOLUCIONAR PROBLEMAS (Seguridad / Registro)
-                let sec_ok = self.threats_found == 0;
-                let c3_accent = if sec_ok { RustCareTheme::ACCENT_EMERALD } else { RustCareTheme::ACCENT_CORAL };
-                let (c3_rect, c3_resp) = ui.allocate_exact_size(Vec2::new(card_w, card_h), Sense::click());
-                RustCareTheme::draw_glass_card(ui.painter(), c3_rect, c3_resp.hovered(), Some(c3_accent));
-
-                let p3 = ui.painter();
-                p3.text(
-                    Pos2::new(c3_rect.center().x, c3_rect.min.y + 16.0),
-                    Align2::CENTER_CENTER,
-                    "Solucionar Problemas",
-                    FontId::proportional(13.0),
-                    Color32::WHITE,
-                );
-                let ring3_c = Pos2::new(c3_rect.center().x, c3_rect.min.y + 56.0);
-                widgets::draw_status_ring(p3, ring3_c, 22.0, 1.0, c3_accent, sec_ok);
-                let ic3_box = Rect::from_center_size(ring3_c, Vec2::splat(24.0));
-                draw_icon(p3, ic3_box, AppIcon::Eye, c3_accent, 1.4);
-
-                let sec_lbl = if let Some(sh) = &self.last_shield_result {
-                    if sh.threats.is_empty() {
-                        format!("{} proc · {} claves OK", sh.processes_scanned, sh.registry_keys_scanned)
-                    } else {
-                        format!("{} alertas detectadas", sh.threats.len())
-                    }
-                } else {
-                    "Auditoría de seguridad".to_string()
-                };
-                p3.text(
-                    Pos2::new(c3_rect.center().x, c3_rect.max.y - 20.0),
-                    Align2::CENTER_CENTER,
-                    sec_lbl,
-                    FontId::proportional(11.5),
-                    c3_accent,
-                );
-                if c3_resp.clicked() {
-                    self.detail_drawer = Some(CareDetailDrawer::Problems);
-                }
-
-                // TARJETA 4: SALUD DEL SISTEMA (Puntuación transparente)
+                // TARJETA 4: SALUD DEL SISTEMA IA
                 let health_ok = self.health_score >= 75;
                 let c4_accent = if self.health_score >= 80 {
-                    RustCareTheme::ACCENT_EMERALD
+                    Color32::from_rgb(0, 229, 168)
                 } else if self.health_score >= 55 {
                     RustCareTheme::ACCENT_AMBER
                 } else {
                     RustCareTheme::ACCENT_CORAL
                 };
-                let (c4_rect, c4_resp) = ui.allocate_exact_size(Vec2::new(card_w, card_h), Sense::click());
-                RustCareTheme::draw_glass_card(ui.painter(), c4_rect, c4_resp.hovered(), Some(c4_accent));
-
-                let p4 = ui.painter();
-                p4.text(
-                    Pos2::new(c4_rect.center().x, c4_rect.min.y + 16.0),
-                    Align2::CENTER_CENTER,
-                    "Salud del Sistema",
-                    FontId::proportional(13.0),
-                    Color32::WHITE,
-                );
-                let ring4_c = Pos2::new(c4_rect.center().x, c4_rect.min.y + 56.0);
-                widgets::draw_status_ring(p4, ring4_c, 22.0, self.health_score as f32 / 100.0, c4_accent, health_ok);
-                let ic4_box = Rect::from_center_size(ring4_c, Vec2::splat(24.0));
-                draw_icon(p4, ic4_box, AppIcon::Brain, c4_accent, 1.4);
-
-                let health_lbl = if self.scan_completed {
-                    format!("{}% Optimizado · Ver cálculo", self.health_score)
+                let health_verdict = if self.scan_completed {
+                    format!("{}% Óptimo", self.health_score)
                 } else {
-                    "Diagnóstico general".to_string()
+                    "Excelente".to_string()
                 };
-                p4.text(
-                    Pos2::new(c4_rect.center().x, c4_rect.max.y - 20.0),
-                    Align2::CENTER_CENTER,
-                    health_lbl,
-                    FontId::proportional(11.5),
-                    c4_accent,
-                );
-                if c4_resp.clicked() {
+                let health_sub = if self.scan_completed { "Ver cálculo →" } else { "Diagnóstico IA" };
+                if draw_bento_care_card(ui, "SALUD DEL SISTEMA IA", &health_verdict, health_sub, AppIcon::Brain, c4_accent, health_ok).clicked() {
                     self.detail_drawer = Some(CareDetailDrawer::Health);
                 }
             });

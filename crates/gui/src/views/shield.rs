@@ -148,6 +148,7 @@ impl ShieldView {
             }
         } else {
             RustCareTheme::card_frame().show(ui, |ui| {
+                ui.set_width(ui.available_width());
                 ui.vertical_centered(|ui| {
                     ui.label(
                         RichText::new("Escudo de Protección en Tiempo Real y Heurística")
@@ -158,6 +159,84 @@ impl ShieldView {
                     ui.add_space(6.0);
                     ui.label("Haz clic en 'Escanear Amenazas' para iniciar una verificación completa de memoria y persistencias.");
                 });
+            });
+
+            ui.add_space(16.0);
+
+            let avail_w = ui.available_width();
+            let gap = 14.0;
+            let card_w = ((avail_w - gap * 2.0) / 3.0).max(200.0);
+            let pillars = [
+                (
+                    "Escudo Heurístico (IFEO/Temp)",
+                    "Protección Activa",
+                    "Supervisa ejecutables en carpetas temporales y secuestros de registro Image File Execution Options.",
+                    0.96_f32,
+                    RustCareTheme::ACCENT_TEAL,
+                ),
+                (
+                    "Anti-Rastreo y Telemetría",
+                    "42 Reglas Activas",
+                    "Bloquea telemetría en segundo plano, identificadores de publicidad y rastreadores de red.",
+                    0.88_f32,
+                    RustCareTheme::ACCENT_CYAN,
+                ),
+                (
+                    "Centro de Rescate (.reg)",
+                    "Copias Listas",
+                    "Cada cambio de registro o cuarentena genera un punto de restauración reversible al instante.",
+                    1.00_f32,
+                    RustCareTheme::ACCENT_INDIGO,
+                ),
+            ];
+
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = gap;
+                for (title, verdict, desc, progress, accent) in pillars {
+                    ui.allocate_ui_with_layout(
+                        eframe::egui::Vec2::new(card_w, 200.0),
+                        egui::Layout::top_down(egui::Align::Min),
+                        |ui| {
+                            ui.set_min_width(card_w);
+                            RustCareTheme::glass_card_frame().show(ui, |ui| {
+                                ui.set_width(ui.available_width());
+                                ui.set_min_height(166.0);
+                                ui.vertical_centered(|ui| {
+                                    ui.add_space(4.0);
+                                    let (ring_r, _) = ui.allocate_exact_size(eframe::egui::Vec2::splat(64.0), eframe::egui::Sense::hover());
+                                    crate::widgets::draw_status_ring(ui.painter(), ring_r.center(), 26.0, progress, accent, true);
+                                    crate::icons::draw_icon(
+                                        ui.painter(),
+                                        eframe::egui::Rect::from_center_size(ring_r.center(), eframe::egui::Vec2::splat(26.0)),
+                                        crate::icons::AppIcon::ShieldCheck,
+                                        accent,
+                                        1.5,
+                                    );
+                                    ui.add_space(10.0);
+                                    ui.label(
+                                        RichText::new(title)
+                                            .size(13.5)
+                                            .strong()
+                                            .color(RustCareTheme::TEXT_PRIMARY),
+                                    );
+                                    ui.add_space(4.0);
+                                    ui.label(
+                                        RichText::new(verdict)
+                                            .size(12.5)
+                                            .strong()
+                                            .color(accent),
+                                    );
+                                    ui.add_space(6.0);
+                                    ui.label(
+                                        RichText::new(desc)
+                                            .size(11.5)
+                                            .color(RustCareTheme::TEXT_MUTED),
+                                    );
+                                });
+                            });
+                        },
+                    );
+                }
             });
         }
     }

@@ -405,51 +405,35 @@ pub fn sparkline_card(
     // Fondo Bento Glass con profundidad y proyector de luz inferior neón
     RustCareTheme::draw_glass_card(painter, rect, response.hovered(), Some(accent));
 
-    // Fila 1: Título a la izquierda | Subtítulo hardware a la derecha
+    // Fila 1: Título a la izquierda | Valor Grande a la derecha (estilo 2027_tools.png, deja 52px para la onda)
     painter.text(
         Pos2::new(rect.min.x + 14.0, rect.min.y + 18.0),
         Align2::LEFT_CENTER,
         title,
-        FontId::proportional(16.0),
+        FontId::proportional(15.5),
         Color32::WHITE,
     );
     painter.text(
         Pos2::new(rect.max.x - 14.0, rect.min.y + 18.0),
         Align2::RIGHT_CENTER,
-        hw_subtitle,
-        FontId::proportional(11.0),
-        RustCareTheme::TEXT_MUTED,
-    );
-
-    // Fila 2: Valor Gigante (30px Bold con alto contraste)
-    painter.text(
-        Pos2::new(rect.min.x + 14.0, rect.min.y + 46.0),
-        Align2::LEFT_CENTER,
         big_value,
-        FontId::proportional(30.0),
+        FontId::proportional(20.0),
         Color32::WHITE,
     );
 
-    // Stack de telemetría real a la derecha (últimas muestras del historial)
-    if !history.is_empty() && (title.contains("CPU") || title.contains("GPU") || title.contains("NVMe") || title.contains("Disco")) {
-        let len = history.len();
-        let v_last = history[len - 1];
-        let v_prev1 = if len >= 2 { history[len - 2] } else { v_last };
-        let v_prev2 = if len >= 3 { history[len - 3] } else { v_prev1 };
-        if title.contains("NVMe") || title.contains("Disco") {
-            painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 38.0), Align2::RIGHT_CENTER, format!("{:.0}%", v_prev1), FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
-            painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 52.0), Align2::RIGHT_CENTER, format!("{:.0}%", v_last), FontId::monospace(10.5), accent);
-        } else {
-            painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 36.0), Align2::RIGHT_CENTER, format!("{:.0}%", v_prev2), FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
-            painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 48.0), Align2::RIGHT_CENTER, format!("{:.0}%", v_prev1), FontId::monospace(10.5), RustCareTheme::TEXT_MUTED);
-            painter.text(Pos2::new(rect.max.x - 14.0, rect.min.y + 60.0), Align2::RIGHT_CENTER, format!("{:.0}%", v_last), FontId::monospace(10.5), accent);
-        }
-    }
+    // Subtítulo hardware sutil debajo del título
+    painter.text(
+        Pos2::new(rect.min.x + 14.0, rect.min.y + 34.0),
+        Align2::LEFT_CENTER,
+        hw_subtitle,
+        FontId::proportional(10.0),
+        RustCareTheme::TEXT_MUTED,
+    );
 
-    // Fila 3: Área de Ondas Líquidas basadas en historial real suavizado
+    // Fila 3: Área de Ondas Líquidas Generosa (50px de altura real)
     let wave_rect = Rect::from_min_max(
-        Pos2::new(rect.min.x + 14.0, rect.min.y + 64.0),
-        Pos2::new(rect.max.x - 14.0, rect.max.y - 24.0),
+        Pos2::new(rect.min.x + 12.0, rect.min.y + 42.0),
+        Pos2::new(rect.max.x - 12.0, rect.max.y - 22.0),
     );
 
     if wave_rect.width() > 20.0 {
@@ -478,13 +462,20 @@ pub fn sparkline_card(
         let mut min_y = f32::MAX;
         let wave_h = (wave_rect.height() - 6.0).max(10.0);
 
+        // Auto-escala relativa al rango del historial para curvas expresivas
+        let min_hist = history.iter().copied().fold(f32::MAX, f32::min);
+        let max_hist = history.iter().copied().fold(f32::MIN, f32::max);
+        let lo = if history.is_empty() { 0.0 } else { (min_hist - 6.0).max(0.0) };
+        let hi = if history.is_empty() { 100.0 } else { (max_hist + 6.0).max(lo + 14.0).min(100.0) };
+        let span = (hi - lo).max(1.0);
+
         for i in 0..=steps {
             let frac = i as f32 / steps as f32;
             let x = wave_rect.min.x + (i as f32) * step_x;
             let val = sample_history(frac).clamp(0.0, 100.0);
-            let norm = (val / 100.0).clamp(0.06, 0.94);
+            let norm = ((val - lo) / span).clamp(0.10, 0.92);
             // Respiración orgánica sutil (calmada, sin oscilaciones nerviosas)
-            let breathe = (time * 0.25 + frac * 2.0).sin() * 0.45;
+            let breathe = (time * 0.25 + frac * 2.0).sin() * 0.6;
             let y = (wave_rect.max.y - 4.0 - norm * wave_h + breathe)
                 .clamp(wave_rect.min.y + 3.0, wave_rect.max.y - 2.0);
             let pt = Pos2::new(x, y);
@@ -505,15 +496,27 @@ pub fn sparkline_card(
             painter.circle_stroke(crest_pos, 4.5, Stroke::new(1.0_f32, Color32::from_rgb(56, 189, 248)));
         }
 
-        // Relleno poligonal translúcido bajo la onda
-        let mut poly = points.clone();
-        poly.push(Pos2::new(wave_rect.max.x, wave_rect.max.y));
-        poly.push(Pos2::new(wave_rect.min.x, wave_rect.max.y));
-        painter.add(Shape::convex_polygon(
-            poly,
-            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), if response.hovered() { 42 } else { 26 }),
-            Stroke::NONE,
-        ));
+        // Relleno degradado bajo la onda mediante Mesh (soporta curvas cóncavas sin artefactos)
+        if points.len() >= 2 {
+            let mut mesh = eframe::egui::Mesh::default();
+            let top_col = Color32::from_rgba_unmultiplied(
+                accent.r(),
+                accent.g(),
+                accent.b(),
+                if response.hovered() { 70 } else { 48 },
+            );
+            let bot_col = Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 6);
+            for (idx, pt) in points.iter().enumerate() {
+                mesh.colored_vertex(*pt, top_col);
+                mesh.colored_vertex(Pos2::new(pt.x, wave_rect.max.y), bot_col);
+                if idx > 0 {
+                    let i0 = ((idx - 1) * 2) as u32;
+                    mesh.add_triangle(i0, i0 + 1, i0 + 2);
+                    mesh.add_triangle(i0 + 1, i0 + 3, i0 + 2);
+                }
+            }
+            painter.add(Shape::mesh(mesh));
+        }
 
         // Curva superior brillante de 2.2px
         for w in points.windows(2) {
@@ -908,13 +911,21 @@ pub fn draw_status_ring(
     );
     painter.circle_filled(badge_c, 7.5, ring_color);
     painter.circle_stroke(badge_c, 7.5, Stroke::new(1.5_f32, Color32::from_rgb(13, 18, 27)));
-    painter.text(
-        badge_c,
-        Align2::CENTER_CENTER,
-        if is_ok { "✓" } else { "!" },
-        FontId::proportional(9.5),
-        Color32::WHITE,
-    );
+    if is_ok {
+        let p1 = Pos2::new(badge_c.x - 3.2, badge_c.y + 0.3);
+        let p2 = Pos2::new(badge_c.x - 0.8, badge_c.y + 2.7);
+        let p3 = Pos2::new(badge_c.x + 3.4, badge_c.y - 2.3);
+        painter.line_segment([p1, p2], Stroke::new(1.8_f32, Color32::WHITE));
+        painter.line_segment([p2, p3], Stroke::new(1.8_f32, Color32::WHITE));
+    } else {
+        painter.text(
+            badge_c,
+            Align2::CENTER_CENTER,
+            "!",
+            FontId::proportional(10.0),
+            Color32::WHITE,
+        );
+    }
 }
 
 /// 14. Barra de progreso estilizada (reemplaza egui::ProgressBar estándar)

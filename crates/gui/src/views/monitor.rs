@@ -20,7 +20,7 @@ pub struct MonitorView {
 impl Default for MonitorView {
     fn default() -> Self {
         let mut monitor = SystemMonitor::new();
-        let snap = monitor.refresh_snapshot();
+        let mut snap = monitor.refresh_snapshot();
 
         // 60 puntos de historial iniciales suaves
         let mut cpu_hist = Vec::with_capacity(60);
@@ -35,6 +35,9 @@ impl Default for MonitorView {
             disk_hist.push(if i % 12 == 0 { 24.0 } else if i % 18 == 0 { 38.0 } else { 4.0 });
             net_hist.push((12.4 + ((t * 1.8).sin() * 4.0)).clamp(2.0, 50.0));
         }
+
+        // Evitar pico falso de 100% en el primer fotograma antes de tener dos muestras reales
+        snap.cpu_global_percent = *cpu_hist.last().unwrap_or(&18.0);
 
         Self {
             monitor,
@@ -175,6 +178,7 @@ impl MonitorView {
             // 2. PANEL INFERIOR: PROCESOS CON MAYOR CONSUMO
             // =================================================================
             RustCareTheme::card_frame().show(ui, |ui| {
+                ui.set_width(ui.available_width());
                 ui.label(
                     RichText::new("Procesos con Mayor Consumo de Recursos")
                         .size(15.0)
@@ -184,32 +188,44 @@ impl MonitorView {
                 ui.add_space(10.0);
 
                 let total_w = ui.available_width();
-                let col_name_w = total_w * 0.34;
-                let col_pid_w = total_w * 0.12;
-                let col_cpu_w = total_w * 0.12;
-                let col_ram_w = total_w * 0.14;
-                let col_disk_w = total_w * 0.12;
-                let col_actions_w = total_w * 0.16;
+                // Reservar espacio para inner_margin(8*2) + item_spacing entre 6 columnas (8*5)
+                let row_w = (total_w - 64.0).max(400.0);
+                let col_name_w = row_w * 0.25;
+                let col_pid_w = row_w * 0.09;
+                let col_cpu_w = row_w * 0.09;
+                let col_ram_w = row_w * 0.13;
+                let col_disk_w = row_w * 0.11;
+                let col_actions_w = row_w * 0.33;
+                let cpu_cores = std::thread::available_parallelism()
+                    .map(|n| n.get() as f32)
+                    .unwrap_or(8.0)
+                    .max(1.0);
 
                 // Cabecera de la tabla
                 ui.horizontal(|ui| {
                     ui.add_space(8.0);
                     ui.allocate_ui_with_layout(Vec2::new(col_name_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.set_min_width(col_name_w);
                         ui.label(RichText::new("Nombre del Proceso").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
                     ui.allocate_ui_with_layout(Vec2::new(col_pid_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.set_min_width(col_pid_w);
                         ui.label(RichText::new("PID").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
                     ui.allocate_ui_with_layout(Vec2::new(col_cpu_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.set_min_width(col_cpu_w);
                         ui.label(RichText::new("CPU").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
                     ui.allocate_ui_with_layout(Vec2::new(col_ram_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.set_min_width(col_ram_w);
                         ui.label(RichText::new("RAM").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
                     ui.allocate_ui_with_layout(Vec2::new(col_disk_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.set_min_width(col_disk_w);
                         ui.label(RichText::new("DISCO").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
                     ui.allocate_ui_with_layout(Vec2::new(col_actions_w - 16.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.set_min_width((col_actions_w - 16.0).max(80.0));
                         ui.label(RichText::new("Acciones Rápidas").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                     });
                 });
@@ -256,31 +272,38 @@ impl MonitorView {
                                         p.name.clone()
                                     };
                                     ui.allocate_ui_with_layout(Vec2::new(col_name_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                        ui.set_min_width(col_name_w);
                                         ui.label(RichText::new(name_clean).size(12.5).color(RustCareTheme::TEXT_PRIMARY));
                                     });
 
-                                    // PID (12%)
+                                    // PID (10%)
                                     ui.allocate_ui_with_layout(Vec2::new(col_pid_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                        ui.set_min_width(col_pid_w);
                                         ui.label(RichText::new(format!("{}", p.pid)).size(12.0).color(RustCareTheme::TEXT_MUTED));
                                     });
 
-                                    // CPU (12%)
+                                    // CPU normalizada por núcleos (10%)
+                                    let proc_cpu = (p.cpu_usage / cpu_cores).clamp(0.0, 100.0);
                                     ui.allocate_ui_with_layout(Vec2::new(col_cpu_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                                        ui.label(RichText::new(format!("{:.1}%", p.cpu_usage)).size(12.0).color(RustCareTheme::TEXT_PRIMARY));
+                                        ui.set_min_width(col_cpu_w);
+                                        ui.label(RichText::new(format!("{:.1}%", proc_cpu)).size(12.0).color(RustCareTheme::TEXT_PRIMARY));
                                     });
 
                                     // RAM (14%)
                                     ui.allocate_ui_with_layout(Vec2::new(col_ram_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                        ui.set_min_width(col_ram_w);
                                         ui.label(RichText::new(CleanerEngine::format_bytes(p.memory_bytes)).size(12.0).color(RustCareTheme::TEXT_PRIMARY));
                                     });
 
                                     // DISCO (12%)
                                     ui.allocate_ui_with_layout(Vec2::new(col_disk_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                        ui.set_min_width(col_disk_w);
                                         ui.label(RichText::new("0.1 MB/s").size(12.0).color(RustCareTheme::TEXT_MUTED));
                                     });
 
-                                    // Acciones Rápidas (16%): danger_button + ghost_button(Suspender) + neon_button
-                                    ui.allocate_ui_with_layout(Vec2::new(col_actions_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                    // Acciones Rápidas (26%): danger_button + ghost_button(Suspender) + neon_button
+                                    ui.allocate_ui_with_layout(Vec2::new(col_actions_w - 16.0, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                        ui.set_min_width((col_actions_w - 16.0).max(200.0));
                                         if widgets::danger_button(ui, "Finalizar", Some(62.0)).clicked() {}
                                         ui.add_space(4.0);
                                         if widgets::ghost_button(ui, "Suspender", Some(72.0)).clicked() {}

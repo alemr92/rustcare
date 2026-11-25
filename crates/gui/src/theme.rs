@@ -50,28 +50,51 @@ impl RustCareTheme {
     pub const PADDING_CARD: f32 = 16.0;
     pub const ITEM_SPACING: f32 = 14.0;
 
-    /// Dibuja la luz ambiental difusa en el fondo de la ventana (Ambient Mesh Glow 2027)
+    /// Dibuja la luz ambiental difusa y rejilla técnica en el fondo (Ambient Mesh Glow 2027)
     pub fn draw_ambient_mesh_glow(painter: &eframe::egui::Painter, screen_rect: Rect, time: f32) {
+        // Rejilla técnica HUD ultratenue (step 36px, alpha 3)
+        let grid_col = Color32::from_rgba_unmultiplied(56, 189, 248, 3);
+        let step = 36.0_f32;
+        let mut x = screen_rect.min.x;
+        while x <= screen_rect.max.x {
+            painter.line_segment(
+                [Pos2::new(x, screen_rect.min.y), Pos2::new(x, screen_rect.max.y)],
+                Stroke::new(1.0_f32, grid_col),
+            );
+            x += step;
+        }
+        let mut y = screen_rect.min.y;
+        while y <= screen_rect.max.y {
+            painter.line_segment(
+                [Pos2::new(screen_rect.min.x, y), Pos2::new(screen_rect.max.x, y)],
+                Stroke::new(1.0_f32, grid_col),
+            );
+            y += step;
+        }
+
+        // Halos radiales con interpolación GPU Mesh (cero bordes duros)
+        let paint_radial_glow = |center: Pos2, radius: f32, rgb: (u8, u8, u8), center_alpha: u8| {
+            let mut mesh = eframe::egui::Mesh::default();
+            let center_col = Color32::from_rgba_unmultiplied(rgb.0, rgb.1, rgb.2, center_alpha);
+            let edge_col = Color32::from_rgba_unmultiplied(rgb.0, rgb.1, rgb.2, 0);
+            mesh.colored_vertex(center, center_col);
+            let segs = 40u32;
+            for i in 0..=segs {
+                let a = (i as f32 / segs as f32) * std::f32::consts::TAU;
+                let p = Pos2::new(center.x + radius * a.cos(), center.y + radius * a.sin());
+                mesh.colored_vertex(p, edge_col);
+            }
+            for i in 1..=segs {
+                mesh.add_triangle(0, i, i + 1);
+            }
+            painter.add(eframe::egui::Shape::mesh(mesh));
+        };
+
         let c = screen_rect.center();
-        let pulse = (time * 0.8).sin() * 20.0;
-        // Halo central cian (#00E5A8) de radio 440px
-        painter.circle_filled(
-            egui::pos2(c.x + 60.0, c.y - 40.0),
-            420.0 + pulse,
-            Color32::from_rgba_unmultiplied(0, 229, 168, 11), // alpha 0.045
-        );
-        // Halo superior azul cobalto (#2563EB) de radio 420px
-        painter.circle_filled(
-            egui::pos2(screen_rect.min.x + 140.0, screen_rect.min.y + 90.0),
-            420.0,
-            Color32::from_rgba_unmultiplied(37, 99, 235, 13), // alpha 0.05
-        );
-        // Halo inferior-derecho cian suave (#38BDF8)
-        painter.circle_filled(
-            egui::pos2(screen_rect.max.x - 100.0, screen_rect.max.y - 80.0),
-            380.0,
-            Color32::from_rgba_unmultiplied(56, 189, 248, 10), // alpha 0.04
-        );
+        let pulse = (time * 0.6).sin() * 14.0;
+        paint_radial_glow(Pos2::new(c.x + 40.0, c.y - 35.0), 390.0 + pulse, (0, 229, 168), 26);
+        paint_radial_glow(Pos2::new(screen_rect.min.x + 160.0, screen_rect.min.y + 100.0), 380.0, (37, 99, 235), 24);
+        paint_radial_glow(Pos2::new(screen_rect.max.x - 110.0, screen_rect.max.y - 80.0), 340.0, (56, 189, 248), 18);
     }
 
     /// Dibuja una tarjeta con profundidad tridimensional, luz de cristal superior y borde reactivo (Bento Glass Card 2027)

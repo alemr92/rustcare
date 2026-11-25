@@ -45,6 +45,12 @@ fn main() -> eframe::Result<()> {
         }).unwrap_or(app::NavSection::Care)
     };
 
+    let screenshot_path = args
+        .iter()
+        .position(|a| a == "--screenshot" || a == "--dump-screenshot")
+        .and_then(|idx| args.get(idx + 1))
+        .cloned();
+
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1150.0, 720.0])
@@ -62,6 +68,7 @@ fn main() -> eframe::Result<()> {
             RustCareTheme::apply(&cc.egui_ctx);
             let mut app = RustCareApp::new(cc, is_sandbox);
             app.current_section = initial_section;
+            app.screenshot_path = screenshot_path;
             Ok(Box::new(app))
         }),
     )

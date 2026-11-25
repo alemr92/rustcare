@@ -316,6 +316,7 @@ impl BoosterView {
             // 3. PANEL INFERIOR UNIFICADO: GESTOR DE ARRANQUE Y SHELL (3 Subpestañas)
             // =================================================================
             RustCareTheme::glass_card_frame().show(ui, |ui| {
+                ui.set_width(ui.available_width());
                 ui.horizontal(|ui| {
                     ui.label(
                         RichText::new("GESTOR INTEGRAL DE ARRANQUE Y SHELL")
@@ -324,47 +325,52 @@ impl BoosterView {
                             .color(RustCareTheme::TEXT_PRIMARY),
                     );
 
+                    ui.add_space(8.0);
+
                     // Badge de ganancia de tiempo
                     let (badge_r, _) = ui.allocate_exact_size(Vec2::new(125.0, 20.0), Sense::hover());
                     ui.painter().rect_filled(badge_r, CornerRadius::same(10), Color32::from_rgba_unmultiplied(0, 229, 168, 25));
                     ui.painter().rect_stroke(badge_r, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(0, 229, 168, 90)), StrokeKind::Inside);
                     ui.painter().text(badge_r.center(), Align2::CENTER_CENTER, "-4.2 seg ganados", FontId::proportional(11.0), RustCareTheme::ACCENT_CYAN);
-
-                    // 3 Subpestañas
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let is_ctx = self.startup_tab == StartupSubTab::ContextMenu;
-                        if widgets::ghost_button(ui, if is_ctx { "[Menú Contextual]" } else { "Menú Contextual" }, Some(130.0)).clicked() {
-                            if self.context_handlers.is_empty() {
-                                self.context_handlers = ContextMenuManager::list_handlers();
-                            }
-                            self.startup_tab = StartupSubTab::ContextMenu;
-                        }
-
-                        let is_tasks = self.startup_tab == StartupSubTab::ScheduledTasks;
-                        if widgets::ghost_button(ui, if is_tasks { "[Tareas Programadas]" } else { "Tareas Programadas" }, Some(140.0)).clicked() {
-                            if self.scheduled_tasks.is_empty() {
-                                self.scheduled_tasks = ScheduledTaskManager::list_tasks();
-                            }
-                            self.startup_tab = StartupSubTab::ScheduledTasks;
-                        }
-
-                        let is_sleep = self.startup_tab == StartupSubTab::SleepMode;
-                        if widgets::ghost_button(ui, if is_sleep { "[Modo Suspensión]" } else { "Modo Suspensión" }, Some(135.0)).clicked() {
-                            if self.sleep_programs.is_empty() {
-                                let snap = backend.get_metrics();
-                                self.sleep_programs = SleepEngine::scan_programs(&self.startup_entries, &snap);
-                            }
-                            self.startup_tab = StartupSubTab::SleepMode;
-                        }
-
-                        let is_apps = self.startup_tab == StartupSubTab::StartupApps;
-                        if widgets::ghost_button(ui, if is_apps { "[Apps al Inicio]" } else { "Apps al Inicio" }, Some(120.0)).clicked() {
-                            self.startup_tab = StartupSubTab::StartupApps;
-                        }
-                    });
                 });
 
                 ui.add_space(8.0);
+
+                // 4 Subpestañas en su propia fila para evitar solapamientos
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 8.0;
+                    let is_apps = self.startup_tab == StartupSubTab::StartupApps;
+                    if widgets::ghost_button(ui, if is_apps { "[Apps al Inicio]" } else { "Apps al Inicio" }, Some(128.0)).clicked() {
+                        self.startup_tab = StartupSubTab::StartupApps;
+                    }
+
+                    let is_sleep = self.startup_tab == StartupSubTab::SleepMode;
+                    if widgets::ghost_button(ui, if is_sleep { "[Modo Suspensión]" } else { "Modo Suspensión" }, Some(142.0)).clicked() {
+                        if self.sleep_programs.is_empty() {
+                            let snap = backend.get_metrics();
+                            self.sleep_programs = SleepEngine::scan_programs(&self.startup_entries, &snap);
+                        }
+                        self.startup_tab = StartupSubTab::SleepMode;
+                    }
+
+                    let is_tasks = self.startup_tab == StartupSubTab::ScheduledTasks;
+                    if widgets::ghost_button(ui, if is_tasks { "[Tareas Programadas]" } else { "Tareas Programadas" }, Some(152.0)).clicked() {
+                        if self.scheduled_tasks.is_empty() {
+                            self.scheduled_tasks = ScheduledTaskManager::list_tasks();
+                        }
+                        self.startup_tab = StartupSubTab::ScheduledTasks;
+                    }
+
+                    let is_ctx = self.startup_tab == StartupSubTab::ContextMenu;
+                    if widgets::ghost_button(ui, if is_ctx { "[Menú Contextual]" } else { "Menú Contextual" }, Some(138.0)).clicked() {
+                        if self.context_handlers.is_empty() {
+                            self.context_handlers = ContextMenuManager::list_handlers();
+                        }
+                        self.startup_tab = StartupSubTab::ContextMenu;
+                    }
+                });
+
+                ui.add_space(10.0);
 
                 let total_w = ui.available_width();
                 let col_prog_w = total_w * 0.42;
@@ -378,15 +384,19 @@ impl BoosterView {
                         ui.horizontal(|ui| {
                             ui.add_space(8.0);
                             ui.allocate_ui_with_layout(Vec2::new(col_prog_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                ui.set_min_width(col_prog_w);
                                 ui.label(RichText::new("Programa").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                             });
                             ui.allocate_ui_with_layout(Vec2::new(col_impact_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                ui.set_min_width(col_impact_w);
                                 ui.label(RichText::new("Impacto").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                             });
                             ui.allocate_ui_with_layout(Vec2::new(col_state_w, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                ui.set_min_width(col_state_w);
                                 ui.label(RichText::new("Estado").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                             });
                             ui.allocate_ui_with_layout(Vec2::new(col_action_w - 16.0, 18.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                ui.set_min_width((col_action_w - 16.0).max(40.0));
                                 ui.label(RichText::new("Acción").size(12.0).strong().color(RustCareTheme::TEXT_MUTED));
                             });
                         });
@@ -426,6 +436,7 @@ impl BoosterView {
                                                 entry.name.clone()
                                             };
                                             ui.allocate_ui_with_layout(Vec2::new(col_prog_w - 24.0, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                                ui.set_min_width((col_prog_w - 24.0).max(60.0));
                                                 ui.label(RichText::new(name_clean).size(12.5).color(RustCareTheme::TEXT_PRIMARY));
                                             });
 
@@ -437,6 +448,7 @@ impl BoosterView {
                                                 ("Bajo", RustCareTheme::ACCENT_CYAN)
                                             };
                                             ui.allocate_ui_with_layout(Vec2::new(col_impact_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                                ui.set_min_width(col_impact_w);
                                                 let (imp_rect, _) = ui.allocate_exact_size(Vec2::new(60.0, 20.0), Sense::hover());
                                                 ui.painter().rect_filled(imp_rect, CornerRadius::same(10), RustCareTheme::BG_ELEVATED);
                                                 ui.painter().rect_stroke(imp_rect, CornerRadius::same(10), Stroke::new(1.0, imp_color), StrokeKind::Inside);
@@ -444,16 +456,20 @@ impl BoosterView {
                                             });
 
                                             ui.allocate_ui_with_layout(Vec2::new(col_state_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                                ui.set_min_width(col_state_w);
                                                 let mut state_copy = entry.is_enabled;
                                                 if widgets::pill_toggle(ui, &mut state_copy).changed() {
                                                     toggles.push((entry.id.clone(), state_copy));
                                                 }
                                             });
 
-                                            let btn_label = if entry.is_enabled { "Desactivar" } else { "Activar" };
-                                            if widgets::ghost_button(ui, btn_label, Some(84.0)).clicked() {
-                                                toggles.push((entry.id.clone(), !entry.is_enabled));
-                                            }
+                                            ui.allocate_ui_with_layout(Vec2::new((col_action_w - 16.0).max(88.0), 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                                ui.set_min_width((col_action_w - 16.0).max(88.0));
+                                                let btn_label = if entry.is_enabled { "Desactivar" } else { "Activar" };
+                                                if widgets::ghost_button(ui, btn_label, Some(84.0)).clicked() {
+                                                    toggles.push((entry.id.clone(), !entry.is_enabled));
+                                                }
+                                            });
                                         });
                                     });
                                 ui.add_space(2.0);

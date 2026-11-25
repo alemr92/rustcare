@@ -283,16 +283,22 @@ pub fn draw_icon(painter: &Painter, rect: Rect, icon: AppIcon, color: Color32, s
 
             painter.circle_filled(c, (w.min(h) * 0.42).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 25));
 
-            // Cuerpo del microchip con bisel
+            // Cuerpo del microchip con núcleo obsidiana y bisel luminoso
             painter.rect_filled(
                 Rect::from_min_max(Pos2::new(left, top), Pos2::new(right, bot)),
                 eframe::egui::CornerRadius::same(3),
-                Color32::from_rgba_unmultiplied(0, 229, 168, 30),
+                Color32::from_rgba_unmultiplied(12, 22, 34, 220),
             );
             painter.rect_stroke(
                 Rect::from_min_max(Pos2::new(left, top), Pos2::new(right, bot)),
                 eframe::egui::CornerRadius::same(3),
                 stroke,
+                eframe::egui::StrokeKind::Inside,
+            );
+            painter.rect_stroke(
+                Rect::from_min_max(Pos2::new(left + 3.5, top + 3.5), Pos2::new(right - 3.5, bot - 3.5)),
+                eframe::egui::CornerRadius::same(2),
+                Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(56, 189, 248, 130)),
                 eframe::egui::StrokeKind::Inside,
             );
 

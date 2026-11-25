@@ -321,23 +321,25 @@ impl SettingsView {
 
     /// Panel de Controles Derecho con Scroll y Barra Inferior de Acción
     fn render_right_content_panel(&mut self, ui: &mut Ui) {
-        let scroll_area_height = (ui.available_height() - 48.0).max(300.0);
+        let scroll_area_height = (ui.available_height() - 68.0).max(300.0);
 
-        ScrollArea::vertical()
-            .id_salt("settings_right_content_scroll")
-            .max_height(scroll_area_height)
-            .auto_shrink([false, false])
-            .show(ui, |ui| {
-                ui.set_width(ui.available_width() - 12.0);
+        RustCareTheme::glass_card_frame().show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ScrollArea::vertical()
+                .id_salt("settings_right_content_scroll")
+                .max_height(scroll_area_height)
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width() - 12.0);
 
-                match self.selected_section {
-                    SettingsSection::General => self.render_general_screen(ui),
-                    SettingsSection::AntiSpyware => self.render_antispyware_screen(ui),
-                    SettingsSection::SpywareRemover => self.render_antispyware_screen(ui),
-                    SettingsSection::RegistryCleaner => self.render_registry_screen(ui),
-                    SettingsSection::PrivacyCleaner => self.render_privacy_screen(ui),
-                    SettingsSection::JunkFilesCleaner => self.render_junk_screen(ui),
-                    SettingsSection::SystemOptimization => self.render_system_opt_screen(ui),
+                    match self.selected_section {
+                        SettingsSection::General => self.render_general_screen(ui),
+                        SettingsSection::AntiSpyware => self.render_antispyware_screen(ui),
+                        SettingsSection::SpywareRemover => self.render_antispyware_screen(ui),
+                        SettingsSection::RegistryCleaner => self.render_registry_screen(ui),
+                        SettingsSection::PrivacyCleaner => self.render_privacy_screen(ui),
+                        SettingsSection::JunkFilesCleaner => self.render_junk_screen(ui),
+                        SettingsSection::SystemOptimization => self.render_system_opt_screen(ui),
                     SettingsSection::InternetBooster => self.render_internet_booster_screen(ui),
                     SettingsSection::SecurityReinforce => self.render_security_screen(ui),
                     SettingsSection::VulnerabilityFixes => self.render_vulnerability_screen(ui),
@@ -354,9 +356,9 @@ impl SettingsView {
 
                 ui.add_space(20.0);
             });
+        });
 
-        ui.separator();
-        ui.add_space(4.0);
+        ui.add_space(8.0);
 
         // Barra de Botones Inferior de Acción (Restablecer, Aplicar, Guardar)
         ui.horizontal(|ui| {
@@ -400,7 +402,7 @@ impl SettingsView {
             if checkbox_item(
                 ui,
                 &mut tray_boot,
-                "Cargar Bandeja de Advanced SystemCare al inicio de Windows",
+                "Cargar Bandeja de RustCare Pro al inicio de Windows",
             )
             .changed()
             {
@@ -415,7 +417,7 @@ impl SettingsView {
             checkbox_item(
                 ui,
                 &mut self.prefs.autostart_service_on_boot,
-                "Cargar Servicio Advanced SystemCare al inicio de Windows",
+                "Cargar Servicio RustCare Pro al inicio de Windows",
             );
             ui.label(RichText::new("(i)").color(RustCareTheme::ACCENT_CYAN));
         });

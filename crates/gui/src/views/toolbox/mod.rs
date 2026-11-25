@@ -213,10 +213,10 @@ impl Default for ToolboxView {
             ai_opt_procs: true,
             shred_dod_toggle: true,
             drivers_auto_toggle: true,
-            cpu_history: vec![14.0, 16.0, 15.0, 18.0, 17.0, 16.0, 18.0, 17.0],
-            gpu_history: vec![22.0, 24.0, 23.0, 26.0, 25.0, 24.0, 25.0, 24.0],
-            ram_history: vec![40.0, 41.0, 41.5, 42.0, 42.0, 42.2, 42.0, 42.0],
-            ssd_history: vec![4.0, 6.0, 5.0, 8.0, 4.0, 7.0, 5.0, 4.0],
+            cpu_history: vec![16.0, 21.0, 18.0, 26.0, 20.0, 24.0, 19.0, 22.0],
+            gpu_history: vec![22.0, 28.0, 24.0, 32.0, 26.0, 30.0, 25.0, 27.0],
+            ram_history: vec![58.0, 62.0, 60.0, 65.0, 63.0, 67.0, 66.0, 68.0],
+            ssd_history: vec![45.0, 52.0, 48.0, 56.0, 50.0, 54.0, 51.0, 53.0],
             last_metrics_snapshot: None,
             last_metrics_sample: Instant::now() - std::time::Duration::from_secs(5),
             drawer_open: None,
@@ -490,7 +490,7 @@ impl ToolboxView {
         // 1. TIRA SUPERIOR DE 4 SENSORES LÍQUIDOS EN VIVO (CPU, GPU, RAM, NVMe)
         // =====================================================================
         let sensor_w = (avail_w - (spacing * 3.0)) / 4.0;
-        let sensor_h = 104.0;
+        let sensor_h = 114.0;
 
         let cpu_val = self.cpu_history.last().copied().unwrap_or(18.0);
         let cpu_peak = self.cpu_history.iter().copied().fold(0.0_f32, f32::max);
@@ -629,57 +629,47 @@ impl ToolboxView {
             let tw = tree_rect.width();
             let th = tree_rect.height();
 
-            // Bloques proporcionales en cian, cobalt blue, púrpura y magenta
+            // Bloques proporcionales densos estilo WizTree (subdivisión anidada 2027_tools.png)
+            let draw_sub_grid = |p: &egui::Painter, r: Rect, cols: usize, rows: usize, palette: &[Color32]| {
+                let cw = r.width() / cols as f32;
+                let ch = r.height() / rows as f32;
+                for ry in 0..rows {
+                    for rx in 0..cols {
+                        let sub_r = Rect::from_min_size(
+                            Pos2::new(r.min.x + rx as f32 * cw, r.min.y + ry as f32 * ch),
+                            Vec2::new(cw, ch),
+                        );
+                        let col = palette[(rx + ry * 2) % palette.len()];
+                        p.rect_filled(sub_r, CornerRadius::ZERO, col);
+                        p.rect_stroke(sub_r, CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
+                    }
+                }
+            };
+
             let c_cyan = Color32::from_rgb(0, 229, 168);
             let c_teal = Color32::from_rgb(45, 212, 191);
+            let c_sky = Color32::from_rgb(14, 165, 233);
             let c_blue = Color32::from_rgb(37, 99, 235);
             let c_indigo = Color32::from_rgb(99, 102, 241);
             let c_purple = Color32::from_rgb(168, 85, 247);
             let c_pink = Color32::from_rgb(236, 72, 153);
             let c_darkblue = Color32::from_rgb(30, 58, 138);
 
-            // Columna 1 (45% ancho)
             let col1_w = tw * 0.44;
-            p.rect_filled(Rect::from_min_size(Pos2::new(t_x0, t_y0), Vec2::new(col1_w, th * 0.48)), CornerRadius::ZERO, c_cyan);
-            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x0, t_y0), Vec2::new(col1_w, th * 0.48)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
-
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x0, t_y0), Vec2::new(col1_w, th * 0.48)), 3, 3, &[c_cyan, c_teal, c_sky]);
             let half_c1 = col1_w * 0.5;
-            p.rect_filled(Rect::from_min_size(Pos2::new(t_x0, t_y0 + th * 0.48), Vec2::new(half_c1, th * 0.30)), CornerRadius::ZERO, c_teal);
-            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x0, t_y0 + th * 0.48), Vec2::new(half_c1, th * 0.30)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x0, t_y0 + th * 0.48), Vec2::new(half_c1, th * 0.30)), 2, 2, &[c_teal, c_sky, c_cyan]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x0 + half_c1, t_y0 + th * 0.48), Vec2::new(half_c1, th * 0.30)), 2, 3, &[c_blue, c_indigo, c_darkblue]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x0, t_y0 + th * 0.78), Vec2::new(col1_w, th * 0.22)), 4, 2, &[c_indigo, c_purple, c_blue]);
 
-            p.rect_filled(Rect::from_min_size(Pos2::new(t_x0 + half_c1, t_y0 + th * 0.48), Vec2::new(half_c1, th * 0.30)), CornerRadius::ZERO, c_blue);
-            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x0 + half_c1, t_y0 + th * 0.48), Vec2::new(half_c1, th * 0.30)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
-
-            // Fila inferior col1
-            let q_c1 = col1_w * 0.25;
-            for i in 0..4 {
-                let col = if i % 2 == 0 { c_indigo } else { c_purple };
-                p.rect_filled(Rect::from_min_size(Pos2::new(t_x0 + (i as f32) * q_c1, t_y0 + th * 0.78), Vec2::new(q_c1, th * 0.22)), CornerRadius::ZERO, col);
-                p.rect_stroke(Rect::from_min_size(Pos2::new(t_x0 + (i as f32) * q_c1, t_y0 + th * 0.78), Vec2::new(q_c1, th * 0.22)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
-            }
-
-            // Columna 2 (56% ancho)
             let t_x1 = t_x0 + col1_w;
             let col2_w = tw - col1_w;
-
-            // Bloques superiores col2
-            p.rect_filled(Rect::from_min_size(Pos2::new(t_x1, t_y0), Vec2::new(col2_w * 0.65, th * 0.38)), CornerRadius::ZERO, c_blue);
-            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x1, t_y0), Vec2::new(col2_w * 0.65, th * 0.38)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
-
-            p.rect_filled(Rect::from_min_size(Pos2::new(t_x1 + col2_w * 0.65, t_y0), Vec2::new(col2_w * 0.35, th * 0.38)), CornerRadius::ZERO, c_pink);
-            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x1 + col2_w * 0.65, t_y0), Vec2::new(col2_w * 0.35, th * 0.38)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
-
-            // Bloques medios col2
-            p.rect_filled(Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.38), Vec2::new(col2_w, th * 0.32)), CornerRadius::ZERO, c_darkblue);
-            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.38), Vec2::new(col2_w, th * 0.32)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
-
-            // Grid fino inferior derecho
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1, t_y0), Vec2::new(col2_w * 0.65, th * 0.38)), 3, 2, &[c_blue, c_darkblue, c_indigo]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1 + col2_w * 0.65, t_y0), Vec2::new(col2_w * 0.35, th * 0.38)), 2, 3, &[c_pink, c_purple, c_indigo]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.38), Vec2::new(col2_w, th * 0.32)), 4, 2, &[c_darkblue, c_blue, c_sky]);
             let half_c2 = col2_w * 0.5;
-            p.rect_filled(Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.70), Vec2::new(half_c2, th * 0.30)), CornerRadius::ZERO, c_purple);
-            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.70), Vec2::new(half_c2, th * 0.30)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
-
-            p.rect_filled(Rect::from_min_size(Pos2::new(t_x1 + half_c2, t_y0 + th * 0.70), Vec2::new(half_c2, th * 0.30)), CornerRadius::ZERO, c_pink);
-            p.rect_stroke(Rect::from_min_size(Pos2::new(t_x1 + half_c2, t_y0 + th * 0.70), Vec2::new(half_c2, th * 0.30)), CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.70), Vec2::new(half_c2, th * 0.30)), 3, 2, &[c_purple, c_indigo, c_pink]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1 + half_c2, t_y0 + th * 0.70), Vec2::new(half_c2, th * 0.30)), 3, 2, &[c_pink, c_purple, c_blue]);
 
             // -----------------------------------------------------------------
             // COLUMNA DERECHA: Bento Grid Superior + Inferior
@@ -691,6 +681,7 @@ impl ToolboxView {
                 let row_top_h = 162.0;
                 let half_right_w = (right_w - spacing) * 0.5;
 
+                let mut card2_rect_saved = Rect::ZERO;
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = spacing;
 
@@ -726,7 +717,7 @@ impl ToolboxView {
                     p1.text(
                         Pos2::new(tx_x1, card1_r.min.y + 68.0),
                         Align2::LEFT_TOP,
-                        "Data status: Optimizado",
+                        "Estado de datos: Optimizado",
                         FontId::proportional(11.0),
                         RustCareTheme::TEXT_MUTED,
                     );
@@ -744,6 +735,7 @@ impl ToolboxView {
 
                     // TARJETA: Optimización IA de Inicio
                     let (card2_r, card2_resp) = ui.allocate_exact_size(Vec2::new(half_right_w, row_top_h), Sense::hover());
+                    card2_rect_saved = card2_r;
                     RustCareTheme::draw_glass_card(ui.painter(), card2_r, card2_resp.hovered(), Some(RustCareTheme::ACCENT_INDIGO));
 
                     // Título
@@ -761,23 +753,36 @@ impl ToolboxView {
                     ui.painter().rect_stroke(ic_r2, CornerRadius::same(12), Stroke::new(1.0, Color32::from_rgba_unmultiplied(56, 189, 248, 80)), StrokeKind::Inside);
                     crate::icons::draw_icon(ui.painter(), ic_r2, AppIcon::Brain, RustCareTheme::ACCENT_INDIGO, 1.8);
 
-                    // Toggles a la derecha del icono
-                    let tog_x = card2_r.min.x + 88.0;
-                    let tog_r_w = card2_r.max.x - tog_x - 14.0;
+                    // Toggles a la derecha del icono (posicionados exactamente dentro de card2_r tras cerrar el horizontal)
+                });
 
-                    let mut toggle_ui = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(Pos2::new(tog_x, card2_r.min.y + 44.0), Vec2::new(tog_r_w, 100.0))));
-                    toggle_ui.horizontal(|ui| {
-                        ui.label(RichText::new("32ms de mejora").size(11.0).color(RustCareTheme::TEXT_PRIMARY));
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            crate::widgets::pill_toggle(ui, &mut self.ai_opt_boost);
-                        });
+                let tog_x = card2_rect_saved.min.x + 86.0;
+                let tog_r_w = (card2_rect_saved.max.x - tog_x - 14.0).max(80.0);
+                let tog_rect = Rect::from_min_size(
+                    Pos2::new(tog_x, card2_rect_saved.min.y + 44.0),
+                    Vec2::new(tog_r_w, 94.0),
+                );
+                let mut toggle_ui = ui.new_child(egui::UiBuilder::new().max_rect(tog_rect));
+                toggle_ui.set_width(tog_r_w);
+                toggle_ui.horizontal(|ui| {
+                    ui.label(RichText::new("32ms mejora").size(11.0).color(RustCareTheme::TEXT_PRIMARY));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        crate::widgets::pill_toggle(ui, &mut self.ai_opt_boost);
                     });
-                    toggle_ui.add_space(6.0);
-                    toggle_ui.horizontal(|ui| {
-                        ui.label(RichText::new("Active procesos").size(11.0).color(RustCareTheme::TEXT_MUTED));
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            crate::widgets::pill_toggle(ui, &mut self.ai_opt_procs);
-                        });
+                });
+                toggle_ui.add_space(4.0);
+                toggle_ui.horizontal(|ui| {
+                    ui.label(RichText::new("Auto procesos").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        crate::widgets::pill_toggle(ui, &mut self.ai_opt_procs);
+                    });
+                });
+                toggle_ui.add_space(4.0);
+                toggle_ui.horizontal(|ui| {
+                    ui.label(RichText::new("Inicio rápido").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let mut fast_boot = true;
+                        crate::widgets::pill_toggle(ui, &mut fast_boot);
                     });
                 });
 
@@ -808,6 +813,21 @@ impl ToolboxView {
                     p_b1.rect_stroke(ic_b1, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(45, 212, 191, 80)), StrokeKind::Inside);
                     crate::icons::draw_icon(p_b1, ic_b1, AppIcon::Gauge, Color32::from_rgb(45, 212, 191), 1.6);
 
+                    // Mini sparkline de latencia junto al icono (estilo 2027_tools.png)
+                    let net_box = Rect::from_min_max(
+                        Pos2::new(bot1_r.min.x + 64.0, bot1_r.min.y + 42.0),
+                        Pos2::new(bot1_r.max.x - 14.0, bot1_r.min.y + 78.0),
+                    );
+                    p_b1.rect_filled(net_box, CornerRadius::same(4), Color32::from_rgba_unmultiplied(11, 15, 23, 180));
+                    p_b1.rect_stroke(net_box, CornerRadius::same(4), Stroke::new(0.8_f32, RustCareTheme::BORDER_SUBTLE), StrokeKind::Inside);
+                    let net_pts = [0.65_f32, 0.55, 0.72, 0.42, 0.60, 0.50, 0.58, 0.48];
+                    let n_step = net_box.width() / (net_pts.len() - 1) as f32;
+                    for idx in 0..(net_pts.len() - 1) {
+                        let p0 = Pos2::new(net_box.min.x + idx as f32 * n_step, net_box.min.y + net_pts[idx] * net_box.height());
+                        let p1 = Pos2::new(net_box.min.x + (idx + 1) as f32 * n_step, net_box.min.y + net_pts[idx + 1] * net_box.height());
+                        p_b1.line_segment([p0, p1], Stroke::new(1.5_f32, Color32::from_rgb(45, 212, 191)));
+                    }
+
                     p_b1.text(
                         Pos2::new(bot1_r.min.x + 14.0, bot1_r.max.y - 28.0),
                         Align2::LEFT_CENTER,
@@ -829,7 +849,7 @@ impl ToolboxView {
 
                     // TARJETA INFERIOR 2: Destructor de Archivos
                     let (bot2_r, bot2_resp) = ui.allocate_exact_size(Vec2::new(third_right_w, row_bot_h), Sense::hover());
-                    RustCareTheme::draw_glass_card(ui.painter(), bot2_r, bot2_resp.hovered(), Some(RustCareTheme::ACCENT_CORAL));
+                    RustCareTheme::draw_glass_card(ui.painter(), bot2_r, bot2_resp.hovered(), Some(RustCareTheme::ACCENT_CYAN));
 
                     ui.painter().text(
                         Pos2::new(bot2_r.min.x + 14.0, bot2_r.min.y + 14.0),
@@ -840,9 +860,9 @@ impl ToolboxView {
                     );
 
                     let ic_b2 = Rect::from_min_size(Pos2::new(bot2_r.min.x + 14.0, bot2_r.min.y + 40.0), Vec2::splat(40.0));
-                    ui.painter().rect_filled(ic_b2, CornerRadius::same(10), Color32::from_rgba_unmultiplied(244, 63, 94, 20));
-                    ui.painter().rect_stroke(ic_b2, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(244, 63, 94, 80)), StrokeKind::Inside);
-                    crate::icons::draw_icon(ui.painter(), ic_b2, AppIcon::Shredder, RustCareTheme::ACCENT_CORAL, 1.6);
+                    ui.painter().rect_filled(ic_b2, CornerRadius::same(10), Color32::from_rgba_unmultiplied(56, 189, 248, 20));
+                    ui.painter().rect_stroke(ic_b2, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(56, 189, 248, 80)), StrokeKind::Inside);
+                    crate::icons::draw_icon(ui.painter(), ic_b2, AppIcon::Shredder, RustCareTheme::ACCENT_CYAN, 1.6);
 
                     let mut tog_shred = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(Pos2::new(bot2_r.min.x + 60.0, bot2_r.min.y + 40.0), Vec2::new(third_right_w - 74.0, 90.0))));
                     tog_shred.horizontal(|ui| {
@@ -881,7 +901,7 @@ impl ToolboxView {
 
                     let mut tog_drv = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(Pos2::new(bot3_r.min.x + 60.0, bot3_r.min.y + 40.0), Vec2::new(third_right_w - 74.0, 90.0))));
                     tog_drv.horizontal(|ui| {
-                        ui.label(RichText::new("Auto-Update").size(10.5).color(RustCareTheme::TEXT_MUTED));
+                        ui.label(RichText::new("Auto-act.").size(10.5).color(RustCareTheme::TEXT_MUTED));
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             crate::widgets::pill_toggle(ui, &mut self.drivers_auto_toggle);
                         });
@@ -905,7 +925,7 @@ impl ToolboxView {
         // =====================================================================
         // 3. BARRA DE ACCESO RÁPIDO A HERRAMIENTAS ESPECIALIZADAS
         // =====================================================================
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label(RichText::new("Herramientas Avanzadas:").size(11.5).strong().color(RustCareTheme::TEXT_MUTED));
             ui.add_space(4.0);
 

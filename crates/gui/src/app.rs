@@ -64,6 +64,9 @@ pub struct RustCareApp {
     pub gallery_view: GalleryView,
     pub toasts: ToastManager,
     pub cmdk: CommandPalette,
+    pub screenshot_path: Option<String>,
+    screenshot_frames: u32,
+    screenshot_requested: bool,
 
     // Canales asíncronos para evitar congelamientos de UI
     sender: Sender<AppEvent>,
@@ -71,6 +74,36 @@ pub struct RustCareApp {
 }
 
 impl RustCareApp {
+    fn save_color_image_bmp(img: &egui::ColorImage, out_path: &str) {
+        let w = img.size[0] as i32;
+        let h = img.size[1] as i32;
+        let pixel_bytes = (w as usize) * (h as usize) * 4;
+        let file_size = 54 + pixel_bytes;
+        let mut bmp = Vec::with_capacity(file_size);
+        bmp.extend_from_slice(b"BM");
+        bmp.extend_from_slice(&(file_size as u32).to_le_bytes());
+        bmp.extend_from_slice(&0u32.to_le_bytes());
+        bmp.extend_from_slice(&54u32.to_le_bytes());
+        bmp.extend_from_slice(&40u32.to_le_bytes());
+        bmp.extend_from_slice(&w.to_le_bytes());
+        bmp.extend_from_slice(&(-h).to_le_bytes());
+        bmp.extend_from_slice(&1u16.to_le_bytes());
+        bmp.extend_from_slice(&32u16.to_le_bytes());
+        bmp.extend_from_slice(&0u32.to_le_bytes());
+        bmp.extend_from_slice(&(pixel_bytes as u32).to_le_bytes());
+        bmp.extend_from_slice(&2835i32.to_le_bytes());
+        bmp.extend_from_slice(&2835i32.to_le_bytes());
+        bmp.extend_from_slice(&0u32.to_le_bytes());
+        bmp.extend_from_slice(&0u32.to_le_bytes());
+        for px in &img.pixels {
+            bmp.push(px.b());
+            bmp.push(px.g());
+            bmp.push(px.r());
+            bmp.push(px.a());
+        }
+        let _ = std::fs::write(out_path, bmp);
+    }
+
     pub fn new(_cc: &eframe::CreationContext<'_>, is_sandbox: bool) -> Self {
         let (sender, receiver) = crossbeam_channel::unbounded();
         let cleaner_config = RulesEngine::load_cleaner_rules()
@@ -96,6 +129,9 @@ impl RustCareApp {
             gallery_view: GalleryView::default(),
             toasts: ToastManager::default(),
             cmdk: CommandPalette::default(),
+            screenshot_path: None,
+            screenshot_frames: 0,
+            screenshot_requested: false,
             sender,
             receiver,
         }
@@ -238,10 +274,16 @@ impl eframe::App for RustCareApp {
 
                     ui.add_space(8.0);
                     ui.label(
-                        RichText::new("RUSTCARE PRO")
+                        RichText::new("RUSTCARE")
                             .size(17.5)
                             .strong()
                             .color(Color32::WHITE),
+                    );
+                    ui.label(
+                        RichText::new("PRO")
+                            .size(17.5)
+                            .strong()
+                            .color(Color32::from_rgb(0, 229, 168)),
                     );
 
                     // Lado derecho de la Topbar (Controles de ventana estilo 2027: — □ ✕)
@@ -496,43 +538,8 @@ impl eframe::App for RustCareApp {
                             let cpu_pct = metrics.cpu_global_percent.clamp(0.0, 100.0);
                             let ram_pct = metrics.memory_usage_percent.clamp(0.0, 100.0);
 
-                            // CPU Bar
-                            ui.horizontal(|ui| {
-                                ui.label(RichText::new("CPU").size(11.0).color(RustCareTheme::TEXT_MUTED));
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.label(RichText::new(format!("{:.0}%", cpu_pct)).size(11.0).strong().color(RustCareTheme::ACCENT_TEAL));
-                                });
-                            });
-                            let (cpu_bar, _) = ui.allocate_exact_size(Vec2::new(162.0, 4.0), egui::Sense::hover());
-                            ui.painter().rect_filled(cpu_bar, CornerRadius::same(2), RustCareTheme::BG_ELEVATED);
-                            let fill_w = (cpu_bar.width() * (cpu_pct / 100.0)).max(2.0);
-                            ui.painter().rect_filled(
-                                Rect::from_min_size(cpu_bar.min, Vec2::new(fill_w, 4.0)),
-                                CornerRadius::same(2),
-                                RustCareTheme::ACCENT_TEAL,
-                            );
-
-                            ui.add_space(6.0);
-
-                            // RAM Bar
-                            ui.horizontal(|ui| {
-                                ui.label(RichText::new("RAM").size(11.0).color(RustCareTheme::TEXT_MUTED));
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.label(RichText::new(format!("{:.0}%", ram_pct)).size(11.0).strong().color(RustCareTheme::ACCENT_CYAN));
-                                });
-                            });
-                            let (ram_bar, _) = ui.allocate_exact_size(Vec2::new(162.0, 4.0), egui::Sense::hover());
-                            ui.painter().rect_filled(ram_bar, CornerRadius::same(2), RustCareTheme::BG_ELEVATED);
-                            let fill_ram_w = (ram_bar.width() * (ram_pct / 100.0)).max(2.0);
-                            ui.painter().rect_filled(
-                                Rect::from_min_size(ram_bar.min, Vec2::new(fill_ram_w, 4.0)),
-                                CornerRadius::same(2),
-                                RustCareTheme::ACCENT_CYAN,
-                            );
-
-                            ui.add_space(8.0);
-
-                            // Botón ancho completo Liberar RAM con neon_button
+                            // En bottom_up: el último elemento añadido queda arriba
+                            // 1) Abajo del todo: Botón Liberar RAM
                             if widgets::neon_button(ui, "Liberar RAM", Some(162.0)).clicked() {
                                 let res = self.backend.clean_ram();
                                 if res.processes_cleaned > 0 {
@@ -550,6 +557,42 @@ impl eframe::App for RustCareApp {
                                     );
                                 }
                             }
+
+                            ui.add_space(8.0);
+
+                            // 2) Medio: RAM Bar
+                            let (ram_bar, _) = ui.allocate_exact_size(Vec2::new(162.0, 4.0), egui::Sense::hover());
+                            ui.painter().rect_filled(ram_bar, CornerRadius::same(2), RustCareTheme::BG_ELEVATED);
+                            let fill_ram_w = (ram_bar.width() * (ram_pct / 100.0)).max(2.0);
+                            ui.painter().rect_filled(
+                                Rect::from_min_size(ram_bar.min, Vec2::new(fill_ram_w, 4.0)),
+                                CornerRadius::same(2),
+                                RustCareTheme::ACCENT_CYAN,
+                            );
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new("RAM").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(RichText::new(format!("{:.0}%", ram_pct)).size(11.0).strong().color(RustCareTheme::ACCENT_CYAN));
+                                });
+                            });
+
+                            ui.add_space(6.0);
+
+                            // 3) Arriba: CPU Bar
+                            let (cpu_bar, _) = ui.allocate_exact_size(Vec2::new(162.0, 4.0), egui::Sense::hover());
+                            ui.painter().rect_filled(cpu_bar, CornerRadius::same(2), RustCareTheme::BG_ELEVATED);
+                            let fill_w = (cpu_bar.width() * (cpu_pct / 100.0)).max(2.0);
+                            ui.painter().rect_filled(
+                                Rect::from_min_size(cpu_bar.min, Vec2::new(fill_w, 4.0)),
+                                CornerRadius::same(2),
+                                RustCareTheme::ACCENT_TEAL,
+                            );
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new("CPU").size(11.0).color(RustCareTheme::TEXT_MUTED));
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(RichText::new(format!("{:.0}%", cpu_pct)).size(11.0).strong().color(RustCareTheme::ACCENT_TEAL));
+                                });
+                            });
                         });
                 });
             });
@@ -708,6 +751,32 @@ impl eframe::App for RustCareApp {
         }
 
         self.toasts.render(ctx);
+
+        // Captura de framebuffer 1:1 cuando se invoca con --screenshot <ruta.bmp>
+        if let Some(ref out_path) = self.screenshot_path.clone() {
+            let captured = ctx.input(|i| {
+                i.events.iter().find_map(|ev| {
+                    if let egui::Event::Screenshot { image, .. } = ev {
+                        Some(image.clone())
+                    } else {
+                        None
+                    }
+                })
+            });
+
+            if let Some(img) = captured {
+                Self::save_color_image_bmp(&img, out_path);
+                self.screenshot_path = None;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            } else {
+                self.screenshot_frames += 1;
+                if self.screenshot_frames >= 4 && !self.screenshot_requested {
+                    self.screenshot_requested = true;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
+                }
+                ctx.request_repaint();
+            }
+        }
 
         if self.care_view.is_scanning
             || self.care_view.is_cleaning
