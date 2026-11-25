@@ -1,8 +1,8 @@
-﻿//! Vista de Herramientas Completas (Toolbox PRO) con Diagrama WizTree
+//! Vista de Herramientas Completas (Toolbox PRO) con Diagrama WizTree
 use crate::icons::AppIcon;
 use crate::theme::RustCareTheme;
 use crate::widgets::{danger_button, ghost_button, neon_button};
-use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Margin, Pos2, ProgressBar, Rect, RichText, ScrollArea, Sense, Stroke, StrokeKind, Ui, Vec2};
+use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, Margin, Pos2, Rect, RichText, ScrollArea, Sense, Stroke, StrokeKind, Ui, Vec2};
 use rustcare_core::backend::SystemBackend;
 use rustcare_core::browser_vacuum::{BrowserVacuum, DatabaseCompactResult};
 use rustcare_core::monitor::SystemMetricsSnapshot;
@@ -21,6 +21,7 @@ use rustcare_core::power_plan::{PowerPlanOptimizer, PowerSchemeInfo};
 use rustcare_core::rescue::{BackupEntry, RescueCenter};
 use rustcare_core::shortcuts::{BrokenShortcut, ShortcutCleaner};
 use rustcare_core::shredder::FileShredder;
+use rustcare_core::sleep_mode::{SleepEngine, SleepProgramItem};
 use rustcare_core::dism_cleanup::DismEngine;
 use rustcare_core::hardware_troubleshooter::{HardwareTroubleshooter, ProblemDevice};
 use rustcare_core::hibernation::{HibernationManager, HibernationStatus};
@@ -61,6 +62,7 @@ pub enum ToolboxTab {
     Hibernation,
     HardwareTroubleshooter,
     ScheduledTasks,
+    SleepMode,
 }
 
 pub struct ToolboxView {
@@ -148,6 +150,11 @@ pub struct ToolboxView {
     pub last_metrics_snapshot: Option<SystemMetricsSnapshot>,
     pub last_metrics_sample: Instant,
     pub drawer_open: Option<DrawerKind>,
+    // Modo Reposo y Simulador de Desinstalación (AVG TuneUp)
+    pub sleep_programs: Vec<SleepProgramItem>,
+    pub sleep_msg: Option<String>,
+    pub sim_uninstalled: std::collections::HashSet<String>,
+    pub only_high_impact: bool,
 }
 
 impl Default for ToolboxView {
@@ -213,6 +220,10 @@ impl Default for ToolboxView {
             last_metrics_snapshot: None,
             last_metrics_sample: Instant::now() - std::time::Duration::from_secs(5),
             drawer_open: None,
+            sleep_programs: Vec::new(),
+            sleep_msg: None,
+            sim_uninstalled: std::collections::HashSet::new(),
+            only_high_impact: false,
         }
     }
 }
@@ -356,6 +367,7 @@ impl ToolboxView {
                     ToolboxTab::Hibernation => "Gestor del Archivo hiberfil.sys",
                     ToolboxTab::HardwareTroubleshooter => "Diagnóstico de Conflictos de Hardware",
                     ToolboxTab::ScheduledTasks => "Auditor de Tareas Programadas Huérfanas",
+                    ToolboxTab::SleepMode => "Modo Reposo de Programas (Sleep Mode)",
                     ToolboxTab::Overview => "",
                 };
                 ui.label(RichText::new(title).strong().color(RustCareTheme::ACCENT_CYAN));
@@ -386,6 +398,7 @@ impl ToolboxView {
             ToolboxTab::Hibernation => self.render_hibernation(ui),
             ToolboxTab::HardwareTroubleshooter => self.render_hardware_troubleshooter(ui),
             ToolboxTab::ScheduledTasks => self.render_scheduled_tasks(ui),
+            ToolboxTab::SleepMode => self.render_sleep_mode(ui, backend),
         }
 
         // Slide-Over Drawer (estilo Vaul) para vista rápida sin perder el Bento Grid
@@ -597,7 +610,7 @@ impl ToolboxView {
             let scan_resp = ui.interact(scan_rect, ui.id().with("btn_wiztree_scan"), Sense::click());
             p.rect_filled(scan_rect, CornerRadius::same(5), if scan_resp.hovered() { RustCareTheme::BG_HOVER } else { RustCareTheme::BG_ELEVATED });
             p.rect_stroke(scan_rect, CornerRadius::same(5), Stroke::new(1.0, RustCareTheme::BORDER_SUBTLE), StrokeKind::Inside);
-            p.text(scan_rect.center(), Align2::CENTER_CENTER, "Scan", FontId::proportional(11.0), RustCareTheme::TEXT_PRIMARY);
+            p.text(scan_rect.center(), Align2::CENTER_CENTER, "Escanear", FontId::proportional(11.0), RustCareTheme::TEXT_PRIMARY);
 
             if scan_resp.clicked() || resp.clicked() {
                 self.current_tab = ToolboxTab::DiskAnalyzer;
@@ -897,6 +910,7 @@ impl ToolboxView {
             ui.add_space(4.0);
 
             let extra_tools = [
+                ("Modo Reposo", ToolboxTab::SleepMode),
                 ("Actualizador WinGet", ToolboxTab::Updater),
                 ("Limpieza WinSxS DISM", ToolboxTab::DismWinSxs),
                 ("Compactar SQLite", ToolboxTab::BrowserVacuum),

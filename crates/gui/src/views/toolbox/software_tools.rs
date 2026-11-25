@@ -1,14 +1,185 @@
-﻿use super::*;
+use super::*;
 
 impl ToolboxView {
+    fn render_manage_programs_tabs(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            let tabs = [
+                ("Modo Reposo (Sleep)", ToolboxTab::SleepMode),
+                ("Desinstalador & Simulador", ToolboxTab::Uninstaller),
+                ("Actualizador WinGet", ToolboxTab::Updater),
+            ];
+            for (lbl, tab) in tabs {
+                let active = self.current_tab == tab;
+                if active {
+                    let _ = neon_button(ui, lbl, None);
+                } else if ghost_button(ui, lbl, None).clicked() {
+                    self.current_tab = tab;
+                }
+            }
+        });
+        ui.add_space(10.0);
+    }
+
+    pub(super) fn render_sleep_mode(&mut self, ui: &mut Ui, backend: &Arc<dyn SystemBackend>) {
+        self.render_manage_programs_tabs(ui);
+
+        if self.sleep_programs.is_empty() {
+            let startup = backend.list_startup_entries();
+            let snap = backend.get_metrics();
+            self.sleep_programs = SleepEngine::scan_programs(&startup, &snap);
+        }
+
+        let active_slowdown = self
+            .sleep_programs
+            .iter()
+            .filter(|p| !p.is_sleeping && !p.is_ignored)
+            .count();
+        let sleeping_count = self.sleep_programs.iter().filter(|p| p.is_sleeping).count();
+        let ignored_count = self.sleep_programs.iter().filter(|p| p.is_ignored).count();
+
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                ui.heading(
+                    RichText::new(format!("{} programas ralentizan tu PC", active_slowdown))
+                        .size(20.0)
+                        .strong()
+                        .color(RustCareTheme::TEXT_PRIMARY),
+                );
+                ui.label(
+                    RichText::new("Pon en reposo de forma segura servicios en segundo plano e inicio automático sin desinstalarlos.")
+                        .color(RustCareTheme::TEXT_MUTED),
+                );
+            });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if neon_button(ui, "Dormir todos", Some(130.0)).clicked() {
+                    let mut count = 0usize;
+                    for item in &mut self.sleep_programs {
+                        if !item.is_sleeping && !item.is_ignored {
+                            if SleepEngine::sleep_program(item, backend).is_ok() {
+                                count += 1;
+                            }
+                        }
+                    }
+                    self.sleep_msg = Some(format!("{} programas puestos en reposo.", count));
+                }
+                if ghost_button(ui, "Re-escanear", Some(115.0)).clicked() {
+                    let startup = backend.list_startup_entries();
+                    let snap = backend.get_metrics();
+                    self.sleep_programs = SleepEngine::scan_programs(&startup, &snap);
+                    self.sleep_msg = Some("Lista de procesos e inicio actualizada.".to_string());
+                }
+            });
+        });
+
+        if let Some(msg) = &self.sleep_msg {
+            ui.add_space(6.0);
+            ui.label(RichText::new(msg).color(RustCareTheme::ACCENT_EMERALD));
+        }
+
+        ui.add_space(10.0);
+
+        ScrollArea::vertical().show(ui, |ui| {
+            for idx in 0..self.sleep_programs.len() {
+                let item = &self.sleep_programs[idx];
+                if item.is_ignored {
+                    continue;
+                }
+                let imp_col = match item.impact {
+                    rustcare_core::sleep_mode::SleepImpact::High => RustCareTheme::ACCENT_AMBER,
+                    rustcare_core::sleep_mode::SleepImpact::Medium => RustCareTheme::ACCENT_CYAN,
+                    rustcare_core::sleep_mode::SleepImpact::Low => RustCareTheme::ACCENT_EMERALD,
+                };
+                let bar_frac = item.impact.bar_fraction();
+                let imp_lbl = item.impact.label();
+                let is_sleeping = item.is_sleeping;
+                let mem_mb = item.memory_mb;
+                let name = item.name.clone();
+
+                RustCareTheme::card_frame().show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.vertical(|ui| {
+                            ui.label(RichText::new(&name).strong().color(RustCareTheme::TEXT_PRIMARY));
+                            ui.label(
+                                RichText::new(format!("RAM est.: {:.0} MB", mem_mb))
+                                    .size(11.0)
+                                    .color(RustCareTheme::TEXT_MUTED),
+                            );
+                        });
+
+                        ui.add_space(20.0);
+
+                        // Barra de severidad de ralentización (estilo AVG TuneUp captura 2 y 5)
+                        ui.vertical(|ui| {
+                            ui.add_space(6.0);
+                            ui.horizontal(|ui| {
+                                let (bar_r, _) = ui.allocate_exact_size(Vec2::new(110.0, 7.0), Sense::hover());
+                                let p = ui.painter();
+                                p.rect_filled(bar_r, CornerRadius::same(4), RustCareTheme::BG_ELEVATED);
+                                p.rect_filled(
+                                    Rect::from_min_size(bar_r.min, Vec2::new(bar_r.width() * bar_frac, 7.0)),
+                                    CornerRadius::same(4),
+                                    if is_sleeping { RustCareTheme::TEXT_MUTED } else { imp_col },
+                                );
+                                ui.label(RichText::new(imp_lbl).size(11.0).color(imp_col));
+                            });
+                        });
+
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if is_sleeping {
+                                if ghost_button(ui, "Despertar", Some(100.0)).clicked() {
+                                    let _ = SleepEngine::wake_program(&mut self.sleep_programs[idx], backend);
+                                }
+                            } else if neon_button(ui, "Dormir", Some(100.0)).clicked() {
+                                let _ = SleepEngine::sleep_program(&mut self.sleep_programs[idx], backend);
+                            }
+
+                            if ghost_button(ui, "Ignorar", Some(80.0)).clicked() {
+                                self.sleep_programs[idx].is_ignored = true;
+                            }
+                        });
+                    });
+                });
+                ui.add_space(6.0);
+            }
+
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(format!("✓ {} programas en reposo", sleeping_count))
+                        .strong()
+                        .color(RustCareTheme::ACCENT_EMERALD),
+                );
+                ui.add_space(16.0);
+                ui.label(
+                    RichText::new(format!("○ {} programas ignorados", ignored_count))
+                        .color(RustCareTheme::TEXT_MUTED),
+                );
+            });
+        });
+    }
+
     pub(super) fn render_uninstaller(&mut self, ui: &mut Ui) {
+        self.render_manage_programs_tabs(ui);
         ui.horizontal(|ui| {
             ui.label("Buscar aplicación:");
             ui.text_edit_singleline(&mut self.app_search);
+            crate::widgets::checkbox_item(ui, &mut self.only_high_impact, "Solo alto impacto / bloatware");
             if ghost_button(ui, "Refrescar", Some(100.0)).clicked() {
                 self.apps = UninstallerEngine::list_installed_apps();
             }
         });
+        if !self.sim_uninstalled.is_empty() {
+            ui.add_space(4.0);
+            ui.label(
+                RichText::new(format!(
+                    "Simulador de Desinstalación: {} app(s) marcadas (~{} MB estimados liberados)",
+                    self.sim_uninstalled.len(),
+                    self.sim_uninstalled.len() * 240
+                ))
+                .strong()
+                .color(RustCareTheme::ACCENT_CYAN),
+            );
+        }
         ui.add_space(8.0);
 
         if !self.residuals.is_empty() {
@@ -22,7 +193,16 @@ impl ToolboxView {
         let filtered_apps: Vec<&InstalledApp> = self
             .apps
             .iter()
-            .filter(|a| self.app_search.is_empty() || a.name.to_lowercase().contains(&self.app_search.to_lowercase()))
+            .filter(|a| {
+                let matches_q = self.app_search.is_empty()
+                    || a.name.to_lowercase().contains(&self.app_search.to_lowercase());
+                let matches_bloat = !self.only_high_impact
+                    || a.publisher.to_lowercase().contains("microsoft")
+                    || a.name.to_lowercase().contains("update")
+                    || a.name.to_lowercase().contains("telemetry")
+                    || a.name.len() > 22;
+                matches_q && matches_bloat
+            })
             .collect();
 
         ScrollArea::vertical().show(ui, |ui| {
@@ -32,15 +212,25 @@ impl ToolboxView {
                 .inner_margin(10.0)
                 .show(ui, |ui| {
                     for app in filtered_apps {
+                        let is_sim = self.sim_uninstalled.contains(&app.name);
                         ui.horizontal(|ui| {
                             ui.vertical(|ui| {
-                                ui.label(RichText::new(&app.name).strong());
+                                let title_col = if is_sim { RustCareTheme::ACCENT_AMBER } else { RustCareTheme::TEXT_PRIMARY };
+                                ui.label(RichText::new(&app.name).strong().color(title_col));
                                 ui.label(RichText::new(format!("{} | {}", app.version, app.publisher)).small().color(RustCareTheme::TEXT_MUTED));
                             });
 
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                 if danger_button(ui, "Desinstalar", Some(90.0)).clicked() {
                                     let _ = UninstallerEngine::run_uninstaller(app);
+                                }
+                                let sim_lbl = if is_sim { "Quitar Simulación" } else { "Simular" };
+                                if ghost_button(ui, sim_lbl, Some(120.0)).clicked() {
+                                    if is_sim {
+                                        self.sim_uninstalled.remove(&app.name);
+                                    } else {
+                                        self.sim_uninstalled.insert(app.name.clone());
+                                    }
                                 }
                                 if ghost_button(ui, "Rastrear Residuos", Some(140.0)).clicked() {
                                     self.residuals = UninstallerEngine::scan_residuals(&app.name);

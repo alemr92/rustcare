@@ -54,6 +54,7 @@ impl Default for CommandPalette {
                 // Herramientas Especializadas
                 CmdkEntry { label: "Analizador de Disco WizTree (Treemap)", category: "Herramienta", keywords: "disco wiztree treemap espacio", action: CmdkAction::OpenTool(ToolboxTab::DiskAnalyzer) },
                 CmdkEntry { label: "Desinstalador Profundo de Software", category: "Herramienta", keywords: "desinstalador apps programas residuos", action: CmdkAction::OpenTool(ToolboxTab::Uninstaller) },
+                CmdkEntry { label: "Modo Reposo de Programas (Sleep Mode)", category: "Herramienta", keywords: "reposo sleep suspender programas segundo plano", action: CmdkAction::OpenTool(ToolboxTab::SleepMode) },
                 CmdkEntry { label: "Driver Booster PRO (Controladores)", category: "Herramienta", keywords: "drivers controladores hardware", action: CmdkAction::OpenTool(ToolboxTab::DriverBooster) },
                 CmdkEntry { label: "Actualizador de Software (WinGet)", category: "Herramienta", keywords: "winget actualizar software", action: CmdkAction::OpenTool(ToolboxTab::Updater) },
                 CmdkEntry { label: "Buscador de Archivos Duplicados", category: "Herramienta", keywords: "duplicados blake3 espacio", action: CmdkAction::OpenTool(ToolboxTab::Duplicates) },

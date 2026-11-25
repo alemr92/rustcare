@@ -873,3 +873,76 @@ pub fn slide_over_drawer(
             });
         });
 }
+
+/// 13. Anillo circular de estado estilo AVG TuneUp con insignia ✓ / !
+pub fn draw_status_ring(
+    painter: &eframe::egui::Painter,
+    center: Pos2,
+    radius: f32,
+    progress: f32,
+    ring_color: Color32,
+    is_ok: bool,
+) {
+    use std::f32::consts::TAU;
+    // Pista de fondo
+    painter.circle_stroke(center, radius, Stroke::new(3.0_f32, Color32::from_rgb(26, 35, 52)));
+
+    // Arco de progreso coloreado
+    let span = progress.clamp(0.08, 1.0) * TAU;
+    let start_a = -0.25 * TAU;
+    let steps = 32usize;
+    let mut prev = Pos2::new(center.x + radius * start_a.cos(), center.y + radius * start_a.sin());
+    for s in 1..=steps {
+        let frac = s as f32 / steps as f32;
+        let a = start_a + frac * span;
+        let next = Pos2::new(center.x + radius * a.cos(), center.y + radius * a.sin());
+        painter.line_segment([prev, next], Stroke::new(3.2_f32, ring_color));
+        prev = next;
+    }
+
+    // Insignia circular pequeña en la esquina superior derecha del anillo (✓ o !)
+    let badge_angle = -0.12 * TAU;
+    let badge_c = Pos2::new(
+        center.x + radius * badge_angle.cos(),
+        center.y + radius * badge_angle.sin(),
+    );
+    painter.circle_filled(badge_c, 7.5, ring_color);
+    painter.circle_stroke(badge_c, 7.5, Stroke::new(1.5_f32, Color32::from_rgb(13, 18, 27)));
+    painter.text(
+        badge_c,
+        Align2::CENTER_CENTER,
+        if is_ok { "✓" } else { "!" },
+        FontId::proportional(9.5),
+        Color32::WHITE,
+    );
+}
+
+/// 14. Barra de progreso estilizada (reemplaza egui::ProgressBar estándar)
+pub fn styled_progress_bar(
+    ui: &mut Ui,
+    ratio: f32,
+    fill_color: Color32,
+    label: Option<&str>,
+) {
+    let w = ui.available_width().max(80.0);
+    let h = if label.is_some() { 18.0 } else { 8.0 };
+    let (rect, _) = ui.allocate_exact_size(Vec2::new(w, h), Sense::hover());
+    let p = ui.painter();
+
+    p.rect_filled(rect, CornerRadius::same(6), RustCareTheme::BG_ELEVATED);
+    p.rect_stroke(rect, CornerRadius::same(6), Stroke::new(1.0_f32, RustCareTheme::BORDER_SUBTLE), StrokeKind::Inside);
+
+    let clamped = ratio.clamp(0.0, 1.0);
+    if clamped > 0.01 {
+        let fill_w = (rect.width() * clamped).max(6.0);
+        p.rect_filled(
+            Rect::from_min_size(rect.min, Vec2::new(fill_w, rect.height())),
+            CornerRadius::same(6),
+            Color32::from_rgba_unmultiplied(fill_color.r(), fill_color.g(), fill_color.b(), 200),
+        );
+    }
+
+    if let Some(txt) = label {
+        p.text(rect.center(), Align2::CENTER_CENTER, txt, FontId::proportional(11.0), Color32::WHITE);
+    }
+}

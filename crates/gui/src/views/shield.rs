@@ -1,7 +1,7 @@
 //! Vista de Seguridad y Antivirus (RustCare Shield) - 2026 Edition
 use crate::theme::RustCareTheme;
-use crate::widgets::neon_button;
-use eframe::egui::{self, Color32, CornerRadius, ProgressBar, RichText, ScrollArea, Ui};
+use crate::widgets::{neon_button, styled_progress_bar};
+use eframe::egui::{self, Color32, RichText, ScrollArea, Ui};
 use rustcare_core::shield::{ShieldScanResult, ThreatLevel};
 
 pub struct ShieldView {
@@ -48,7 +48,7 @@ impl ShieldView {
         if self.is_scanning {
             ui.vertical_centered(|ui| {
                 ui.add_space(20.0);
-                ui.add(ProgressBar::new(0.6).animate(true).corner_radius(CornerRadius::same(6)));
+                styled_progress_bar(ui, 0.62, RustCareTheme::ACCENT_CYAN, Some("62% · Auditando"));
                 ui.add_space(10.0);
                 ui.label(
                     RichText::new("Inspeccionando memoria de procesos y persistencias del registro...")

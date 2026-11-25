@@ -10,12 +10,14 @@ use rustcare_core::backend::{SystemBackend, TurboBoostMode, TurboBoostResult};
 use rustcare_core::booster::RamCleanResult;
 use rustcare_core::context_menu::{ContextMenuItem, ContextMenuManager};
 use rustcare_core::scheduled_tasks::{ScheduledTaskItem, ScheduledTaskManager};
+use rustcare_core::sleep_mode::{SleepEngine, SleepProgramItem};
 use rustcare_core::startup::StartupEntry;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StartupSubTab {
     StartupApps,
+    SleepMode,
     ScheduledTasks,
     ContextMenu,
 }
@@ -25,6 +27,7 @@ pub struct BoosterView {
     pub is_boost_active: bool,
     pub boost_result: Option<TurboBoostResult>,
     pub startup_entries: Vec<StartupEntry>,
+    pub sleep_programs: Vec<SleepProgramItem>,
     pub startup_tab: StartupSubTab,
     pub scheduled_tasks: Vec<ScheduledTaskItem>,
     pub context_handlers: Vec<ContextMenuItem>,
@@ -41,6 +44,7 @@ impl Default for BoosterView {
             is_boost_active: false,
             boost_result: None,
             startup_entries: Vec::new(),
+            sleep_programs: Vec::new(),
             startup_tab: StartupSubTab::StartupApps,
             scheduled_tasks: Vec::new(),
             context_handlers: Vec::new(),
@@ -344,6 +348,15 @@ impl BoosterView {
                             self.startup_tab = StartupSubTab::ScheduledTasks;
                         }
 
+                        let is_sleep = self.startup_tab == StartupSubTab::SleepMode;
+                        if widgets::ghost_button(ui, if is_sleep { "[Modo Suspensión]" } else { "Modo Suspensión" }, Some(135.0)).clicked() {
+                            if self.sleep_programs.is_empty() {
+                                let snap = backend.get_metrics();
+                                self.sleep_programs = SleepEngine::scan_programs(&self.startup_entries, &snap);
+                            }
+                            self.startup_tab = StartupSubTab::SleepMode;
+                        }
+
                         let is_apps = self.startup_tab == StartupSubTab::StartupApps;
                         if widgets::ghost_button(ui, if is_apps { "[Apps al Inicio]" } else { "Apps al Inicio" }, Some(120.0)).clicked() {
                             self.startup_tab = StartupSubTab::StartupApps;
@@ -464,6 +477,34 @@ impl BoosterView {
                                         ui.label(RichText::new(&task.action_exec).small().color(RustCareTheme::TEXT_MUTED));
                                     });
                                 }
+                            }
+                        });
+                    }
+                    StartupSubTab::SleepMode => {
+                        ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
+                            if self.sleep_programs.is_empty() {
+                                let snap = backend.get_metrics();
+                                self.sleep_programs = SleepEngine::scan_programs(&self.startup_entries, &snap);
+                            }
+                            for idx in 0..self.sleep_programs.len() {
+                                let name = self.sleep_programs[idx].name.clone();
+                                let imp_lbl = self.sleep_programs[idx].impact.label();
+                                let is_slp = self.sleep_programs[idx].is_sleeping;
+                                let mem_mb = self.sleep_programs[idx].memory_mb;
+                                ui.horizontal(|ui| {
+                                    ui.label(RichText::new(&name).strong().color(RustCareTheme::TEXT_PRIMARY));
+                                    ui.label(RichText::new(format!("Impacto: {} · {:.0} MB", imp_lbl, mem_mb)).small().color(RustCareTheme::TEXT_MUTED));
+                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                        if is_slp {
+                                            if widgets::ghost_button(ui, "Despertar", Some(90.0)).clicked() {
+                                                let _ = SleepEngine::wake_program(&mut self.sleep_programs[idx], backend);
+                                            }
+                                        } else if widgets::neon_button(ui, "Suspender", Some(90.0)).clicked() {
+                                            let _ = SleepEngine::sleep_program(&mut self.sleep_programs[idx], backend);
+                                        }
+                                    });
+                                });
+                                ui.separator();
                             }
                         });
                     }

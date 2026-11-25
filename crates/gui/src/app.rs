@@ -13,6 +13,7 @@ use rustcare_core::config::ConfigManager;
 use rustcare_core::rules::RulesEngine;
 use rustcare_core::security::is_elevated;
 use rustcare_core::shield::{ShieldEngine, ShieldScanResult};
+use rustcare_core::startup::StartupEntry;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -32,9 +33,10 @@ pub enum NavSection {
 pub enum AppEvent {
     CareScanProgress(f32, String),
     CareScanFinished {
-        bytes_found: u64,
-        files_found: usize,
-        threats_found: usize,
+        scan_result: FullScanResult,
+        shield_result: ShieldScanResult,
+        startup_entries: Vec<StartupEntry>,
+        ram_free_pct: f32,
     },
     CareCleanFinished {
         bytes_freed: u64,
@@ -107,20 +109,46 @@ impl RustCareApp {
                     self.care_view.status_text = status;
                 }
                 AppEvent::CareScanFinished {
-                    bytes_found,
-                    files_found,
-                    threats_found,
+                    scan_result,
+                    shield_result,
+                    startup_entries,
+                    ram_free_pct,
                 } => {
+                    let bytes_found = scan_result.total_bytes;
+                    let files_found = scan_result.total_files;
+                    let threats_found = shield_result.threats.len();
+                    let enabled_startup = startup_entries.iter().filter(|e| e.is_enabled).count();
+
+                    // Cálculo transparente real de la puntuación de optimización
+                    let junk_penalty = if bytes_found > 1024 * 1024 * 1024 {
+                        25
+                    } else if bytes_found > 200 * 1024 * 1024 {
+                        16
+                    } else if files_found > 0 {
+                        8
+                    } else {
+                        0
+                    };
+                    let startup_penalty = ((enabled_startup * 4) as u8).min(25);
+                    let threat_penalty = ((threats_found * 20) as u8).min(40);
+                    let ram_penalty = if ram_free_pct < 15.0 { 10 } else { 0 };
+                    let score = 100u8.saturating_sub(junk_penalty + startup_penalty + threat_penalty + ram_penalty);
+
                     self.care_view.is_scanning = false;
                     self.care_view.scan_completed = true;
                     self.care_view.total_bytes_found = bytes_found;
                     self.care_view.total_items_found = files_found;
                     self.care_view.threats_found = threats_found;
-                    self.care_view.health_score = 42; // Crítica
+                    self.care_view.ram_free_pct = ram_free_pct;
+                    self.care_view.last_scan_result = Some(scan_result);
+                    self.care_view.last_shield_result = Some(shield_result);
+                    self.care_view.last_startup_entries = startup_entries;
+                    self.care_view.health_score = score;
+                    self.care_view.last_scan_time = Some(std::time::Instant::now());
                     self.care_view.progress = 1.0;
                     self.toasts.info(
                         "Diagnóstico completado",
-                        format!("{} archivos detectados ({} amenazas)", files_found, threats_found),
+                        format!("{}% optimizado · {} archivos · {} amenazas", score, files_found, threats_found),
                     );
                 }
                 AppEvent::CareCleanFinished {
@@ -541,29 +569,36 @@ impl eframe::App for RustCareApp {
                         let clean_tx = self.sender.clone();
                         let backend = self.backend.clone();
                         let clean_backend = self.backend.clone();
+                        let render_backend = self.backend.clone();
 
-                        self.care_view.render(
+                        if let Some(next_sec) = self.care_view.render(
                             ui,
+                            &render_backend,
+                            &mut self.toasts,
                             move |_options| {
                                 thread::spawn(move || {
-                                    let _ = tx.send(AppEvent::CareScanProgress(0.18, "Iniciando escáner de alta velocidad...".into()));
+                                    let _ = tx.send(AppEvent::CareScanProgress(0.15, "1/4 · Auditando temporales, cachés y logs...".into()));
                                     let prefs = ConfigManager::load();
                                     let mut cleaner_cfg = RulesEngine::load_cleaner_rules().unwrap();
                                     cleaner_cfg.apply_preferences(&prefs);
-
-                                    let _ = tx.send(AppEvent::CareScanProgress(0.55, "Analizando archivos temporales, logs y cachés...".into()));
                                     let scan_res = backend.scan_junk(&cleaner_cfg);
 
-                                    let _ = tx.send(AppEvent::CareScanProgress(0.82, "Inspeccionando persistencias y memoria...".into()));
+                                    let _ = tx.send(AppEvent::CareScanProgress(0.45, "2/4 · Analizando programas de inicio y procesos...".into()));
+                                    let startup_entries = backend.list_startup_entries();
+
+                                    let _ = tx.send(AppEvent::CareScanProgress(0.74, "3/4 · Escaneando memoria y claves IFEO / AppInit_DLLs...".into()));
                                     let shield_res = ShieldEngine::scan_all();
 
-                                    let _ = tx.send(AppEvent::CareScanProgress(0.98, "Consolidando métricas del sistema...".into()));
-                                    thread::sleep(Duration::from_millis(150));
+                                    let _ = tx.send(AppEvent::CareScanProgress(0.94, "4/4 · Midiendo memoria RAM y calculando salud...".into()));
+                                    let metrics = backend.get_metrics();
+                                    let ram_free_pct = (100.0 - metrics.memory_usage_percent).clamp(0.0, 100.0);
+                                    thread::sleep(Duration::from_millis(120));
 
                                     let _ = tx.send(AppEvent::CareScanFinished {
-                                        bytes_found: scan_res.total_bytes,
-                                        files_found: scan_res.total_files,
-                                        threats_found: shield_res.threats.len(),
+                                        scan_result: scan_res,
+                                        shield_result: shield_res,
+                                        startup_entries,
+                                        ram_free_pct,
                                     });
                                 });
                             },
@@ -582,7 +617,9 @@ impl eframe::App for RustCareApp {
                                     });
                                 });
                             },
-                        );
+                        ) {
+                            self.current_section = next_sec;
+                        }
                     }
                     NavSection::Booster => {
                         self.booster_view.render(ui, &self.backend);

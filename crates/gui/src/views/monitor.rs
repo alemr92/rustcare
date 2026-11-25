@@ -279,11 +279,13 @@ impl MonitorView {
                                         ui.label(RichText::new("0.1 MB/s").size(12.0).color(RustCareTheme::TEXT_MUTED));
                                     });
 
-                                    // Acciones Rápidas (16%): danger_button + neon_button
+                                    // Acciones Rápidas (16%): danger_button + ghost_button(Suspender) + neon_button
                                     ui.allocate_ui_with_layout(Vec2::new(col_actions_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                                        if widgets::danger_button(ui, "Finalizar", Some(74.0)).clicked() {}
-                                        ui.add_space(6.0);
-                                        if widgets::neon_button(ui, "Optimizar", Some(78.0)).clicked() {}
+                                        if widgets::danger_button(ui, "Finalizar", Some(62.0)).clicked() {}
+                                        ui.add_space(4.0);
+                                        if widgets::ghost_button(ui, "Suspender", Some(72.0)).clicked() {}
+                                        ui.add_space(4.0);
+                                        if widgets::neon_button(ui, "Optimizar", Some(70.0)).clicked() {}
                                     });
                                 });
                             });

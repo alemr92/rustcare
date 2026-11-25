@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 
 impl ToolboxView {
     pub(super) fn render_duplicates(&mut self, ui: &mut Ui) {
@@ -213,7 +213,12 @@ impl ToolboxView {
                                 } else {
                                     RustCareTheme::ACCENT_TEAL
                                 };
-                                ui.add(ProgressBar::new(ratio).fill(bar_color).show_percentage());
+                                crate::widgets::styled_progress_bar(
+                                    ui,
+                                    ratio,
+                                    bar_color,
+                                    Some(&format!("{:.0}% ocupado", ratio * 100.0)),
+                                );
                             }
 
                             ui.add_space(6.0);
@@ -331,7 +336,12 @@ impl ToolboxView {
                                     ui.label(RichText::new(CleanerEngine::format_bytes(item.size_bytes)).strong());
                                 });
                             });
-                            ui.add(ProgressBar::new(ratio).text(format!("{:.1}%", ratio * 100.0)));
+                            crate::widgets::styled_progress_bar(
+                                ui,
+                                ratio,
+                                RustCareTheme::ACCENT_CYAN,
+                                Some(&format!("{:.1}%", ratio * 100.0)),
+                            );
                             ui.separator();
                         }
                     });
