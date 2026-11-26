@@ -277,68 +277,7 @@ impl ToolboxView {
         }
 
         // Barra de Navegación Superior estilo 2027 (interactiva)
-        if self.current_tab == ToolboxTab::Overview {
-            ui.horizontal(|ui| {
-                let nav_pill = |ui: &mut Ui, text: &str, is_active: bool| -> bool {
-                    let padding = Vec2::new(14.0, 6.0);
-                    let font_id = FontId::proportional(12.5);
-                    let galley = ui.painter().layout_no_wrap(
-                        text.to_string(),
-                        font_id,
-                        if is_active {
-                            RustCareTheme::TEXT_PRIMARY
-                        } else {
-                            RustCareTheme::TEXT_MUTED
-                        },
-                    );
-                    let desired_size = galley.size() + padding * 2.0;
-                    let (rect, resp) = ui.allocate_exact_size(desired_size, Sense::click());
-                    let p = ui.painter();
-                    if is_active {
-                        p.rect_filled(
-                            rect,
-                            CornerRadius::same(8),
-                            Color32::from_rgba_unmultiplied(56, 189, 248, 22),
-                        );
-                        p.rect_stroke(
-                            rect,
-                            CornerRadius::same(8),
-                            Stroke::new(1.0_f32, Color32::from_rgb(56, 189, 248)),
-                            StrokeKind::Inside,
-                        );
-                    } else if resp.hovered() {
-                        p.rect_filled(rect, CornerRadius::same(8), RustCareTheme::BG_HOVER);
-                    }
-                    p.text(
-                        rect.center(),
-                        Align2::CENTER_CENTER,
-                        text,
-                        FontId::proportional(12.5),
-                        if is_active {
-                            RustCareTheme::TEXT_PRIMARY
-                        } else {
-                            RustCareTheme::TEXT_MUTED
-                        },
-                    );
-                    resp.clicked()
-                };
-
-                if nav_pill(ui, "Inicio", false) {
-                    nav_request = Some(crate::app::NavSection::Care);
-                }
-                let _ = nav_pill(ui, "Herramientas", true);
-                if nav_pill(ui, "Monitoreo", false) {
-                    nav_request = Some(crate::app::NavSection::Monitor);
-                }
-                if nav_pill(ui, "Rendimiento", false) {
-                    nav_request = Some(crate::app::NavSection::Booster);
-                }
-                if nav_pill(ui, "Limpieza", false) {
-                    nav_request = Some(crate::app::NavSection::Cleaner);
-                }
-            });
-            ui.add_space(6.0);
-        } else {
+        if self.current_tab != ToolboxTab::Overview {
             ui.horizontal(|ui| {
                 if ghost_button(ui, "← Volver al Centro de Herramientas", Some(260.0)).clicked() {
                     self.current_tab = ToolboxTab::Overview;
@@ -623,13 +562,13 @@ impl ToolboxView {
             );
             p.rect_filled(tree_rect, CornerRadius::same(6), Color32::BLACK);
 
-            let stroke_t = Stroke::new(1.5, Color32::from_rgb(18, 24, 36));
+            let stroke_t = Stroke::new(1.0_f32, Color32::from_rgb(12, 18, 28));
             let t_x0 = tree_rect.min.x;
             let t_y0 = tree_rect.min.y;
             let tw = tree_rect.width();
             let th = tree_rect.height();
 
-            // Bloques proporcionales densos estilo WizTree (subdivisión anidada 2027_tools.png)
+            // Bloques proporcionales densos estilo WizTree (subdivisión jerárquica 2027_tools.png)
             let draw_sub_grid = |p: &egui::Painter, r: Rect, cols: usize, rows: usize, palette: &[Color32]| {
                 let cw = r.width() / cols as f32;
                 let ch = r.height() / rows as f32;
@@ -639,7 +578,7 @@ impl ToolboxView {
                             Pos2::new(r.min.x + rx as f32 * cw, r.min.y + ry as f32 * ch),
                             Vec2::new(cw, ch),
                         );
-                        let col = palette[(rx + ry * 2) % palette.len()];
+                        let col = palette[(rx * 3 + ry * 2) % palette.len()];
                         p.rect_filled(sub_r, CornerRadius::ZERO, col);
                         p.rect_stroke(sub_r, CornerRadius::ZERO, stroke_t, StrokeKind::Inside);
                     }
@@ -656,20 +595,22 @@ impl ToolboxView {
             let c_darkblue = Color32::from_rgb(30, 58, 138);
 
             let col1_w = tw * 0.44;
-            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x0, t_y0), Vec2::new(col1_w, th * 0.48)), 3, 3, &[c_cyan, c_teal, c_sky]);
-            let half_c1 = col1_w * 0.5;
-            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x0, t_y0 + th * 0.48), Vec2::new(half_c1, th * 0.30)), 2, 2, &[c_teal, c_sky, c_cyan]);
-            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x0 + half_c1, t_y0 + th * 0.48), Vec2::new(half_c1, th * 0.30)), 2, 3, &[c_blue, c_indigo, c_darkblue]);
-            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x0, t_y0 + th * 0.78), Vec2::new(col1_w, th * 0.22)), 4, 2, &[c_indigo, c_purple, c_blue]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x0, t_y0), Vec2::new(col1_w, th * 0.46)), 4, 4, &[c_cyan, c_teal, c_sky, c_teal]);
+            let half_c1 = col1_w * 0.52;
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x0, t_y0 + th * 0.46), Vec2::new(half_c1, th * 0.28)), 3, 3, &[c_teal, c_sky, c_cyan]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x0 + half_c1, t_y0 + th * 0.46), Vec2::new(col1_w - half_c1, th * 0.28)), 3, 4, &[c_blue, c_indigo, c_darkblue]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x0, t_y0 + th * 0.74), Vec2::new(col1_w * 0.62, th * 0.26)), 5, 3, &[c_indigo, c_purple, c_blue]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x0 + col1_w * 0.62, t_y0 + th * 0.74), Vec2::new(col1_w * 0.38, th * 0.26)), 3, 3, &[c_sky, c_blue, c_indigo]);
 
             let t_x1 = t_x0 + col1_w;
             let col2_w = tw - col1_w;
-            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1, t_y0), Vec2::new(col2_w * 0.65, th * 0.38)), 3, 2, &[c_blue, c_darkblue, c_indigo]);
-            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1 + col2_w * 0.65, t_y0), Vec2::new(col2_w * 0.35, th * 0.38)), 2, 3, &[c_pink, c_purple, c_indigo]);
-            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.38), Vec2::new(col2_w, th * 0.32)), 4, 2, &[c_darkblue, c_blue, c_sky]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1, t_y0), Vec2::new(col2_w * 0.62, th * 0.36)), 4, 3, &[c_blue, c_darkblue, c_indigo, c_sky]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1 + col2_w * 0.62, t_y0), Vec2::new(col2_w * 0.38, th * 0.36)), 3, 4, &[c_pink, c_purple, c_indigo]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.36), Vec2::new(col2_w * 0.48, th * 0.32)), 4, 3, &[c_darkblue, c_blue, c_sky]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1 + col2_w * 0.48, t_y0 + th * 0.36), Vec2::new(col2_w * 0.52, th * 0.32)), 4, 4, &[c_indigo, c_purple, c_blue]);
             let half_c2 = col2_w * 0.5;
-            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.70), Vec2::new(half_c2, th * 0.30)), 3, 2, &[c_purple, c_indigo, c_pink]);
-            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1 + half_c2, t_y0 + th * 0.70), Vec2::new(half_c2, th * 0.30)), 3, 2, &[c_pink, c_purple, c_blue]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1, t_y0 + th * 0.68), Vec2::new(half_c2, th * 0.32)), 4, 3, &[c_purple, c_indigo, c_pink]);
+            draw_sub_grid(p, Rect::from_min_size(Pos2::new(t_x1 + half_c2, t_y0 + th * 0.68), Vec2::new(half_c2, th * 0.32)), 4, 4, &[c_pink, c_purple, c_blue]);
 
             // -----------------------------------------------------------------
             // COLUMNA DERECHA: Bento Grid Superior + Inferior
@@ -699,10 +640,8 @@ impl ToolboxView {
                         RustCareTheme::TEXT_PRIMARY,
                     );
 
-                    // Gran Icono Neón
+                    // Gran Icono Neón flotante (sin caja cuadrada, estilo 2027_tools.png)
                     let ic_r1 = Rect::from_min_size(Pos2::new(card1_r.min.x + 18.0, card1_r.min.y + 44.0), Vec2::splat(58.0));
-                    p1.rect_filled(ic_r1, CornerRadius::same(12), Color32::from_rgba_unmultiplied(0, 229, 168, 20));
-                    p1.rect_stroke(ic_r1, CornerRadius::same(12), Stroke::new(1.0, Color32::from_rgba_unmultiplied(0, 229, 168, 80)), StrokeKind::Inside);
                     crate::icons::draw_icon(p1, ic_r1, AppIcon::Trash, RustCareTheme::ACCENT_CYAN, 1.8);
 
                     // Estadísticas a la derecha del icono
@@ -747,10 +686,8 @@ impl ToolboxView {
                         RustCareTheme::TEXT_PRIMARY,
                     );
 
-                    // Gran Icono IA Cerebro Neón
+                    // Gran Icono IA Cerebro Neón flotante
                     let ic_r2 = Rect::from_min_size(Pos2::new(card2_r.min.x + 18.0, card2_r.min.y + 44.0), Vec2::splat(58.0));
-                    ui.painter().rect_filled(ic_r2, CornerRadius::same(12), Color32::from_rgba_unmultiplied(56, 189, 248, 20));
-                    ui.painter().rect_stroke(ic_r2, CornerRadius::same(12), Stroke::new(1.0, Color32::from_rgba_unmultiplied(56, 189, 248, 80)), StrokeKind::Inside);
                     crate::icons::draw_icon(ui.painter(), ic_r2, AppIcon::Brain, RustCareTheme::ACCENT_INDIGO, 1.8);
 
                     // Toggles a la derecha del icono (posicionados exactamente dentro de card2_r tras cerrar el horizontal)
@@ -808,9 +745,7 @@ impl ToolboxView {
                         RustCareTheme::TEXT_PRIMARY,
                     );
 
-                    let ic_b1 = Rect::from_min_size(Pos2::new(bot1_r.min.x + 14.0, bot1_r.min.y + 40.0), Vec2::splat(40.0));
-                    p_b1.rect_filled(ic_b1, CornerRadius::same(10), Color32::from_rgba_unmultiplied(45, 212, 191, 20));
-                    p_b1.rect_stroke(ic_b1, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(45, 212, 191, 80)), StrokeKind::Inside);
+                    let ic_b1 = Rect::from_min_size(Pos2::new(bot1_r.min.x + 12.0, bot1_r.min.y + 38.0), Vec2::splat(44.0));
                     crate::icons::draw_icon(p_b1, ic_b1, AppIcon::Gauge, Color32::from_rgb(45, 212, 191), 1.6);
 
                     // Mini sparkline de latencia junto al icono (estilo 2027_tools.png)
@@ -859,9 +794,7 @@ impl ToolboxView {
                         RustCareTheme::TEXT_PRIMARY,
                     );
 
-                    let ic_b2 = Rect::from_min_size(Pos2::new(bot2_r.min.x + 14.0, bot2_r.min.y + 40.0), Vec2::splat(40.0));
-                    ui.painter().rect_filled(ic_b2, CornerRadius::same(10), Color32::from_rgba_unmultiplied(56, 189, 248, 20));
-                    ui.painter().rect_stroke(ic_b2, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(56, 189, 248, 80)), StrokeKind::Inside);
+                    let ic_b2 = Rect::from_min_size(Pos2::new(bot2_r.min.x + 12.0, bot2_r.min.y + 38.0), Vec2::splat(44.0));
                     crate::icons::draw_icon(ui.painter(), ic_b2, AppIcon::Shredder, RustCareTheme::ACCENT_CYAN, 1.6);
 
                     let mut tog_shred = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(Pos2::new(bot2_r.min.x + 60.0, bot2_r.min.y + 40.0), Vec2::new(third_right_w - 74.0, 90.0))));
@@ -894,10 +827,10 @@ impl ToolboxView {
                         RustCareTheme::TEXT_PRIMARY,
                     );
 
-                    let ic_b3 = Rect::from_min_size(Pos2::new(bot3_r.min.x + 14.0, bot3_r.min.y + 40.0), Vec2::splat(40.0));
-                    ui.painter().rect_filled(ic_b3, CornerRadius::same(10), Color32::from_rgba_unmultiplied(37, 99, 235, 20));
-                    ui.painter().rect_stroke(ic_b3, CornerRadius::same(10), Stroke::new(1.0, Color32::from_rgba_unmultiplied(37, 99, 235, 80)), StrokeKind::Inside);
-                    crate::icons::draw_icon(ui.painter(), ic_b3, AppIcon::ShieldCheck, Color32::from_rgb(37, 99, 235), 1.6);
+                    let ic_b3 = Rect::from_min_size(Pos2::new(bot3_r.min.x + 12.0, bot3_r.min.y + 38.0), Vec2::splat(44.0));
+                    crate::icons::draw_icon(ui.painter(), ic_b3, AppIcon::ShieldCheck, Color32::from_rgb(56, 189, 248), 1.6);
+                    let chip_b3 = Rect::from_min_size(Pos2::new(ic_b3.max.x - 19.0, ic_b3.max.y - 19.0), Vec2::splat(18.0));
+                    crate::icons::draw_icon(ui.painter(), chip_b3, AppIcon::RamChip, Color32::from_rgb(0, 229, 168), 1.2);
 
                     let mut tog_drv = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(Pos2::new(bot3_r.min.x + 60.0, bot3_r.min.y + 40.0), Vec2::new(third_right_w - 74.0, 90.0))));
                     tog_drv.horizontal(|ui| {

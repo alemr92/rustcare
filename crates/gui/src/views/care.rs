@@ -340,13 +340,17 @@ impl CareView {
                     CleanerEngine::format_bytes(self.total_bytes_found)
                 } else if self.clean_completed {
                     format!("{} limpios", CleanerEngine::format_bytes(self.total_bytes_found))
-                } else {
+                } else if self.scan_completed {
                     "0 GB".to_string()
+                } else {
+                    "Pendiente".to_string()
                 };
                 let space_sub = if self.scan_completed && !self.clean_completed {
                     format!("{} archivos · Ver →", self.total_items_found)
+                } else if self.clean_completed {
+                    "Espacio recuperado".to_string()
                 } else {
-                    "Espacio recuperable".to_string()
+                    "Haz clic para auditar".to_string()
                 };
                 if draw_bento_care_card(ui, "ARCHIVOS BASURA", &space_verdict, &space_sub, AppIcon::Trash, c1_accent, space_ok).clicked() {
                     if self.scan_completed {

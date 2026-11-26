@@ -196,129 +196,203 @@ pub fn draw_icon(painter: &Painter, rect: Rect, icon: AppIcon, color: Color32, s
         }
 
         AppIcon::Trash => {
-            let top = rect.min.y + 4.0;
-            let bot = rect.max.y - 4.0;
-            let left = rect.min.x + 5.0;
-            let right = rect.max.x - 7.0;
+            let s = w.min(h);
+            let top = c.y - s * 0.24;
+            let bot = c.y + s * 0.38;
+            let left = c.x - s * 0.28;
+            let right = c.x + s * 0.22;
 
             // Halo volumétrico difuso de fondo
-            painter.circle_filled(c, (w.min(h) * 0.45).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 25));
+            painter.circle_filled(c, (s * 0.48).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 26));
 
-            // Asa y tapa del cubo
-            painter.line_segment([Pos2::new(c.x - 3.0, top - 2.0), Pos2::new(c.x + 3.0, top - 2.0)], stroke);
-            painter.line_segment([Pos2::new(left - 2.0, top), Pos2::new(right + 2.0, top)], stroke);
+            // Micro-fragmentos luminosos asomando en la boca del cubo (firma 2027_care.png)
+            let shard1 = Rect::from_min_max(Pos2::new(left + s * 0.06, top - s * 0.12), Pos2::new(left + s * 0.20, top - s * 0.02));
+            let shard2 = Rect::from_min_max(Pos2::new(c.x - s * 0.02, top - s * 0.16), Pos2::new(c.x + s * 0.12, top - s * 0.03));
+            painter.rect_filled(shard1, eframe::egui::CornerRadius::same(1), Color32::from_rgba_unmultiplied(56, 189, 248, 170));
+            painter.rect_filled(shard2, eframe::egui::CornerRadius::same(1), Color32::from_rgba_unmultiplied(0, 229, 168, 190));
 
-            // Cuerpo trapezoidal del cubo
-            let p_body = [
+            // Tapa inclinada holográfica
+            painter.line_segment([Pos2::new(left - s * 0.06, top - s * 0.03), Pos2::new(right + s * 0.06, top - s * 0.09)], stroke);
+            painter.line_segment([Pos2::new(c.x - s * 0.09, top - s * 0.11), Pos2::new(c.x + s * 0.05, top - s * 0.14)], Stroke::new(1.3_f32, color));
+
+            // Cuerpo trapezoidal con relleno vítreo translúcido
+            let p_body = vec![
                 Pos2::new(left, top),
                 Pos2::new(right, top),
-                Pos2::new(right - 2.0, bot),
-                Pos2::new(left + 2.0, bot),
+                Pos2::new(right - s * 0.05, bot),
+                Pos2::new(left + s * 0.05, bot),
             ];
+            painter.add(eframe::egui::Shape::convex_polygon(
+                p_body.clone(),
+                Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 38),
+                Stroke::NONE,
+            ));
+            // Bisel superior luminoso del cubo
+            painter.line_segment([p_body[0], p_body[1]], Stroke::new(1.4_f32, Color32::from_rgba_unmultiplied(255, 255, 255, 160)));
             painter.line_segment([p_body[0], p_body[3]], stroke);
             painter.line_segment([p_body[1], p_body[2]], stroke);
             painter.line_segment([p_body[2], p_body[3]], stroke);
 
-            // Líneas de ranura vertical
-            painter.line_segment([Pos2::new(c.x - 2.5, top + 3.0), Pos2::new(c.x - 2.0, bot - 2.5)], stroke);
-            painter.line_segment([Pos2::new(c.x + 0.5, top + 3.0), Pos2::new(c.x + 0.5, bot - 2.5)], stroke);
+            // 3 costillas verticales luminosas
+            for rx in [-0.11_f32, -0.02, 0.07] {
+                let x_top = c.x + s * rx;
+                let x_bot = c.x + s * rx * 0.85;
+                painter.line_segment(
+                    [Pos2::new(x_top, top + s * 0.08), Pos2::new(x_bot, bot - s * 0.07)],
+                    Stroke::new(1.2_f32, Color32::from_rgba_unmultiplied(56, 189, 248, 200)),
+                );
+            }
 
             // Engranaje técnico luminoso en esquina inferior derecha (Firma 2027)
-            let g_c = Pos2::new(rect.max.x - 6.0, rect.max.y - 6.0);
-            let g_r = 5.0;
-            painter.circle_stroke(g_c, g_r, Stroke::new(1.2, Color32::from_rgb(56, 189, 248)));
-            painter.circle_filled(g_c, 1.8, Color32::from_rgb(0, 229, 168));
+            let g_c = Pos2::new(right + s * 0.04, bot - s * 0.06);
+            let g_r = (s * 0.13).max(3.5);
+            painter.circle_filled(g_c, g_r, Color32::from_rgb(10, 18, 28));
+            painter.circle_stroke(g_c, g_r, Stroke::new(1.3_f32, Color32::from_rgb(56, 189, 248)));
+            painter.circle_filled(g_c, (g_r * 0.38).max(1.5), Color32::from_rgb(0, 229, 168));
             for i in 0..6 {
                 let a = (i as f32) * (TAU / 6.0);
-                let p1 = Pos2::new(g_c.x + (g_r - 1.0) * a.cos(), g_c.y + (g_r - 1.0) * a.sin());
-                let p2 = Pos2::new(g_c.x + (g_r + 2.2) * a.cos(), g_c.y + (g_r + 2.2) * a.sin());
-                painter.line_segment([p1, p2], Stroke::new(1.2, Color32::from_rgb(56, 189, 248)));
+                let p1 = Pos2::new(g_c.x + (g_r - 0.5) * a.cos(), g_c.y + (g_r - 0.5) * a.sin());
+                let p2 = Pos2::new(g_c.x + (g_r + 2.4) * a.cos(), g_c.y + (g_r + 2.4) * a.sin());
+                painter.line_segment([p1, p2], Stroke::new(1.3_f32, Color32::from_rgb(56, 189, 248)));
             }
         }
 
         AppIcon::Eye => {
-            // Escudo con ojo holográfico (Escudo Privacidad 2027)
-            let top = rect.min.y + 2.5;
-            let bot = rect.max.y - 2.5;
-            let left = rect.min.x + 3.5;
-            let right = rect.max.x - 3.5;
+            // Escudo volumétrico 3D con ojo holográfico (Escudo Privacidad 2027)
+            let s = w.min(h);
+            let top = c.y - s * 0.38;
+            let bot = c.y + s * 0.40;
+            let left = c.x - s * 0.34;
+            let right = c.x + s * 0.34;
 
             // Halo difuso
-            painter.circle_filled(c, (w.min(h) * 0.44).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 25));
+            painter.circle_filled(c, (s * 0.48).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 26));
 
-            // Silueta del Escudo exterior
-            let s_pts = [
-                Pos2::new(left, top),
-                Pos2::new(right, top),
-                Pos2::new(right, c.y + 1.0),
+            // Silueta del Escudo exterior con relleno vítreo
+            let s_pts = vec![
+                Pos2::new(left, top + s * 0.05),
+                Pos2::new(c.x, top - s * 0.02),
+                Pos2::new(right, top + s * 0.05),
+                Pos2::new(right - s * 0.03, c.y + s * 0.08),
                 Pos2::new(c.x, bot),
-                Pos2::new(left, c.y + 1.0),
-                Pos2::new(left, top),
+                Pos2::new(left + s * 0.03, c.y + s * 0.08),
             ];
-            for win in s_pts.windows(2) {
-                painter.line_segment([win[0], win[1]], stroke);
+            painter.add(eframe::egui::Shape::convex_polygon(
+                s_pts.clone(),
+                Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 38),
+                stroke,
+            ));
+
+            // Bisel interior luminoso
+            let inner_pts = vec![
+                Pos2::new(left + s * 0.07, top + s * 0.10),
+                Pos2::new(c.x, top + s * 0.04),
+                Pos2::new(right - s * 0.07, top + s * 0.10),
+                Pos2::new(right - s * 0.09, c.y + s * 0.06),
+                Pos2::new(c.x, bot - s * 0.08),
+                Pos2::new(left + s * 0.09, c.y + s * 0.06),
+            ];
+            for i in 0..inner_pts.len() {
+                painter.line_segment(
+                    [inner_pts[i], inner_pts[(i + 1) % inner_pts.len()]],
+                    Stroke::new(0.9_f32, Color32::from_rgba_unmultiplied(255, 255, 255, 75)),
+                );
             }
 
-            // Ojo holográfico interior
-            let eye_c = Pos2::new(c.x, c.y - 1.0);
-            let e_l = Pos2::new(eye_c.x - 5.5, eye_c.y);
-            let e_r = Pos2::new(eye_c.x + 5.5, eye_c.y);
-            let e_t = Pos2::new(eye_c.x, eye_c.y - 3.5);
-            let e_b = Pos2::new(eye_c.x, eye_c.y + 3.5);
-
-            painter.line_segment([e_l, e_t], Stroke::new(1.2, color));
-            painter.line_segment([e_t, e_r], Stroke::new(1.2, color));
-            painter.line_segment([e_r, e_b], Stroke::new(1.2, color));
-            painter.line_segment([e_b, e_l], Stroke::new(1.2, color));
-
-            painter.circle_filled(eye_c, 1.8, Color32::from_rgb(0, 229, 168));
+            // Ojo almendrado holográfico interior
+            let eye_c = Pos2::new(c.x, c.y - s * 0.02);
+            let ew = s * 0.21;
+            let eh = s * 0.13;
+            let eye_pts = vec![
+                Pos2::new(eye_c.x - ew, eye_c.y),
+                Pos2::new(eye_c.x - ew * 0.45, eye_c.y - eh * 0.85),
+                Pos2::new(eye_c.x + ew * 0.45, eye_c.y - eh * 0.85),
+                Pos2::new(eye_c.x + ew, eye_c.y),
+                Pos2::new(eye_c.x + ew * 0.45, eye_c.y + eh * 0.85),
+                Pos2::new(eye_c.x - ew * 0.45, eye_c.y + eh * 0.85),
+            ];
+            painter.add(eframe::egui::Shape::convex_polygon(
+                eye_pts,
+                Color32::from_rgba_unmultiplied(10, 20, 34, 210),
+                Stroke::new(1.4_f32, Color32::from_rgb(180, 240, 255)),
+            ));
+            painter.circle_stroke(eye_c, (s * 0.095).max(2.5), Stroke::new(1.4_f32, color));
+            painter.circle_filled(eye_c, (s * 0.045).max(1.5), Color32::from_rgb(0, 229, 168));
+            painter.circle_filled(Pos2::new(eye_c.x - s * 0.025, eye_c.y - s * 0.025), 1.2, Color32::WHITE);
         }
 
         AppIcon::RamChip => {
-            // Procesador / Chip RAM con pines y trazas de circuito luminosas
-            let left = rect.min.x + 5.5;
-            let right = rect.max.x - 5.5;
-            let top = rect.min.y + 5.5;
-            let bot = rect.max.y - 5.5;
+            // Chip RAM isométrico 3D (estilo 2027_care.png) con pines en las 4 aristas y núcleo brillante
+            let s = w.min(h);
+            painter.circle_filled(c, (s * 0.46).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 26));
 
-            painter.circle_filled(c, (w.min(h) * 0.42).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 25));
+            let rx = s * 0.30;
+            let ry = s * 0.21;
+            let depth = s * 0.075;
 
-            // Cuerpo del microchip con núcleo obsidiana y bisel luminoso
-            painter.rect_filled(
-                Rect::from_min_max(Pos2::new(left, top), Pos2::new(right, bot)),
-                eframe::egui::CornerRadius::same(3),
-                Color32::from_rgba_unmultiplied(12, 22, 34, 220),
-            );
-            painter.rect_stroke(
-                Rect::from_min_max(Pos2::new(left, top), Pos2::new(right, bot)),
-                eframe::egui::CornerRadius::same(3),
+            // Cara superior isométrica (rombo)
+            let top_n = Pos2::new(c.x, c.y - ry - depth * 0.35);
+            let top_e = Pos2::new(c.x + rx, c.y - depth * 0.35);
+            let top_s = Pos2::new(c.x, c.y + ry - depth * 0.35);
+            let top_w = Pos2::new(c.x - rx, c.y - depth * 0.35);
+
+            // Pines isométricos saliendo de los 4 lados
+            let pin_col = Color32::from_rgb(56, 189, 248);
+            let pin_len = s * 0.085;
+            for i in 1..=4 {
+                let t = i as f32 / 5.0;
+                // Borde NW -> salida (-pin_len, -pin_len*0.65)
+                let p_nw = top_w.lerp(top_n, t);
+                painter.line_segment([p_nw, Pos2::new(p_nw.x - pin_len, p_nw.y - pin_len * 0.65)], Stroke::new(1.3_f32, pin_col));
+                // Borde NE -> salida (+pin_len, -pin_len*0.65)
+                let p_ne = top_n.lerp(top_e, t);
+                painter.line_segment([p_ne, Pos2::new(p_ne.x + pin_len, p_ne.y - pin_len * 0.65)], Stroke::new(1.3_f32, pin_col));
+                // Borde SW -> salida (-pin_len, +pin_len*0.65)
+                let p_sw = top_w.lerp(top_s, t);
+                painter.line_segment([p_sw, Pos2::new(p_sw.x - pin_len, p_sw.y + pin_len * 0.65)], Stroke::new(1.3_f32, pin_col));
+                // Borde SE -> salida (+pin_len, +pin_len*0.65)
+                let p_se = top_s.lerp(top_e, t);
+                painter.line_segment([p_se, Pos2::new(p_se.x + pin_len, p_se.y + pin_len * 0.65)], Stroke::new(1.3_f32, pin_col));
+            }
+
+            // Base 3D extruida (caras inferiores)
+            let bot_w = Pos2::new(top_w.x, top_w.y + depth);
+            let bot_s = Pos2::new(top_s.x, top_s.y + depth);
+            let bot_e = Pos2::new(top_e.x, top_e.y + depth);
+            painter.add(eframe::egui::Shape::convex_polygon(
+                vec![top_w, top_s, bot_s, bot_w],
+                Color32::from_rgba_unmultiplied(15, 35, 52, 230),
+                Stroke::new(1.1_f32, color),
+            ));
+            painter.add(eframe::egui::Shape::convex_polygon(
+                vec![top_s, top_e, bot_e, bot_s],
+                Color32::from_rgba_unmultiplied(10, 24, 38, 240),
+                Stroke::new(1.1_f32, color),
+            ));
+
+            // Placa superior obsidiana con borde luminoso
+            painter.add(eframe::egui::Shape::convex_polygon(
+                vec![top_n, top_e, top_s, top_w],
+                Color32::from_rgba_unmultiplied(14, 24, 38, 240),
                 stroke,
-                eframe::egui::StrokeKind::Inside,
-            );
-            painter.rect_stroke(
-                Rect::from_min_max(Pos2::new(left + 3.5, top + 3.5), Pos2::new(right - 3.5, bot - 3.5)),
-                eframe::egui::CornerRadius::same(2),
-                Stroke::new(1.0_f32, Color32::from_rgba_unmultiplied(56, 189, 248, 130)),
-                eframe::egui::StrokeKind::Inside,
-            );
+            ));
 
-            // Pines de circuito
-            let count = 4;
-            let step = (right - left) / (count as f32 + 1.0);
-            for i in 1..=count {
-                let x = left + step * (i as f32);
-                painter.line_segment([Pos2::new(x, rect.min.y + 2.0), Pos2::new(x, top)], Stroke::new(1.2, Color32::from_rgb(56, 189, 248)));
-                painter.line_segment([Pos2::new(x, bot), Pos2::new(x, rect.max.y - 2.0)], Stroke::new(1.2, Color32::from_rgb(56, 189, 248)));
-            }
-            let step_y = (bot - top) / (count as f32 + 1.0);
-            for i in 1..=count {
-                let y = top + step_y * (i as f32);
-                painter.line_segment([Pos2::new(rect.min.x + 2.0, y), Pos2::new(left, y)], Stroke::new(1.2, Color32::from_rgb(56, 189, 248)));
-                painter.line_segment([Pos2::new(right, y), Pos2::new(rect.max.x - 2.0, y)], Stroke::new(1.2, Color32::from_rgb(56, 189, 248)));
-            }
-
-            // Núcleo central luminoso
-            painter.circle_filled(c, 2.2, Color32::from_rgb(0, 229, 168));
+            // Circuito interior isométrico brillante
+            let ic_c = Pos2::new(c.x, c.y - depth * 0.35);
+            let irx = rx * 0.50;
+            let iry = ry * 0.50;
+            let inner = vec![
+                Pos2::new(ic_c.x, ic_c.y - iry),
+                Pos2::new(ic_c.x + irx, ic_c.y),
+                Pos2::new(ic_c.x, ic_c.y + iry),
+                Pos2::new(ic_c.x - irx, ic_c.y),
+            ];
+            painter.add(eframe::egui::Shape::convex_polygon(
+                inner,
+                Color32::from_rgba_unmultiplied(0, 229, 168, 45),
+                Stroke::new(1.1_f32, Color32::from_rgb(0, 229, 168)),
+            ));
+            painter.circle_filled(ic_c, (s * 0.055).max(1.8), Color32::from_rgb(0, 229, 168));
         }
 
         AppIcon::Briefcase => {
@@ -448,52 +522,80 @@ pub fn draw_icon(painter: &Painter, rect: Rect, icon: AppIcon, color: Color32, s
         }
 
         AppIcon::Shredder => {
-            let left = rect.min.x + 3.0;
-            let right = rect.max.x - 3.0;
-            let mid_y = c.y - 1.0;
+            let s = w.min(h);
+            let left = c.x - s * 0.34;
+            let right = c.x + s * 0.34;
+            let mid_y = c.y - s * 0.04;
 
-            // Ranura superior
-            painter.rect_stroke(
-                Rect::from_min_max(Pos2::new(left, mid_y - 2.5), Pos2::new(right, mid_y + 2.5)),
-                eframe::egui::CornerRadius::same(2),
-                stroke,
-                eframe::egui::StrokeKind::Inside,
+            painter.circle_filled(c, (s * 0.45).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 24));
+
+            // Hoja entrando por arriba con relleno translúcido
+            let doc_r = Rect::from_min_max(
+                Pos2::new(c.x - s * 0.20, c.y - s * 0.38),
+                Pos2::new(c.x + s * 0.20, mid_y - s * 0.08),
+            );
+            painter.rect_filled(doc_r, eframe::egui::CornerRadius::same(2), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 45));
+            painter.rect_stroke(doc_r, eframe::egui::CornerRadius::same(2), stroke, eframe::egui::StrokeKind::Inside);
+
+            // Cabezal del destructor con ranura luminosa
+            let head_r = Rect::from_min_max(
+                Pos2::new(left, mid_y - s * 0.10),
+                Pos2::new(right, mid_y + s * 0.10),
+            );
+            painter.rect_filled(head_r, eframe::egui::CornerRadius::same(3), Color32::from_rgba_unmultiplied(14, 24, 38, 235));
+            painter.rect_stroke(head_r, eframe::egui::CornerRadius::same(3), stroke, eframe::egui::StrokeKind::Inside);
+            painter.line_segment(
+                [Pos2::new(left + s * 0.06, mid_y), Pos2::new(right - s * 0.06, mid_y)],
+                Stroke::new(1.3_f32, Color32::from_rgb(0, 229, 168)),
             );
 
-            // Hoja entrando por arriba
-            painter.line_segment([Pos2::new(left + 2.5, rect.min.y + 2.5), Pos2::new(right - 2.5, rect.min.y + 2.5)], stroke);
-            painter.line_segment([Pos2::new(left + 2.5, rect.min.y + 2.5), Pos2::new(left + 2.5, mid_y - 2.5)], stroke);
-            painter.line_segment([Pos2::new(right - 2.5, rect.min.y + 2.5), Pos2::new(right - 2.5, mid_y - 2.5)], stroke);
-
-            // 4 tiras de papel saliendo abajo
-            let step = (right - left - 4.0) / 3.0;
-            for i in 0..4 {
-                let x = left + 2.0 + (i as f32) * step;
-                painter.line_segment([Pos2::new(x, mid_y + 2.5), Pos2::new(x, rect.max.y - 2.0)], stroke);
+            // 5 tiras de papel triturado saliendo abajo + fragmentos cayendo
+            let strip_w = right - left - s * 0.14;
+            for i in 0..5 {
+                let x = left + s * 0.07 + (i as f32) * (strip_w / 4.0);
+                let len = s * (0.24 + ((i % 2) as f32) * 0.08);
+                painter.line_segment(
+                    [Pos2::new(x, mid_y + s * 0.10), Pos2::new(x + ((i as f32 - 2.0) * 0.8), mid_y + s * 0.10 + len)],
+                    Stroke::new(1.4_f32, color),
+                );
             }
+            // Confeti de partículas trituradas
+            painter.rect_filled(Rect::from_center_size(Pos2::new(c.x - s * 0.14, c.y + s * 0.36), eframe::egui::vec2(2.2, 2.2)), eframe::egui::CornerRadius::ZERO, Color32::from_rgb(0, 229, 168));
+            painter.rect_filled(Rect::from_center_size(Pos2::new(c.x + s * 0.12, c.y + s * 0.39), eframe::egui::vec2(2.2, 2.2)), eframe::egui::CornerRadius::ZERO, color);
         }
 
         AppIcon::Gauge => {
-            let r = (w.min(h) * 0.40).max(5.0);
+            let s = w.min(h);
+            let r = (s * 0.38).max(5.0);
+            painter.circle_filled(c, (s * 0.44).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 24));
             let start = 0.75 * TAU; // Arriba
             let span = 0.67 * TAU;  // 240 deg
             let arc_start = start - span / 2.0;
-            let steps = 16;
+            let steps = 18;
             let mut prev = Pos2::new(c.x + r * arc_start.cos(), c.y + r * arc_start.sin());
 
             for i in 1..=steps {
                 let frac = i as f32 / steps as f32;
                 let a = arc_start + frac * span;
                 let next = Pos2::new(c.x + r * a.cos(), c.y + r * a.sin());
-                painter.line_segment([prev, next], stroke);
+                painter.line_segment([prev, next], Stroke::new(stroke_width + 0.3, color));
                 prev = next;
             }
 
-            // Aguja apuntando a las 2 en punto (~30 deg / 0.5 rad)
+            // Marcas radiales de escala
+            for i in 0..=4 {
+                let frac = i as f32 / 4.0;
+                let a = arc_start + frac * span;
+                let p1 = Pos2::new(c.x + (r - s * 0.08) * a.cos(), c.y + (r - s * 0.08) * a.sin());
+                let p2 = Pos2::new(c.x + (r - 1.0) * a.cos(), c.y + (r - 1.0) * a.sin());
+                painter.line_segment([p1, p2], Stroke::new(1.1_f32, Color32::from_rgba_unmultiplied(255, 255, 255, 160)));
+            }
+
+            // Aguja apuntando a alto rendimiento
             let needle_angle: f32 = -0.55_f32;
-            let needle_end = Pos2::new(c.x + (r - 2.0) * needle_angle.cos(), c.y + (r - 2.0) * needle_angle.sin());
-            painter.line_segment([c, needle_end], stroke);
-            painter.circle_filled(c, 1.8, color);
+            let needle_end = Pos2::new(c.x + (r - 2.5) * needle_angle.cos(), c.y + (r - 2.5) * needle_angle.sin());
+            painter.line_segment([c, needle_end], Stroke::new(1.8_f32, Color32::from_rgb(0, 229, 168)));
+            painter.circle_filled(c, (s * 0.07).max(2.0), Color32::WHITE);
         }
 
         AppIcon::User => {
@@ -510,44 +612,54 @@ pub fn draw_icon(painter: &Painter, rect: Rect, icon: AppIcon, color: Color32, s
         }
 
         AppIcon::Brain => {
-            // Cerebro IA 2027 con halo volumétrico y onda de pulso neuronal
-            let r_lobe = (w.min(h) * 0.36).max(5.0);
-            let left_cx = c.x - r_lobe * 0.38;
-            let right_cx = c.x + r_lobe * 0.38;
+            // Cerebro IA 2027 esculpido con 2 hemisferios vítreos, pliegues y pulso ECG
+            let s = w.min(h);
+            painter.circle_filled(c, (s * 0.46).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 26));
 
-            // Halo difuso
-            painter.circle_filled(c, (w.min(h) * 0.44).max(6.0), Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 25));
+            let cy = c.y - s * 0.02;
+            let rx = s * 0.36;
+            let ry = s * 0.32;
 
-            // Lóbulo superior izquierdo y derecho
-            painter.circle_stroke(Pos2::new(left_cx, c.y - r_lobe * 0.35), r_lobe * 0.52, Stroke::new(stroke_width, color));
-            painter.circle_stroke(Pos2::new(right_cx, c.y - r_lobe * 0.35), r_lobe * 0.52, Stroke::new(stroke_width, color));
-
-            // Lóbulo inferior izquierdo y derecho
-            painter.circle_stroke(Pos2::new(left_cx + 1.0, c.y + r_lobe * 0.28), r_lobe * 0.44, Stroke::new(stroke_width, color));
-            painter.circle_stroke(Pos2::new(right_cx - 1.0, c.y + r_lobe * 0.28), r_lobe * 0.44, Stroke::new(stroke_width, color));
-
-            // Hendidura central
-            painter.line_segment([Pos2::new(c.x, c.y - r_lobe * 0.85), Pos2::new(c.x, c.y + r_lobe * 0.65)], stroke);
-
-            // Nodos y sinapsis neuronales luminosas
-            painter.circle_filled(Pos2::new(left_cx, c.y - 1.0), 1.8, Color32::from_rgb(0, 229, 168));
-            painter.circle_filled(Pos2::new(right_cx, c.y - 1.0), 1.8, Color32::from_rgb(0, 229, 168));
-            painter.line_segment([Pos2::new(left_cx, c.y - 1.0), Pos2::new(c.x, c.y - 1.0)], Stroke::new(1.2, color));
-            painter.line_segment([Pos2::new(right_cx, c.y - 1.0), Pos2::new(c.x, c.y - 1.0)], Stroke::new(1.2, color));
-
-            // Onda de electrocardiograma / pulso vital en la parte inferior
-            let py = c.y + r_lobe * 0.85;
-            let ecg = [
-                Pos2::new(c.x - r_lobe * 0.8, py),
-                Pos2::new(c.x - r_lobe * 0.3, py),
-                Pos2::new(c.x - r_lobe * 0.15, py - 3.5),
-                Pos2::new(c.x, py + 3.0),
-                Pos2::new(c.x + r_lobe * 0.15, py - 2.0),
-                Pos2::new(c.x + r_lobe * 0.3, py),
-                Pos2::new(c.x + r_lobe * 0.8, py),
+            // Hemisferio izquierdo (polígono convexo translúcido + contorno)
+            let left_hemi = vec![
+                Pos2::new(c.x - 1.5, cy - ry * 0.92),
+                Pos2::new(c.x - rx * 0.58, cy - ry),
+                Pos2::new(c.x - rx * 0.96, cy - ry * 0.45),
+                Pos2::new(c.x - rx, cy + ry * 0.18),
+                Pos2::new(c.x - rx * 0.68, cy + ry * 0.78),
+                Pos2::new(c.x - 1.5, cy + ry * 0.85),
             ];
-            for w in ecg.windows(2) {
-                painter.line_segment([w[0], w[1]], Stroke::new(1.2, Color32::from_rgb(0, 229, 168)));
+            let right_hemi = vec![
+                Pos2::new(c.x + 1.5, cy - ry * 0.92),
+                Pos2::new(c.x + rx * 0.58, cy - ry),
+                Pos2::new(c.x + rx * 0.96, cy - ry * 0.45),
+                Pos2::new(c.x + rx, cy + ry * 0.18),
+                Pos2::new(c.x + rx * 0.68, cy + ry * 0.78),
+                Pos2::new(c.x + 1.5, cy + ry * 0.85),
+            ];
+            let fill_col = Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 40);
+            painter.add(eframe::egui::Shape::convex_polygon(left_hemi, fill_col, stroke));
+            painter.add(eframe::egui::Shape::convex_polygon(right_hemi, fill_col, stroke));
+
+            // Pliegues cerebrales internos (gyri)
+            let gyri_col = Stroke::new(1.1_f32, Color32::from_rgba_unmultiplied(180, 248, 255, 160));
+            painter.line_segment([Pos2::new(c.x - rx * 0.65, cy - ry * 0.42), Pos2::new(c.x - rx * 0.25, cy - ry * 0.52)], gyri_col);
+            painter.line_segment([Pos2::new(c.x + rx * 0.65, cy - ry * 0.42), Pos2::new(c.x + rx * 0.25, cy - ry * 0.52)], gyri_col);
+            painter.line_segment([Pos2::new(c.x - rx * 0.62, cy + ry * 0.35), Pos2::new(c.x - rx * 0.24, cy + ry * 0.44)], gyri_col);
+            painter.line_segment([Pos2::new(c.x + rx * 0.62, cy + ry * 0.35), Pos2::new(c.x + rx * 0.24, cy + ry * 0.44)], gyri_col);
+
+            // Onda ECG luminosa cruzando el centro del cerebro
+            let ecg = [
+                Pos2::new(c.x - rx * 0.85, cy),
+                Pos2::new(c.x - rx * 0.36, cy),
+                Pos2::new(c.x - rx * 0.18, cy - ry * 0.36),
+                Pos2::new(c.x, cy + ry * 0.34),
+                Pos2::new(c.x + rx * 0.20, cy - ry * 0.24),
+                Pos2::new(c.x + rx * 0.36, cy),
+                Pos2::new(c.x + rx * 0.85, cy),
+            ];
+            for win in ecg.windows(2) {
+                painter.line_segment([win[0], win[1]], Stroke::new(1.5_f32, Color32::from_rgb(0, 229, 168)));
             }
         }
 
