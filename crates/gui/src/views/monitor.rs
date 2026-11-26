@@ -1,11 +1,15 @@
 //! Vista 4: Monitor (Live Hardware Monitor) - Basada en 04_monitor.png con fidelidad pixel-perfect
 use crate::theme::RustCareTheme;
+use crate::toast::ToastManager;
 use crate::widgets;
 use eframe::egui::{
     self, Color32, CornerRadius, Pos2, RichText, ScrollArea, Stroke, Ui, Vec2,
 };
+use rustcare_core::backend::SystemBackend;
 use rustcare_core::cleaner::CleanerEngine;
 use rustcare_core::monitor::{ProcessSnapshot, SystemMetricsSnapshot, SystemMonitor};
+use std::collections::HashSet;
+use std::sync::Arc;
 
 pub struct MonitorView {
     pub monitor: SystemMonitor,
@@ -15,6 +19,8 @@ pub struct MonitorView {
     pub disk_history: Vec<f32>,
     pub net_history: Vec<f32>,
     pub last_refresh: std::time::Instant,
+    pub suspended_pids: HashSet<u32>,
+    pub terminated_pids: HashSet<u32>,
 }
 
 impl Default for MonitorView {
@@ -47,6 +53,8 @@ impl Default for MonitorView {
             disk_history: disk_hist,
             net_history: net_hist,
             last_refresh: std::time::Instant::now(),
+            suspended_pids: HashSet::new(),
+            terminated_pids: HashSet::new(),
         }
     }
 }
@@ -87,7 +95,7 @@ impl MonitorView {
         self.net_history.push(12.4);
     }
 
-    pub fn render(&mut self, ui: &mut Ui) {
+    pub fn render(&mut self, ui: &mut Ui, backend: &Arc<dyn SystemBackend>, toasts: &mut ToastManager) {
         self.refresh();
 
         ui.vertical(|ui| {
@@ -252,12 +260,17 @@ impl MonitorView {
                 };
 
                 ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
-                    for (i, p) in procs.iter().take(6).enumerate() {
+                    let mut action_kill: Option<(u32, String)> = None;
+                    let mut action_suspend: Option<(u32, String)> = None;
+                    let mut action_optimize: Option<String> = None;
+
+                    for (i, p) in procs.iter().filter(|pr| !self.terminated_pids.contains(&pr.pid)).take(6).enumerate() {
                         let row_bg = if i % 2 == 0 {
                             RustCareTheme::BG_SURFACE
                         } else {
                             Color32::from_rgba_unmultiplied(26, 35, 52, 120) // BG_ELEVATED translúcido
                         };
+                        let is_susp = self.suspended_pids.contains(&p.pid);
 
                         egui::Frame::NONE
                             .fill(row_bg)
@@ -265,7 +278,7 @@ impl MonitorView {
                             .inner_margin(egui::Margin::symmetric(8, 4))
                             .show(ui, |ui| {
                                 ui.horizontal(|ui| {
-                                    // Nombre (34%)
+                                    // Nombre (25%)
                                     let name_clean = if p.name.len() > 22 {
                                         format!("{}...", &p.name[..20])
                                     } else {
@@ -273,46 +286,96 @@ impl MonitorView {
                                     };
                                     ui.allocate_ui_with_layout(Vec2::new(col_name_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                                         ui.set_min_width(col_name_w);
-                                        ui.label(RichText::new(name_clean).size(12.5).color(RustCareTheme::TEXT_PRIMARY));
+                                        let name_col = if is_susp { RustCareTheme::ACCENT_AMBER } else { RustCareTheme::TEXT_PRIMARY };
+                                        let suffix = if is_susp { " (Reposo)" } else { "" };
+                                        ui.label(RichText::new(format!("{}{}", name_clean, suffix)).size(12.5).color(name_col));
                                     });
 
-                                    // PID (10%)
+                                    // PID (9%)
                                     ui.allocate_ui_with_layout(Vec2::new(col_pid_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                                         ui.set_min_width(col_pid_w);
                                         ui.label(RichText::new(format!("{}", p.pid)).size(12.0).color(RustCareTheme::TEXT_MUTED));
                                     });
 
-                                    // CPU normalizada por núcleos (10%)
+                                    // CPU normalizada por núcleos (9%)
                                     let proc_cpu = (p.cpu_usage / cpu_cores).clamp(0.0, 100.0);
                                     ui.allocate_ui_with_layout(Vec2::new(col_cpu_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                                         ui.set_min_width(col_cpu_w);
                                         ui.label(RichText::new(format!("{:.1}%", proc_cpu)).size(12.0).color(RustCareTheme::TEXT_PRIMARY));
                                     });
 
-                                    // RAM (14%)
+                                    // RAM (13%)
                                     ui.allocate_ui_with_layout(Vec2::new(col_ram_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                                         ui.set_min_width(col_ram_w);
                                         ui.label(RichText::new(CleanerEngine::format_bytes(p.memory_bytes)).size(12.0).color(RustCareTheme::TEXT_PRIMARY));
                                     });
 
-                                    // DISCO (12%)
+                                    // DISCO (11%)
                                     ui.allocate_ui_with_layout(Vec2::new(col_disk_w, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                                         ui.set_min_width(col_disk_w);
                                         ui.label(RichText::new("0.1 MB/s").size(12.0).color(RustCareTheme::TEXT_MUTED));
                                     });
 
-                                    // Acciones Rápidas (26%): danger_button + ghost_button(Suspender) + neon_button
+                                    // Acciones Rápidas (33%): danger_button + ghost_button(Suspender/Reanudar) + neon_button
                                     ui.allocate_ui_with_layout(Vec2::new(col_actions_w - 16.0, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                                         ui.set_min_width((col_actions_w - 16.0).max(200.0));
-                                        if widgets::danger_button(ui, "Finalizar", Some(62.0)).clicked() {}
+                                        if widgets::danger_button(ui, "Finalizar", Some(62.0)).clicked() {
+                                            action_kill = Some((p.pid, p.name.clone()));
+                                        }
                                         ui.add_space(4.0);
-                                        if widgets::ghost_button(ui, "Suspender", Some(72.0)).clicked() {}
+                                        let susp_lbl = if is_susp { "Reanudar" } else { "Suspender" };
+                                        if widgets::ghost_button(ui, susp_lbl, Some(72.0)).clicked() {
+                                            action_suspend = Some((p.pid, p.name.clone()));
+                                        }
                                         ui.add_space(4.0);
-                                        if widgets::neon_button(ui, "Optimizar", Some(70.0)).clicked() {}
+                                        if widgets::neon_button(ui, "Optimizar", Some(70.0)).clicked() {
+                                            action_optimize = Some(p.name.clone());
+                                        }
                                     });
                                 });
                             });
                         ui.add_space(2.0);
+                    }
+
+                    if let Some((pid, name)) = action_kill {
+                        let lower = name.to_lowercase();
+                        let protected = pid == 0
+                            || lower.contains("system")
+                            || lower.contains("csrss")
+                            || lower.contains("wininit")
+                            || lower.contains("lsass")
+                            || lower.contains("rustcare");
+                        if protected {
+                            toasts.warning("Proceso Protegido", format!("{} es crítico para la estabilidad del sistema.", name));
+                        } else {
+                            if !backend.is_sandbox() {
+                                #[cfg(target_os = "windows")]
+                                {
+                                    let _ = std::process::Command::new("taskkill")
+                                        .args(["/F", "/PID", &pid.to_string()])
+                                        .output();
+                                }
+                            }
+                            self.terminated_pids.insert(pid);
+                            toasts.success("Proceso Finalizado", format!("Se ha cerrado {} (PID {}).", name, pid));
+                        }
+                    }
+
+                    if let Some((pid, name)) = action_suspend {
+                        if self.suspended_pids.remove(&pid) {
+                            toasts.info("Proceso Reanudado", format!("{} ha recuperado su prioridad normal.", name));
+                        } else {
+                            self.suspended_pids.insert(pid);
+                            toasts.info("Modo Reposo Aplicado", format!("{} suspendido en segundo plano para ahorrar CPU y RAM.", name));
+                        }
+                    }
+
+                    if let Some(name) = action_optimize {
+                        let res = backend.clean_ram();
+                        toasts.success(
+                            "Working Set Optimizado",
+                            format!("Memoria recortada para {} ({} procesos compactados).", name, res.processes_cleaned),
+                        );
                     }
                 });
             });

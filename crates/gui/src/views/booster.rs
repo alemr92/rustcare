@@ -31,6 +31,7 @@ pub struct BoosterView {
     pub startup_tab: StartupSubTab,
     pub scheduled_tasks: Vec<ScheduledTaskItem>,
     pub context_handlers: Vec<ContextMenuItem>,
+    pub config_drawer: Option<TurboBoostMode>,
     #[allow(dead_code)]
     pub ram_result: Option<RamCleanResult>,
     #[allow(dead_code)]
@@ -48,6 +49,7 @@ impl Default for BoosterView {
             startup_tab: StartupSubTab::StartupApps,
             scheduled_tasks: Vec::new(),
             context_handlers: Vec::new(),
+            config_drawer: None,
             ram_result: None,
             dns_message: None,
         }
@@ -184,7 +186,9 @@ impl BoosterView {
                                         self.boost_result = Some(backend.apply_turbo_boost(self.selected_mode));
                                     }
                                 }
-                                if widgets::ghost_button(ui, "Configurar", Some(88.0)).clicked() {}
+                                if widgets::ghost_button(ui, "Configurar", Some(88.0)).clicked() {
+                                    self.config_drawer = Some(TurboBoostMode::Work);
+                                }
                             });
                         });
                     });
@@ -244,7 +248,9 @@ impl BoosterView {
                                         self.boost_result = Some(backend.apply_turbo_boost(self.selected_mode));
                                     }
                                 }
-                                if widgets::ghost_button(ui, "Configurar", Some(88.0)).clicked() {}
+                                if widgets::ghost_button(ui, "Configurar", Some(88.0)).clicked() {
+                                    self.config_drawer = Some(TurboBoostMode::Game);
+                                }
                             });
                         });
                     });
@@ -304,7 +310,9 @@ impl BoosterView {
                                         self.boost_result = Some(backend.apply_turbo_boost(self.selected_mode));
                                     }
                                 }
-                                if widgets::ghost_button(ui, "Configurar", Some(88.0)).clicked() {}
+                                if widgets::ghost_button(ui, "Configurar", Some(88.0)).clicked() {
+                                    self.config_drawer = Some(TurboBoostMode::Economy);
+                                }
                             });
                         });
                     });
@@ -542,5 +550,77 @@ impl BoosterView {
                 }
             });
         });
+
+        // Drawer transparente de configuración por perfil (explica qué servicios y ajustes aplica)
+        if let Some(mode) = self.config_drawer {
+            let mut open = true;
+            let (title, services): (&str, &[(&str, &str)]) = match mode {
+                TurboBoostMode::Work => (
+                    "Configuración · Modo Trabajo",
+                    &[
+                        ("Xbox Live Auth Manager", "Servicio de consola innecesario en oficina"),
+                        ("Spooler de Impresión (opcional)", "Pausa cola si no hay impresoras activas"),
+                        ("DiagTrack Telemetría", "Reduce envíos de diagnóstico en segundo plano"),
+                        ("Plan de Energía Equilibrado+", "Prioriza respuesta de apps de productividad"),
+                    ],
+                ),
+                TurboBoostMode::Game => (
+                    "Configuración · Modo Juego",
+                    &[
+                        ("Windows Search Indexer", "Detiene indexado en disco durante partidas"),
+                        ("SysMain / Superfetch", "Libera hasta 350 MB de caché en RAM"),
+                        ("Windows Update Delivery", "Evita descargas P2P que suben el ping"),
+                        ("Xbox Game Bar & Capturas", "Reduce latencia de fotogramas y GPU"),
+                        ("Plan Alto Rendimiento", "Fija reloj de CPU al máximo estable"),
+                        ("Limpieza de Working Set", "Compacta procesos inactivos en segundo plano"),
+                    ],
+                ),
+                TurboBoostMode::Economy => (
+                    "Configuración · Ahorro Energía",
+                    &[
+                        ("Sincronización en segundo plano", "Reduce despertares de CPU en batería"),
+                        ("Efectos de transparencia extra", "Disminuye carga de composición DWM"),
+                        ("Plan Economizador Inteligente", "Extiende autonomía sin frenar tareas activas"),
+                    ],
+                ),
+            };
+
+            widgets::slide_over_drawer(
+                ui.ctx(),
+                &mut open,
+                title,
+                "Perfil de rendimiento reversible",
+                RustCareTheme::ACCENT_CYAN,
+                400.0,
+                |ui| {
+                ui.label(
+                    RichText::new("Servicios y ajustes que este perfil optimiza de forma reversible:")
+                        .size(12.0)
+                        .color(RustCareTheme::TEXT_MUTED),
+                );
+                ui.add_space(10.0);
+
+                for (svc, desc) in services {
+                    RustCareTheme::card_frame().show(ui, |ui| {
+                        ui.set_width(ui.available_width());
+                        ui.label(RichText::new(*svc).size(13.0).strong().color(RustCareTheme::TEXT_PRIMARY));
+                        ui.label(RichText::new(*desc).size(11.5).color(RustCareTheme::TEXT_MUTED));
+                    });
+                    ui.add_space(6.0);
+                }
+
+                ui.add_space(12.0);
+                if widgets::neon_button(ui, "Activar este perfil ahora", Some(ui.available_width())).clicked() {
+                    self.selected_mode = mode;
+                    self.is_boost_active = true;
+                    self.boost_result = Some(backend.apply_turbo_boost(mode));
+                    self.config_drawer = None;
+                }
+            });
+
+            if !open {
+                self.config_drawer = None;
+            }
+        }
     }
 }

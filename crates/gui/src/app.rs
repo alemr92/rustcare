@@ -711,7 +711,7 @@ impl eframe::App for RustCareApp {
                         ctx.request_repaint_after(Duration::from_millis(1200));
                     }
                     NavSection::Monitor => {
-                        self.monitor_view.render(ui);
+                        self.monitor_view.render(ui, &self.backend, &mut self.toasts);
                         ctx.request_repaint_after(Duration::from_millis(1500));
                     }
                     NavSection::Settings => {
